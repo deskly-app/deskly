@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Deskly",
-  "version": "4.0.1",
+  "version": "5.0.0",
   "identifier": "com.deskly.app",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -39,9 +39,9 @@
 
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY1ODlCMjE1M0E1QTY4RkUKUldUK2FGbzZGYktKOVpjcDc0WHhXMENMS2srQ0YrdlJiZGF6ZjFaVHlnZWFWYW1rR0JEZ1Q4YVYK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI1NTFEODM4QUI5N0JBODEKUldTQnVwZXJPTmhSdFRmR3BVYms1QmJ1Z0JETk1yRzkyZ2tYaXRNT1JUUFhNTy8xNWpwMEhjLzUK",
       "endpoints": [
-        "https://github.com/Vishal-770/deskly-tauri/releases/latest/download/latest.json"
+        "https://github.com/deskly-app/deskly/releases/latest/download/latest.json"
       ],
       "windows": {
         "installMode": "passive"

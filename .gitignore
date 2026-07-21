@@ -23,13 +23,15 @@ dist-ssr
 *.sln
 *.sw?
 
-# Tauri signing keys
+# Tauri & Android signing keys
 .tauri/
 ~/.tauri/
 *.key
 *.key.pub
 *.private
 *.pub
+*.jks
+*.keystore
 src-tauri/tauri.conf.json.enc
 src-tauri/tauri.conf.json.sig
 
