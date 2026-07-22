@@ -74,7 +74,7 @@ export default function MobileHome() {
     }
   };
 
-  if (!initialized || loading || authState?.loggedIn) {
+  if (!initialized) {
     return (
       <main className="h-full w-full flex flex-col justify-center items-center bg-background text-foreground antialiased p-7">
         <div className="w-[72px] h-[72px] rounded-full bg-muted/30 flex items-center justify-center animate-pulse mb-12">

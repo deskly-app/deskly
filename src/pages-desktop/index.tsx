@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate, Link } from "@/router";
 import { useAuth } from "@/hooks/useAuth";
-import { User, LogIn, HelpCircle, Eye, EyeOff, Scale } from "lucide-react";
+import { User, LogIn, HelpCircle, Eye, EyeOff, Scale, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -84,7 +84,7 @@ export default function Home() {
     ease: [0.16, 1, 0.3, 1] as [number, number, number, number]
   };
 
-  if (!initialized || loading || authState?.loggedIn) {
+  if (!initialized) {
     return (
       <main className="h-full min-h-0 flex items-center justify-center bg-background text-foreground antialiased p-6">
         <div className="w-full max-w-[400px] flex flex-col gap-16 py-10 items-center sm:items-start">
@@ -212,9 +212,16 @@ export default function Home() {
                 disabled={loading || isOffline}
                 className="w-full h-12 flex justify-center items-center bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm"
               >
-                <span>{loading ? "Authenticating..." : "Sign In"}</span>
-                {!loading && (
-                  <LogIn className="w-4 h-4 ml-2.5 opacity-80" />
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <span>Signing In…</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Sign In</span>
+                    <LogIn className="w-4 h-4 ml-2.5 opacity-80" />
+                  </>
                 )}
               </button>
             </div>
