@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "@/router";
 import { useAuth } from "@/hooks/useAuth";
+import { save } from "@tauri-apps/plugin-dialog";
+import { writeFile } from "@tauri-apps/plugin-fs";
+import { sendNotification } from "@tauri-apps/plugin-notification";
 import {
   getCurriculumCategoryCourses,
   downloadCurriculumSyllabus,
@@ -9,7 +12,6 @@ import {
 
 import { ErrorDisplay } from "@/components/error-display";
 import { fetchWithTimeout } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
@@ -60,13 +62,12 @@ function CoursesDetailSkeleton() {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getCourseTypeStyle(type: string): string {
-  const clean = type.trim().toUpperCase();
-  if (clean.includes("THEORY") || clean === "TH") return "text-primary border-primary/20 bg-primary/5";
-  if (clean.includes("LAB") || clean === "LO" || clean === "LA") return "text-chart-2 border-chart-2/20 bg-chart-2/5";
-  if (clean.includes("ONLINE")) return "text-chart-1 border-chart-1/20 bg-chart-1/5";
-  if (clean.includes("SOFT SKILL") || clean === "SS") return "text-chart-4 border-chart-4/20 bg-chart-4/5";
-  return "text-muted-foreground border-border/50 bg-muted/20";
+function renderCourseTypeBadge(type: string) {
+  return (
+    <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-muted/60 text-muted-foreground border border-border/20">
+      {type}
+    </span>
+  );
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -94,11 +95,14 @@ export default function CategoryCoursesPage() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
-  // Downloading syllabus state
-  const [downloading, setDownloading] = useState<Record<string, boolean>>({});
+  // Downloading syllabus state ("picking" | "downloading" | null)
+  const [activeCourseState, setActiveCourseState] = useState<Record<string, "picking" | "downloading" | null>>({});
   const [downloadResult, setDownloadResult] = useState<Record<string, { success: boolean; message: string } | null>>({});
 
-  const isAnyDownloading = useMemo(() => Object.values(downloading).some(Boolean), [downloading]);
+  const isAnyBusy = useMemo(
+    () => Object.values(activeCourseState).some((state) => state === "picking" || state === "downloading"),
+    [activeCourseState]
+  );
 
   async function load() {
     if (!categoryId) return;
@@ -163,23 +167,43 @@ export default function CategoryCoursesPage() {
 
   // Handle downloading syllabus file
   async function handleDownloadSyllabus(courseCode: string) {
-    if (isAnyDownloading || downloading[courseCode]) return;
+    if (isAnyBusy || activeCourseState[courseCode]) return;
 
-    setDownloading((prev) => ({ ...prev, [courseCode]: true }));
+    const defaultFilename = `${courseCode}_Syllabus.pdf`;
+
+    // 1. Immediately enter "picking" state so UI disables and shows file dialog state
+    setActiveCourseState((prev) => ({ ...prev, [courseCode]: "picking" }));
     setDownloadResult((prev) => ({ ...prev, [courseCode]: null }));
+
+    let savePath: string | null = null;
+    try {
+      savePath = await save({
+        filters: [
+          {
+            name: "PDF File",
+            extensions: ["pdf"],
+          },
+        ],
+        defaultPath: defaultFilename,
+      });
+    } catch (dialogErr) {
+      console.warn("Save dialog cancelled or closed:", dialogErr);
+      savePath = null;
+    }
+
+    // If user cancelled save dialog, exit cleanly and restore idle state immediately
+    if (!savePath) {
+      setActiveCourseState((prev) => ({ ...prev, [courseCode]: null }));
+      return;
+    }
+
+    // 2. User selected save path -> enter "downloading" state & fetch from backend
+    setActiveCourseState((prev) => ({ ...prev, [courseCode]: "downloading" }));
 
     try {
       const res = await fetchWithTimeout(downloadCurriculumSyllabus(courseCode), 15000);
-      if (res.success && res.data) {
-        const savePath = res.data.savePath;
-        setDownloadResult((prev) => ({
-          ...prev,
-          [courseCode]: {
-            success: true,
-            message: `Syllabus saved to: ${savePath}`,
-          },
-        }));
-      } else {
+
+      if (!res.success || !res.data) {
         setDownloadResult((prev) => ({
           ...prev,
           [courseCode]: {
@@ -187,22 +211,44 @@ export default function CategoryCoursesPage() {
             message: res.error ?? "Failed to download syllabus.",
           },
         }));
+        return;
+      }
+
+      // 3. Write binary buffer to chosen savePath
+      const base64Data = res.data.contentBase64;
+      if (base64Data) {
+        const binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+        await writeFile(savePath, binaryData);
+      }
+
+      setDownloadResult((prev) => ({
+        ...prev,
+        [courseCode]: {
+          success: true,
+          message: "Saved!",
+        },
+      }));
+
+      // Native notification feedback
+      try {
+        sendNotification({
+          title: "Syllabus Saved",
+          body: `${courseCode} syllabus successfully saved!`,
+        });
+      } catch (err) {
+        console.error("Failed to trigger native notification", err);
       }
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      if (errMsg.toLowerCase().includes("cancel") || errMsg.toLowerCase().includes("dismiss")) {
-        setDownloadResult((prev) => ({ ...prev, [courseCode]: null }));
-      } else {
-        setDownloadResult((prev) => ({
-          ...prev,
-          [courseCode]: {
-            success: false,
-            message: errMsg,
-          },
-        }));
-      }
+      setDownloadResult((prev) => ({
+        ...prev,
+        [courseCode]: {
+          success: false,
+          message: errMsg,
+        },
+      }));
     } finally {
-      setDownloading((prev) => ({ ...prev, [courseCode]: false }));
+      setActiveCourseState((prev) => ({ ...prev, [courseCode]: null }));
     }
   }
 
@@ -225,37 +271,37 @@ export default function CategoryCoursesPage() {
   }
 
   return shell(
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-6 pb-8">
       {/* ── Header with Back Navigation & Course Count ──────────────────────── */}
       <header className="pb-4 border-b border-border/20 flex flex-col gap-3">
         <button
           onClick={() => navigate("/dashboard/curriculum")}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-fit font-medium cursor-pointer"
+          className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors w-fit cursor-pointer group"
         >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Back to Categories
+          <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
+          <span>Back to Categories</span>
         </button>
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
-          <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
-              <span className="text-xs font-semibold font-mono tracking-widest text-primary uppercase bg-primary/10 px-2 py-0.5 rounded-md leading-none">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+          <div className="min-w-0 space-y-1">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-semibold font-mono tracking-wider text-foreground uppercase bg-muted/60 border border-border/30 px-2.5 py-1 rounded-md leading-none">
                 {categoryId}
               </span>
-              Courses List
+              <span>Course Directory</span>
             </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-              Browse curriculum details and download course syllabus files
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Browse course curriculum details and download official syllabus documents
             </p>
           </div>
           {!isLoading && courses.length > 0 && (
-            <span className="text-xs text-muted-foreground/50 font-bold pb-0.5">
-              {filtered.length} of {courses.length} courses
+            <span className="text-xs font-medium text-muted-foreground bg-muted/40 border border-border/20 px-3 py-1 rounded-full shrink-0">
+              <strong className="text-foreground font-semibold">{filtered.length}</strong> of {courses.length} courses
             </span>
           )}
         </div>
       </header>
 
-      {/* ── Search Bar (Matches Contact Page) ───────────────────────────────── */}
+      {/* ── Search Bar ──────────────────────────────────────────────────────── */}
       <div className="relative">
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 pointer-events-none" />
         <input
@@ -263,92 +309,103 @@ export default function CategoryCoursesPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           disabled={isLoading}
-          placeholder="Search course title or code…"
-          className="w-full h-10 pl-10 pr-10 rounded-md border border-border/20 bg-muted/10 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/30 transition-all disabled:opacity-50"
+          placeholder="Search course title, code, or type…"
+          className="w-full h-10 pl-10 pr-10 rounded-lg border border-border/20 bg-muted/10 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/30 transition-all disabled:opacity-50 text-foreground"
         />
         {query && (
           <button
             onClick={() => setQuery("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors cursor-pointer"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors cursor-pointer p-0.5 rounded-md hover:bg-muted/20"
           >
             <X className="w-4 h-4" />
           </button>
         )}
       </div>
 
-      {/* ── Courses Directory ────────────────────────────────────────────────── */}
+      {/* ── Courses List Container ───────────────────────────────────────────── */}
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-          <BookOpen className="w-10 h-10 text-muted-foreground/20" />
-          <p className="text-sm font-bold text-foreground">No courses found</p>
-          <p className="text-xs text-muted-foreground">
-            Try a different search term or code
+        <div className="flex flex-col items-center justify-center py-16 px-4 gap-3 text-center rounded-xl border border-dashed border-border/40 bg-muted/5">
+          <div className="p-3 rounded-full bg-muted/20 text-muted-foreground/40">
+            <BookOpen className="w-8 h-8" />
+          </div>
+          <p className="text-sm font-semibold text-foreground">No courses matching "{query}"</p>
+          <p className="text-xs text-muted-foreground max-w-xs">
+            Try refining your search terms or clearing the filter.
           </p>
+          <button
+            onClick={() => setQuery("")}
+            className="mt-1 text-xs font-medium text-primary hover:underline cursor-pointer"
+          >
+            Clear Search
+          </button>
         </div>
       ) : (
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-2 min-w-0">
           {/* Table Header on Desktop */}
-          <div className="hidden md:flex items-center justify-between px-3 pb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/10">
-            <div>Course Information</div>
-            <div className="flex items-center gap-6">
-              <span className="w-32 text-left">Credits & Type</span>
-              <span className="w-28 text-right">Actions</span>
+          <div className="hidden lg:flex items-center justify-between px-4 py-2.5 text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider border-b border-border/15">
+            <div className="flex-1 min-w-0">Course Information</div>
+            <div className="flex items-center gap-8 shrink-0">
+              <span className="w-36 text-left">Type</span>
+              <span className="w-20 text-center">Credits</span>
+              <span className="w-32 text-right">Actions</span>
             </div>
           </div>
 
-          {/* List Rows - Flat Design like Contact Page */}
-          <div className="divide-y divide-border/5">
+          {/* Course Items List */}
+          <div className="divide-y divide-border/10 border-t lg:border-t-0 border-border/10">
             {filtered.map((course) => {
-              const isDownloading = downloading[course.code];
+              const courseState = activeCourseState[course.code];
               const result = downloadResult[course.code];
 
               return (
                 <div
                   key={course.code}
-                  className="group py-4 px-3 -mx-3 rounded-md flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-muted/10 transition-colors duration-150"
+                  className="group py-3.5 px-3 rounded-lg flex flex-col lg:flex-row lg:items-center justify-between gap-3 lg:gap-4 hover:bg-muted/10 transition-colors duration-150 min-w-0"
                 >
-                  {/* Left section: Code + Title */}
-                  <div className="flex-1 min-w-0 pr-4">
+                  {/* Left Section: Code + Title */}
+                  <div className="flex-1 min-w-0 pr-2 space-y-1.5">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-semibold font-mono tracking-widest text-primary uppercase bg-primary/10 px-2 py-0.5 rounded-md leading-none">
+                      <span className="text-xs font-semibold font-mono tracking-wider text-muted-foreground bg-muted/60 border border-border/30 px-2 py-0.5 rounded-md leading-none shrink-0">
                         {course.code}
                       </span>
                     </div>
-                    <h3 className="text-base font-semibold text-foreground mt-2 leading-snug">
+                    <h3 className="text-sm sm:text-base font-semibold text-foreground leading-snug break-words">
                       {course.title}
                     </h3>
                   </div>
 
-                  {/* Right section: Credits/Type and Button */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between md:justify-end gap-4 md:gap-6 shrink-0">
-                    {/* Type and Credits */}
-                    <div className="flex items-center gap-2 md:w-32 truncate">
-                      <Badge
-                        variant="outline"
-                        className={`text-xs font-medium rounded-md border inline-flex items-center justify-center ${getCourseTypeStyle(
-                          course.courseType
-                        )}`}
-                      >
-                        {course.courseType}
-                      </Badge>
-                      <span className="text-sm font-mono text-muted-foreground">
-                        {course.credits} Credits
+                  {/* Right Section: Type, Credits & Action Button */}
+                  <div className="flex flex-wrap items-center justify-between lg:justify-end gap-3 lg:gap-8 shrink-0 min-w-0 pt-2 lg:pt-0 border-t border-border/10 lg:border-t-0">
+                    {/* Course Type */}
+                    <div className="flex items-center justify-start lg:w-36 min-w-0 shrink-0">
+                      {renderCourseTypeBadge(course.courseType)}
+                    </div>
+
+                    {/* Credits */}
+                    <div className="flex items-center justify-start lg:justify-center lg:w-20 shrink-0">
+                      <span className="inline-flex items-center gap-1 text-xs font-medium font-mono text-foreground bg-muted/40 border border-border/30 px-2.5 py-1 rounded-full shrink-0">
+                        <span className="font-bold text-foreground">{course.credits}</span> Cr
                       </span>
                     </div>
 
                     {/* Action Button */}
-                    <div className="flex items-center gap-2 md:w-32 justify-end">
+                    <div className="flex items-center justify-end lg:w-32 shrink-0 ml-auto lg:ml-0">
                       <Button
                         variant={result?.success ? "outline" : result && !result.success ? "destructive" : "default"}
                         size="sm"
-                        disabled={isAnyDownloading}
+                        disabled={isAnyBusy}
                         onClick={() => handleDownloadSyllabus(course.code)}
                         className="w-[115px] h-8.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-all duration-200"
                       >
-                        {isDownloading ? (
+                        {courseState === "picking" ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0 text-muted-foreground" />
+                            <span>Choosing…</span>
+                          </>
+                        ) : courseState === "downloading" ? (
                           <>
                             <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
-                            <span>Saving...</span>
+                            <span>Saving…</span>
                           </>
                         ) : result?.success ? (
                           <>
