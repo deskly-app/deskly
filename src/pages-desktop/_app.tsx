@@ -13,6 +13,10 @@ export default function App() {
   useEffect(() => {
     // Check for updates silently on startup
     checkForUpdates(true);
+    const splash = document.getElementById("mobile-boot-splash");
+    if (splash) {
+      splash.style.display = "none";
+    }
   }, []);
 
   return (
