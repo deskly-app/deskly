@@ -9,9 +9,72 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Saira:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     <title>Deskly</title>
+    <script>
+      (function() {
+        try {
+          if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+            document.documentElement.classList.add('mobile-ui');
+          }
+          var storageKey = 'vite-ui-theme';
+          var savedTheme = localStorage.getItem(storageKey) || 'dark';
+          var theme = savedTheme;
+          if (theme === 'system') {
+            theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          document.documentElement.classList.remove('light', 'dark');
+          document.documentElement.classList.add(theme);
+        } catch (e) {}
+      })();
+    </script>
+    <style>
+      html.mobile-ui {
+        --background: oklch(0.90 0 0);
+      }
+      html.mobile-ui.dark {
+        --background: oklch(0.205 0 0);
+      }
+      #mobile-boot-splash {
+        display: none;
+      }
+      html.mobile-ui #mobile-boot-splash {
+        display: flex;
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--background);
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        opacity: 1;
+        transition: opacity 300ms ease-out;
+      }
+      .mobile-boot-logo {
+        width: 72px;
+        height: 72px;
+        object-fit: contain;
+        animation: boot-pulse 2.4s ease-in-out infinite;
+      }
+      @keyframes boot-pulse {
+        0%, 100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+      #mobile-boot-splash.fade-out {
+        opacity: 0;
+        pointer-events: none;
+      }
+    </style>
   </head>
 
   <body>
+    <div id="mobile-boot-splash">
+      <img src="/logo.png" alt="Deskly Logo" class="mobile-boot-logo" />
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

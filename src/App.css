@@ -335,4 +335,29 @@
   .app-content-wrapper > div.h-screen {
     height: 100% !important;
   }
+
+  /* Mobile Cold Boot Splash Animation overlay */
+  #mobile-boot-splash {
+    display: none;
+  }
+
+  .mobile-ui #mobile-boot-splash {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--background);
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    opacity: 1;
+    transition: opacity 300ms ease-out;
+  }
+
+  #mobile-boot-splash.fade-out {
+    opacity: 0;
+    pointer-events: none;
+  }
 }
