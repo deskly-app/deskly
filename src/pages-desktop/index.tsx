@@ -84,23 +84,9 @@ export default function Home() {
     ease: [0.16, 1, 0.3, 1] as [number, number, number, number]
   };
 
-  if (!initialized) {
+  if (!initialized || authState?.loggedIn) {
     return (
-      <main className="h-full min-h-0 flex items-center justify-center bg-background text-foreground antialiased p-6">
-        <div className="w-full max-w-[400px] flex flex-col gap-16 py-10 items-center sm:items-start">
-          <div className="w-12 h-12 bg-muted/30 rounded-md animate-pulse" />
-          <div className="w-full space-y-8">
-            <div className="space-y-3">
-              <div className="h-8 bg-muted/30 rounded animate-pulse w-1/2" />
-              <div className="h-4 bg-muted/20 rounded animate-pulse w-3/4" />
-            </div>
-            <div className="space-y-6 pt-4">
-              <div className="h-12 bg-muted/20 rounded-md animate-pulse" />
-              <div className="h-12 bg-muted/20 rounded-md animate-pulse" />
-            </div>
-          </div>
-        </div>
-      </main>
+      <main className="h-full min-h-0 flex items-center justify-center bg-background text-foreground antialiased" />
     );
   }
 
