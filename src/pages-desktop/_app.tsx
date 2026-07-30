@@ -15,7 +15,7 @@ export default function App() {
     checkForUpdates(true);
     const splash = document.getElementById("mobile-boot-splash");
     if (splash) {
-      splash.style.display = "none";
+      splash.remove();
     }
   }, []);
 
@@ -26,7 +26,7 @@ export default function App() {
       <div className="pt-8 h-screen w-full flex flex-col items-stretch overflow-hidden bg-background text-foreground">
         <ErrorBoundary>
           <div className="app-content-wrapper flex-1 min-h-0 w-full relative">
-            {isOnline ? <Outlet /> : null}
+            <Outlet />
           </div>
         </ErrorBoundary>
       </div>

@@ -7,11 +7,13 @@ export default function MobileApp() {
   useEffect(() => {
     const splash = document.getElementById("mobile-boot-splash");
     if (splash) {
-      splash.classList.add("fade-out");
-      const timer = setTimeout(() => {
-        splash.style.display = "none";
-      }, 300);
-      return () => clearTimeout(timer);
+      requestAnimationFrame(() => {
+        splash.classList.add("fade-out");
+        const timer = setTimeout(() => {
+          splash.remove();
+        }, 200);
+        return () => clearTimeout(timer);
+      });
     }
   }, []);
 
