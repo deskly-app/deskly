@@ -6,15 +6,22 @@ import { ErrorBoundary } from "@/components/error-boundary";
 export default function MobileApp() {
   useEffect(() => {
     const splash = document.getElementById("mobile-boot-splash");
-    if (splash) {
-      requestAnimationFrame(() => {
-        splash.classList.add("fade-out");
-        const timer = setTimeout(() => {
-          splash.remove();
-        }, 200);
-        return () => clearTimeout(timer);
-      });
-    }
+    if (!splash) return;
+
+    // Enforce consistent minimum 2000ms (2s) boot loader display on cold start
+    const minDuration = 2000;
+    const bootStart = (window as unknown as { __BOOT_START__?: number }).__BOOT_START__ || Date.now();
+    const elapsed = Date.now() - bootStart;
+    const remaining = Math.max(0, minDuration - elapsed);
+
+    const fadeTimer = setTimeout(() => {
+      splash.classList.add("fade-out");
+      setTimeout(() => {
+        splash.remove();
+      }, 300);
+    }, remaining);
+
+    return () => clearTimeout(fadeTimer);
   }, []);
 
   return (

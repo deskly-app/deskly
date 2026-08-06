@@ -55,24 +55,33 @@ function formatCourseType(type: string) {
 
 function StatCircularProgress({
   percentage,
-  size = 60,
+  size = 56,
+  strokeWidth = 5,
   icon: Icon,
 }: {
   percentage: number;
   size?: number;
+  strokeWidth?: number;
   icon: React.ElementType;
 }) {
-  const radius = (size - 6) / 2;
+  const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (Math.min(percentage, 100) / 100) * circumference;
 
   return (
-    <div className="relative flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
-        <circle className="text-muted/15 stroke-current" strokeWidth="4.5" fill="transparent" r={radius} cx={size / 2} cy={size / 2} />
+    <div className="relative flex items-center justify-center shrink-0 select-none" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90 block">
         <circle
-          className="stroke-primary transition-all duration-500"
-          strokeWidth="4.5"
+          className="text-muted/20 stroke-current"
+          strokeWidth={strokeWidth}
+          fill="transparent"
+          r={radius}
+          cx={size / 2}
+          cy={size / 2}
+        />
+        <circle
+          className={`${getCircleStrokeColor(percentage)} transition-all duration-700 ease-out`}
+          strokeWidth={strokeWidth}
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           strokeLinecap="round"
@@ -82,7 +91,7 @@ function StatCircularProgress({
           cy={size / 2}
         />
       </svg>
-      <div className="absolute text-primary">
+      <div className="absolute inset-0 flex items-center justify-center text-primary pointer-events-none">
         <Icon className="w-5 h-5" />
       </div>
     </div>
@@ -482,42 +491,53 @@ export default function AttendancePage() {
       )}
 
       {/* Header */}
-      <header className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <UserCheck className="w-6 h-6 text-primary shrink-0" />
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground leading-none truncate">
-            My Attendance
-          </h1>
-        </div>
+      <header className="flex items-center gap-2">
+        <UserCheck className="w-6 h-6 text-primary shrink-0" />
+        <h1 className="text-2xl font-medium tracking-tight text-foreground leading-none">
+          My Attendance
+        </h1>
       </header>
 
       {/* Stats Card */}
-      <div className="p-5 bg-card/80 border border-border/40 rounded-xl shadow-sm backdrop-blur-md flex items-center">
-        <div className="flex-1 flex items-center gap-4 min-w-0">
-          <StatCircularProgress percentage={stats.overallPercentage} icon={TrendingUp} size={56} />
-          <div className="min-w-0 space-y-0.5">
-            <p className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none">
-              Average
-            </p>
-            <p className="text-2xl font-black text-foreground leading-none py-1">
-              {stats.overallPercentage}%
-            </p>
+      <div className="p-4 sm:p-5 bg-card/80 border border-border/40 rounded-xl shadow-sm backdrop-blur-md grid grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-5">
+        
+        {/* Left Stat - Attendance % */}
+        <div className="flex items-center justify-center gap-3 min-w-0">
+          <StatCircularProgress percentage={stats.overallPercentage} icon={TrendingUp} size={56} strokeWidth={5} />
+          <div className="flex flex-col items-center justify-center text-center min-w-0 flex-1">
+            <div className="flex items-baseline justify-center gap-0.5 min-w-0">
+              <span className="text-2xl sm:text-3xl font-black tracking-tight text-foreground tabular-nums leading-none">
+                {stats.overallPercentage}
+              </span>
+              <span className="text-base sm:text-lg font-bold text-foreground leading-none">%</span>
+            </div>
+            <span className="text-[11px] sm:text-xs font-medium text-muted-foreground/75 mt-1.5 whitespace-nowrap">
+              Attendance
+            </span>
           </div>
         </div>
 
-        <Separator orientation="vertical" className="h-10 mx-3 bg-border/20 shrink-0" />
+        {/* Vertical Separator Line */}
+        <Separator orientation="vertical" className="h-12 sm:h-14 bg-border/20 shrink-0 self-center mx-1" />
 
-        <div className="flex-1 flex items-center gap-4 min-w-0">
-          <StatCircularProgress percentage={Math.round((stats.totalAttended / (stats.totalClasses || 1)) * 100)} icon={CalendarDays} size={56} />
-          <div className="min-w-0 space-y-0.5 shrink-0">
-            <p className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none">
-              Attended
-            </p>
-            <p className="text-lg font-black text-foreground leading-none py-1 tabular-nums whitespace-nowrap">
-              {stats.totalAttended} / {stats.totalClasses}
-            </p>
+        {/* Right Stat - Classes Attended */}
+        <div className="flex items-center justify-center gap-3 min-w-0">
+          <StatCircularProgress percentage={Math.round((stats.totalAttended / (stats.totalClasses || 1)) * 100)} icon={CalendarDays} size={56} strokeWidth={5} />
+          <div className="flex flex-col items-center justify-center text-center min-w-0 flex-1">
+            <div className="flex items-baseline justify-center gap-1 min-w-0">
+              <span className="text-2xl sm:text-3xl font-black tracking-tight text-foreground tabular-nums leading-none">
+                {stats.totalAttended}
+              </span>
+              <span className="text-xs sm:text-sm font-semibold text-muted-foreground/60 tabular-nums leading-none">
+                / {stats.totalClasses}
+              </span>
+            </div>
+            <span className="text-[11px] sm:text-xs font-medium text-muted-foreground/75 mt-1.5 whitespace-nowrap">
+              Classes Attended
+            </span>
           </div>
         </div>
+
       </div>
 
       {/* Course List Section */}

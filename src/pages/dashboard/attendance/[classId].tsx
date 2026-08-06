@@ -128,6 +128,7 @@ export default function AttendanceDetailPage() {
     return [];
   });
   const [loading, setLoading] = useState(details.length === 0);
+  const [isRetrying, setIsRetrying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -147,10 +148,17 @@ export default function AttendanceDetailPage() {
     }
   }, [classId, record]);
 
-  async function load() {
+  async function load(isManualRetry = false) {
     if (!classId || !record) return;
+    if (isManualRetry && !isOnline) return;
+
     const hasCache = details.length > 0;
-    setLoading(!hasCache);
+    if (isManualRetry) {
+      setIsRetrying(true);
+    } else {
+      setLoading(!hasCache);
+    }
+
     try {
       const cacheKey = `deskly::cache::attendance_detail_${classId}`;
       const res = await fetchWithTimeout(getAttendanceDetail(classId!, record!.slot), 15000);
@@ -164,6 +172,7 @@ export default function AttendanceDetailPage() {
       if (!hasCache) setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
+      setIsRetrying(false);
     }
   }
 
@@ -290,10 +299,11 @@ export default function AttendanceDetailPage() {
               <p className="text-sm font-bold text-foreground leading-none">Session logs unavailable offline</p>
               <p className="text-xs text-muted-foreground">Connect to the internet to load detailed session logs for this class.</p>
               <button
-                onClick={load}
-                className="mt-1 px-4 py-2 rounded-lg bg-primary/10 hover:bg-primary/15 text-primary text-xs font-bold transition-all border border-primary/20 cursor-pointer font-saira"
+                onClick={() => load(true)}
+                disabled={isRetrying || loading || !isOnline}
+                className="mt-1 min-w-[144px] h-9 px-4 py-2 rounded-lg bg-primary/10 hover:bg-primary/15 text-primary text-xs font-bold transition-all border border-primary/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed font-saira inline-flex items-center justify-center text-center shrink-0"
               >
-                Retry Connection
+                {isRetrying ? "Connecting..." : !isOnline ? "Offline" : "Retry Connection"}
               </button>
             </div>
           ) : (
