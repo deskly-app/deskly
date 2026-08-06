@@ -52,15 +52,19 @@ interface ExamScheduleResponse {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function parseDateStr(str: string): Date {
+function parseDateStr(str: string): Date | null {
+  if (!str) return null;
   const cleanStr = str.trim();
+  if (!cleanStr || cleanStr === "-" || cleanStr.toLowerCase() === "tba") return null;
+  
   const parts = cleanStr.split(/[-/]/);
-  if (parts.length < 3) return new Date();
+  if (parts.length < 3) return null;
   
   const day = parseInt(parts[0], 10);
   const monthPart = parts[1].trim();
   const year = parseInt(parts[2], 10);
-  
+  if (isNaN(day) || isNaN(year)) return null;
+
   const months: Record<string, number> = {
     jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
     jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
@@ -69,9 +73,11 @@ function parseDateStr(str: string): Date {
   let month = 0;
   if (isNaN(Number(monthPart))) {
     const monthStr = monthPart.toLowerCase();
-    month = months[monthStr.substring(0, 3)] ?? 0;
+    month = months[monthStr.substring(0, 3)] ?? -1;
+    if (month === -1) return null;
   } else {
     month = parseInt(monthPart, 10) - 1; // 1-indexed to 0-indexed
+    if (isNaN(month) || month < 0 || month > 11) return null;
   }
   
   return new Date(year, month, day);
@@ -213,7 +219,12 @@ export default function ExamSchedulePage() {
     const group = groups.find((g) => g.examType === selectedTab);
     if (!group) return [];
     return [...group.schedules].sort((a, b) => {
-      return parseDateStr(a.examDate).getTime() - parseDateStr(b.examDate).getTime();
+      const da = parseDateStr(a.examDate);
+      const db = parseDateStr(b.examDate);
+      if (da && db) return da.getTime() - db.getTime();
+      if (da) return -1;
+      if (db) return 1;
+      return a.serialNo - b.serialNo;
     });
   }, [groups, selectedTab]);
 
@@ -226,9 +237,11 @@ export default function ExamSchedulePage() {
         const nextExam = activeSchedules[idx + 1];
         const examDate = parseDateStr(exam.examDate);
         const nextDate = parseDateStr(nextExam.examDate);
-        const dayDiff = getCalendarDayDifference(examDate, nextDate);
-        if (dayDiff > 1) {
-          items.push({ type: "gap", days: dayDiff - 1 });
+        if (examDate && nextDate) {
+          const dayDiff = getCalendarDayDifference(examDate, nextDate);
+          if (dayDiff > 1) {
+            items.push({ type: "gap", days: dayDiff - 1 });
+          }
         }
       }
     });
@@ -242,9 +255,17 @@ export default function ExamSchedulePage() {
       const count = g.schedules.length;
       
       if (count === 0) return { id: g.examType, label, count, range: "" };
-      const parsedDates = g.schedules.map(s => parseDateStr(s.examDate).getTime());
-      const minDate = new Date(Math.min(...parsedDates));
-      const maxDate = new Date(Math.max(...parsedDates));
+      
+      const validDates = g.schedules
+        .map(s => parseDateStr(s.examDate))
+        .filter((d): d is Date => d !== null);
+
+      if (validDates.length === 0) {
+        return { id: g.examType, label, count, range: "Schedule Pending" };
+      }
+
+      const minDate = new Date(Math.min(...validDates.map(d => d.getTime())));
+      const maxDate = new Date(Math.max(...validDates.map(d => d.getTime())));
       
       const formatShort = (d: Date) => {
         const day = d.getDate();
@@ -403,8 +424,15 @@ export default function ExamSchedulePage() {
 
               const exam = item.data;
               const examDate = parseDateStr(exam.examDate);
-              const dayNum = examDate.getDate();
-              const weekDayStr = examDate.toLocaleString("en-US", { weekday: "short" }).toUpperCase();
+              const isScheduled = examDate !== null;
+              
+              const dayNum = isScheduled ? examDate.getDate() : "TBA";
+              const weekDayStr = isScheduled ? examDate.toLocaleString("en-US", { weekday: "short" }).toUpperCase() : "";
+
+              const displayReporting = exam.reportingTime && exam.reportingTime !== "-" ? exam.reportingTime : "30 mins before schedule";
+              const displayExamTime = exam.examTime && exam.examTime !== "-" ? exam.examTime.split("-")[0].trim() : "Schedule Pending";
+              const displayVenue = exam.venue && exam.venue !== "-" ? exam.venue : "Venue TBA";
+              const displaySeatNo = exam.seatNo && exam.seatNo !== "-" ? `Seat ${exam.seatNo}` : "Seat TBA";
 
               return (
                 <div
@@ -415,8 +443,8 @@ export default function ExamSchedulePage() {
                   {/* Date bubble */}
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-11 h-11 rounded-md flex flex-col items-center justify-center shrink-0 border border-border/10 bg-muted/20 text-muted-foreground">
-                      <span className="text-base font-bold leading-none">{dayNum}</span>
-                      <span className="text-xs font-bold uppercase leading-none mt-1">{weekDayStr}</span>
+                      <span className="text-xs font-bold leading-none">{dayNum}</span>
+                      {isScheduled && <span className="text-[10px] font-bold uppercase leading-none mt-1">{weekDayStr}</span>}
                     </div>
 
                     <div className="min-w-0 space-y-1">
@@ -424,19 +452,26 @@ export default function ExamSchedulePage() {
                         <span className="text-xs font-black tracking-wider text-primary uppercase leading-none">
                           {exam.courseCode}
                         </span>
-                        <span className="text-xs font-bold text-muted-foreground/75 bg-muted/40 px-1.5 py-0.5 rounded leading-none">
-                          Slot: {exam.slot}
-                        </span>
+                        {exam.slot && (
+                          <span className="text-xs font-bold text-muted-foreground/75 bg-muted/40 px-1.5 py-0.5 rounded leading-none">
+                            Slot: {exam.slot}
+                          </span>
+                        )}
+                        {!isScheduled && (
+                          <span className="text-[10px] font-semibold text-amber-500/90 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full leading-none">
+                            Schedule Pending
+                          </span>
+                        )}
                       </div>
                       <h4 className="text-sm font-bold text-foreground truncate leading-snug">
                         {exam.courseTitle}
                       </h4>
                       <p className="text-xs text-muted-foreground/60 leading-none flex items-center gap-1 pt-0.5">
-                        <Clock className="w-3.5 h-3.5 text-muted-foreground/50" />
-                        <span>{exam.examTime.split("-")[0].trim()}</span>
+                        <Clock className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+                        <span className="truncate">{displayExamTime} ({displayReporting})</span>
                         <span className="mx-1">•</span>
-                        <MapPin className="w-3.5 h-3.5 text-muted-foreground/50" />
-                        <span className="truncate">{exam.venue}</span>
+                        <MapPin className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+                        <span className="truncate">{displayVenue}</span>
                       </p>
                     </div>
                   </div>
@@ -444,7 +479,7 @@ export default function ExamSchedulePage() {
                   {/* Seat & Icon */}
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs font-bold px-2 py-1 rounded-md border border-border/10 bg-muted/10 text-foreground/80 leading-none">
-                      Seat {exam.seatNo}
+                      {displaySeatNo}
                     </span>
                     <ChevronRight className="w-4 h-4 text-muted-foreground/45" />
                   </div>
