@@ -456,7 +456,7 @@ export default function ExamSchedulePage() {
           <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">My Exams</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Your exam schedule at a glance</p>
         </div>
-        {activeSchedules.length > 0 && (
+        {activeSchedules.some((s) => parseDateStr(s.examDate) !== null) && (
           <Button
             variant="outline"
             onClick={handleDownloadGroupIcs}
@@ -674,13 +674,10 @@ export default function ExamSchedulePage() {
                     
                     // Formatted Date Bubbles
                     const dayNum = isScheduled ? examDate.getDate() : "TBA";
-                    const monthStr = isScheduled ? examDate.toLocaleString("en-US", { month: "short" }).toUpperCase() : "";
                     const weekDayStr = isScheduled ? examDate.toLocaleString("en-US", { weekday: "short" }).toUpperCase() : "";
 
-                    // Values fallback
-                    const displayReporting = item.reportingTime && item.reportingTime !== "-" ? item.reportingTime : "30 mins before schedule";
-                    const displayExamTime = item.examTime && item.examTime !== "-" ? item.examTime : "Schedule Pending";
-                    const displayVenue = item.venue && item.venue !== "-" ? item.venue : "Venue TBA";
+                    const displayExamTime = item.examTime && item.examTime !== "-" ? item.examTime.split("-")[0].trim() : "TBA";
+                    const displayVenue = item.venue && item.venue !== "-" ? item.venue : "TBA";
                     const displaySeatNo = item.seatNo && item.seatNo !== "-" ? `Seat ${item.seatNo}` : "Seat TBA";
 
                     // Calculate gap indicators between this exam and the next
@@ -709,82 +706,56 @@ export default function ExamSchedulePage() {
 
                     return (
                       <div key={`${item.courseCode}-${idx}`} className="space-y-1">
-                        <div className="relative flex flex-col md:flex-row md:items-center gap-4 md:gap-6 py-5 px-3 md:px-4 rounded-md border border-transparent hover:bg-muted/20 transition-all duration-200">
-                          
-                          {/* Date Bubble Column */}
-                          <div className="w-[80px] shrink-0 flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-1.5">
-                            {isScheduled ? (
-                              <>
-                                <span className="text-3xl font-black text-foreground leading-none tracking-tighter">{dayNum}</span>
-                                <span className="text-xs font-bold text-muted-foreground leading-none uppercase">{monthStr}</span>
-                                <div className="flex items-center gap-1 md:flex-col md:items-end">
-                                  <span className="text-xs font-extrabold text-muted-foreground/70 leading-none uppercase">{weekDayStr}</span>
-                                  <span className="text-xs font-black text-muted-foreground/50 leading-none">{examDate.getFullYear()}</span>
-                                </div>
-                              </>
-                            ) : (
-                              <span className="text-xs font-bold text-muted-foreground/70 bg-muted/40 border border-border/20 px-2.5 py-1 rounded-full leading-none">
-                                TBA
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Timeline dot node (Double Ring) */}
-                          <div className="relative hidden md:flex flex-col items-center justify-center self-stretch shrink-0 w-6">
-                            <div className="w-4 h-4 rounded-full border border-primary/20 bg-background z-10 flex items-center justify-center">
-                              <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                        <div className="p-3.5 bg-background/50 backdrop-blur-xl border border-border/20 rounded-xl shadow-sm flex items-center justify-between gap-4 hover:bg-muted/15 transition-all duration-150">
+                          {/* Left Column: Date bubble & Info */}
+                          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                            <div className="w-11 h-11 rounded-lg flex flex-col items-center justify-center shrink-0 border border-border/20 bg-muted/20 text-foreground/80">
+                              {isScheduled ? (
+                                <>
+                                  <span className="text-sm font-extrabold leading-none">{dayNum}</span>
+                                  <span className="text-[10px] font-bold uppercase leading-none mt-0.5 tracking-wider">{weekDayStr}</span>
+                                </>
+                              ) : (
+                                <span className="text-xs font-bold text-muted-foreground/70">TBA</span>
+                              )}
                             </div>
-                          </div>
 
-                          {/* Exam details content */}
-                          <div className="flex-1 min-w-0 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                            <div className="space-y-2 flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-sm font-extrabold tracking-wider text-primary uppercase">
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-xs font-black tracking-widest text-primary uppercase leading-none">
                                   {item.courseCode}
                                 </span>
-                                <span className="text-xs font-bold px-2 py-0.5 rounded-md leading-none bg-primary/10 text-primary">
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none bg-primary/10 text-primary">
                                   {item.courseType}
                                 </span>
                                 {item.slot && (
-                                  <span className="font-mono text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-semibold leading-none">
-                                    Slot: {item.slot}
-                                  </span>
-                                )}
-                                {!isScheduled && (
-                                  <span className="text-[11px] font-semibold text-amber-500/90 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full leading-none">
-                                    Schedule Not Announced
+                                  <span className="font-mono text-[10px] font-semibold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded leading-none">
+                                    {item.slot}
                                   </span>
                                 )}
                               </div>
-                              <p className="text-base font-extrabold text-foreground leading-snug truncate">
+                              <h4 className="text-sm font-bold text-foreground truncate leading-snug">
                                 {item.courseTitle}
-                              </p>
-                              
-                              <div className="flex items-center gap-4 text-xs text-muted-foreground font-semibold flex-wrap pt-0.5">
-                                <span className="flex items-center gap-1.5">
-                                  <Clock className="w-3.5 h-3.5 shrink-0 text-muted-foreground/60" />
-                                  <span>{displayExamTime} (Reporting: {displayReporting})</span>
+                              </h4>
+                              <div className="flex items-center gap-4 text-xs text-muted-foreground/80 font-medium pt-0.5 truncate">
+                                <span className="flex items-center gap-1 shrink-0">
+                                  <Clock className="w-3.5 h-3.5 text-primary/70 shrink-0" />
+                                  <span>{displayExamTime}</span>
                                 </span>
-                                <span className="flex items-center gap-1.5">
-                                  <MapPin className="w-3.5 h-3.5 shrink-0 text-muted-foreground/60" />
-                                  <span>{displayVenue}</span>
+                                <span className="flex items-center gap-1 truncate">
+                                  <MapPin className="w-3.5 h-3.5 text-primary/70 shrink-0" />
+                                  <span className="truncate">{displayVenue}</span>
                                 </span>
                               </div>
                             </div>
+                          </div>
 
-                            {/* Seat & Export details */}
-                            <div className="shrink-0 flex items-center gap-3">
-                              {isScheduled && <SingleExamExportModal entry={item} />}
-                              <div className="flex flex-col items-end md:items-end justify-center bg-muted/20 border border-border/10 rounded-md px-4 py-2 min-w-[100px]">
-                                <span className="text-sm font-bold text-foreground leading-none">{displaySeatNo}</span>
-                                {item.seatLocation && item.seatLocation !== "-" && (
-                                  <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider mt-1.5">
-                                    {item.seatLocation}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
+                          {/* Right Column: Seat & Export details */}
+                          <div className="shrink-0 flex items-center gap-3">
+                            {isScheduled && <SingleExamExportModal entry={item} />}
+                            <span className="text-xs font-semibold text-muted-foreground/80 leading-none">
+                              {displaySeatNo}
+                            </span>
                           </div>
                         </div>
 

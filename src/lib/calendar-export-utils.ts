@@ -256,14 +256,18 @@ export interface ExamScheduleEntry {
   seatNo: string;
 }
 
-export function parseDateStr(str: string): Date {
+export function parseDateStr(str: string): Date | null {
+  if (!str) return null;
   const cleanStr = str.trim();
+  if (!cleanStr || cleanStr === "-" || cleanStr.toLowerCase() === "tba") return null;
+  
   const parts = cleanStr.split(/[-/]/);
-  if (parts.length < 3) return new Date();
+  if (parts.length < 3) return null;
   
   const day = parseInt(parts[0], 10);
   const monthPart = parts[1].trim();
   const year = parseInt(parts[2], 10);
+  if (isNaN(day) || isNaN(year)) return null;
   
   const months: Record<string, number> = {
     jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
@@ -273,9 +277,11 @@ export function parseDateStr(str: string): Date {
   let month = 0;
   if (isNaN(Number(monthPart))) {
     const monthStr = monthPart.toLowerCase();
-    month = months[monthStr.substring(0, 3)] ?? 0;
+    month = months[monthStr.substring(0, 3)] ?? -1;
+    if (month === -1) return null;
   } else {
     month = parseInt(monthPart, 10) - 1; // 1-indexed to 0-indexed
+    if (isNaN(month) || month < 0 || month > 11) return null;
   }
   
   return new Date(year, month, day);
@@ -340,6 +346,7 @@ export function generateExamGroupIcs(exams: ExamScheduleEntry[]): string {
 
   exams.forEach((item) => {
     const examDate = parseDateStr(item.examDate);
+    if (!examDate) return;
     const start = parseExamTime(examDate, item.examTime);
     const end = parseExamEndTime(examDate, item.examTime);
 
@@ -364,6 +371,7 @@ export function generateExamGroupIcs(exams: ExamScheduleEntry[]): string {
 
 export function getExamGoogleCalendarLink(item: ExamScheduleEntry): string {
   const examDate = parseDateStr(item.examDate);
+  if (!examDate) return "#";
   const start = parseExamTime(examDate, item.examTime);
   const end = parseExamEndTime(examDate, item.examTime);
 

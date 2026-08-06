@@ -158,6 +158,7 @@ export default function HodDeanDetailsPage() {
   }, []);
 
   async function fetchDetails() {
+    setError(null);
     try {
       setLoading(details && details.length > 0 ? false : true);
       const res = await getHodDeanDetails();
