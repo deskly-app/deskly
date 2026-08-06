@@ -437,31 +437,31 @@ export default function ExamSchedulePage() {
                 <div
                   key={`${exam.courseCode}-${idx}`}
                   onClick={() => setSelectedExam(exam)}
-                  className="p-4 bg-card/80 border border-border/40 rounded-xl shadow-sm flex items-center justify-between gap-4 backdrop-blur-md cursor-pointer hover:bg-muted/5 active:opacity-75 transition-all"
+                  className="p-4 bg-card/80 border border-border/40 rounded-xl shadow-sm flex items-center justify-between gap-3 backdrop-blur-md cursor-pointer hover:bg-muted/5 active:opacity-75 transition-all"
                 >
-                  {/* Date bubble */}
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-11 h-11 rounded-md flex flex-col items-center justify-center shrink-0 border border-border/10 bg-muted/20 text-muted-foreground">
-                      <span className="text-xs font-bold leading-none">{dayNum}</span>
+                  {/* Left Column: Date bubble & Details */}
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <div className="w-12 h-12 rounded-lg flex flex-col items-center justify-center shrink-0 border border-border/20 bg-muted/20 text-muted-foreground mt-0.5">
+                      <span className="text-sm font-extrabold leading-none">{dayNum}</span>
                       {isScheduled && <span className="text-[10px] font-bold uppercase leading-none mt-1">{weekDayStr}</span>}
                     </div>
 
-                    <div className="min-w-0 space-y-1">
+                    <div className="min-w-0 flex-1 space-y-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-xs font-black tracking-wider text-primary uppercase leading-none">
                           {exam.courseCode}
                         </span>
                         {exam.slot && (
-                          <span className="text-xs font-bold text-muted-foreground/75 bg-muted/40 px-1.5 py-0.5 rounded leading-none">
+                          <span className="text-[11px] font-bold text-muted-foreground/80 bg-muted/50 border border-border/20 px-1.5 py-0.5 rounded leading-none">
                             Slot: {exam.slot}
                           </span>
                         )}
                       </div>
-                      <h4 className="text-sm font-bold text-foreground truncate leading-snug">
+                      <h4 className="text-sm font-bold text-foreground leading-snug break-words">
                         {exam.courseTitle}
                       </h4>
                       {isScheduled && (
-                        <div className="space-y-1 pt-1 text-xs text-muted-foreground/75 font-medium">
+                        <div className="space-y-1 pt-1.5 text-xs text-muted-foreground/80 font-medium border-t border-border/10 mt-2">
                           <div className="flex items-center gap-1.5 min-w-0">
                             <Clock className="w-3.5 h-3.5 text-primary/70 shrink-0" />
                             <span className="truncate">{displayExamTime} (Reporting: {displayReporting})</span>
@@ -477,14 +477,14 @@ export default function ExamSchedulePage() {
                     </div>
                   </div>
 
-                  {/* Seat & Icon */}
-                  <div className="flex items-center gap-2 shrink-0">
+                  {/* Right Column: Seat & Icon */}
+                  <div className="flex items-center gap-2 shrink-0 self-center">
                     {isScheduled && exam.seatNo && exam.seatNo !== "-" && (
-                      <span className="text-xs font-bold px-2 py-1 rounded-md border border-border/10 bg-muted/10 text-foreground/80 leading-none">
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-md border border-border/20 bg-muted/20 text-foreground leading-none">
                         Seat {exam.seatNo}
                       </span>
                     )}
-                    <ChevronRight className="w-4 h-4 text-muted-foreground/45" />
+                    <ChevronRight className="w-4 h-4 text-muted-foreground/45 shrink-0" />
                   </div>
                 </div>
               );
