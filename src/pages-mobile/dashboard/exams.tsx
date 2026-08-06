@@ -447,9 +447,16 @@ export default function ExamSchedulePage() {
 
                     {/* Course Code, Title & Sub-line */}
                     <div className="min-w-0 flex-1 space-y-1">
-                      <span className="text-xs font-black tracking-widest text-primary uppercase leading-none block">
-                        {exam.courseCode}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-black tracking-widest text-primary uppercase leading-none">
+                          {exam.courseCode}
+                        </span>
+                        {exam.slot && (
+                          <span className="text-[11px] font-semibold text-muted-foreground/75 leading-none">
+                            Slot {exam.slot}
+                          </span>
+                        )}
+                      </div>
                       <h4 className="text-xs font-bold text-foreground truncate leading-snug">
                         {exam.courseTitle}
                       </h4>
