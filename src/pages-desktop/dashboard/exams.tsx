@@ -709,7 +709,7 @@ export default function ExamSchedulePage() {
                         <div className="p-3.5 bg-background/50 backdrop-blur-xl border border-border/20 rounded-xl shadow-sm flex items-center justify-between gap-4 hover:bg-muted/15 transition-all duration-150">
                           {/* Left Column: Date bubble & Info */}
                           <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                            <div className="w-11 h-11 rounded-lg flex flex-col items-center justify-center shrink-0 border border-primary/20 bg-primary/10 text-primary">
+                            <div className="w-11 h-11 rounded-lg flex flex-col items-center justify-center shrink-0 border border-border/20 bg-muted/20 text-foreground/80">
                               {isScheduled ? (
                                 <>
                                   <span className="text-sm font-extrabold leading-none">{dayNum}</span>

@@ -442,7 +442,7 @@ export default function ExamSchedulePage() {
                   {/* Left: Date Tile & Info */}
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     {/* Glassmorphic Date Bubble */}
-                    <div className="w-11 h-11 rounded-lg flex flex-col items-center justify-center shrink-0 border border-primary/20 bg-primary/10 text-primary">
+                    <div className="w-11 h-11 rounded-lg flex flex-col items-center justify-center shrink-0 border border-border/20 bg-muted/20 text-foreground/80">
                       <span className="text-sm font-extrabold leading-none">{dayNum}</span>
                       {isScheduled && <span className="text-[10px] font-bold uppercase leading-none mt-0.5 tracking-wider">{weekDayStr}</span>}
                     </div>
