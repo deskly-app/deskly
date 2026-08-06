@@ -756,15 +756,17 @@ export default function ExamSchedulePage() {
                               </p>
                               
                               {isScheduled && (
-                                <div className="flex items-center gap-4 text-xs text-muted-foreground font-semibold flex-wrap pt-0.5">
-                                  <span className="flex items-center gap-1.5">
-                                    <Clock className="w-3.5 h-3.5 shrink-0 text-muted-foreground/60" />
+                                <div className="space-y-1 pt-1 text-xs text-muted-foreground/75 font-medium">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <Clock className="w-3.5 h-3.5 shrink-0 text-primary/70" />
                                     <span>{displayExamTime} (Reporting: {displayReporting})</span>
-                                  </span>
-                                  <span className="flex items-center gap-1.5">
-                                    <MapPin className="w-3.5 h-3.5 shrink-0 text-muted-foreground/60" />
-                                    <span>{displayVenue}</span>
-                                  </span>
+                                  </div>
+                                  {displayVenue !== "Venue TBA" && (
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <MapPin className="w-3.5 h-3.5 shrink-0 text-primary/70" />
+                                      <span>{displayVenue}</span>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
