@@ -437,7 +437,7 @@ export default function ExamSchedulePage() {
                 <div
                   key={`${exam.courseCode}-${idx}`}
                   onClick={() => setSelectedExam(exam)}
-                  className="p-4 bg-card/90 border border-border/25 rounded-2xl shadow-sm flex flex-col gap-3.5 backdrop-blur-md cursor-pointer hover:bg-muted/10 active:opacity-75 transition-all duration-200"
+                  className="p-4 bg-muted/20 border border-border/30 rounded-xl shadow-sm flex flex-col gap-3.5 backdrop-blur-md cursor-pointer hover:bg-muted/30 active:opacity-75 transition-all duration-200"
                 >
                   {/* Top Section: Header & Course Metadata */}
                   <div className="flex items-start justify-between gap-3">

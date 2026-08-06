@@ -674,7 +674,6 @@ export default function ExamSchedulePage() {
                     
                     // Formatted Date Bubbles
                     const dayNum = isScheduled ? examDate.getDate() : "TBA";
-                    const monthStr = isScheduled ? examDate.toLocaleString("en-US", { month: "short" }).toUpperCase() : "";
                     const weekDayStr = isScheduled ? examDate.toLocaleString("en-US", { weekday: "short" }).toUpperCase() : "";
 
                     // Values fallback
@@ -717,7 +716,7 @@ export default function ExamSchedulePage() {
                                 {isScheduled ? (
                                   <>
                                     <span className="text-base font-black leading-none">{dayNum}</span>
-                                    <span className="text-[10px] font-extrabold uppercase leading-none mt-1 tracking-wider">{monthStr}</span>
+                                    <span className="text-[10px] font-extrabold uppercase leading-none mt-1 tracking-wider">{weekDayStr}</span>
                                   </>
                                 ) : (
                                   <span className="text-xs font-bold text-muted-foreground/70">TBA</span>
