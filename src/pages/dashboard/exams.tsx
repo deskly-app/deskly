@@ -411,25 +411,12 @@ export default function ExamSchedulePage() {
 
           <div className="flex flex-col gap-3">
             {listItems.map((item, idx) => {
-              if (item.type === "gap") {
-                return (
-                  <div key={`gap-${idx}`} className="flex justify-center py-1 select-none">
-                    <span className="bg-primary/10 text-primary text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full flex items-center gap-1 border border-primary/10">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span>{item.days} {item.days === 1 ? "Day" : "Days"} Gap</span>
-                    </span>
-                  </div>
-                );
-              }
+              if (item.type === "gap") return null;
 
               const exam = item.data;
               const examDate = parseDateStr(exam.examDate);
               const isScheduled = examDate !== null;
-              
-              const dayNum = isScheduled ? examDate.getDate() : "TBA";
-              const weekDayStr = isScheduled ? examDate.toLocaleString("en-US", { weekday: "short" }).toUpperCase() : "";
 
-              const displayReporting = exam.reportingTime && exam.reportingTime !== "-" ? exam.reportingTime : "30 mins before schedule";
               const displayExamTime = exam.examTime && exam.examTime !== "-" ? exam.examTime.split("-")[0].trim() : "Schedule Pending";
               const displayVenue = exam.venue && exam.venue !== "-" ? exam.venue : "Venue TBA";
 
@@ -437,50 +424,34 @@ export default function ExamSchedulePage() {
                 <div
                   key={`${exam.courseCode}-${idx}`}
                   onClick={() => setSelectedExam(exam)}
-                  className="p-4 bg-card/80 border border-border/40 rounded-xl shadow-sm flex items-center justify-between gap-4 backdrop-blur-md cursor-pointer hover:bg-muted/5 active:opacity-75 transition-all"
+                  className="p-3.5 bg-background/50 backdrop-blur-xl border border-border/20 rounded-xl shadow-sm flex items-center justify-between gap-3 cursor-pointer hover:bg-muted/15 active:opacity-80 transition-all duration-150"
                 >
-                  {/* Date bubble */}
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-11 h-11 rounded-md flex flex-col items-center justify-center shrink-0 border border-border/10 bg-muted/20 text-muted-foreground">
-                      <span className="text-xs font-bold leading-none">{dayNum}</span>
-                      {isScheduled && <span className="text-[10px] font-bold uppercase leading-none mt-1">{weekDayStr}</span>}
-                    </div>
-
-                    <div className="min-w-0 space-y-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-xs font-black tracking-wider text-primary uppercase leading-none">
-                          {exam.courseCode}
+                  {/* Course Code, Title & Sub-line */}
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <span className="text-xs font-black tracking-widest text-primary uppercase leading-none block">
+                      {exam.courseCode}
+                    </span>
+                    <h4 className="text-xs font-bold text-foreground truncate leading-snug">
+                      {exam.courseTitle}
+                    </h4>
+                    {isScheduled && (
+                      <div className="flex items-center gap-3 text-[11px] text-muted-foreground/80 font-medium pt-0.5 truncate">
+                        <span className="flex items-center gap-1 shrink-0">
+                          <Clock className="w-3 h-3 text-primary/70 shrink-0" />
+                          <span>{displayExamTime}</span>
                         </span>
-                        {exam.slot && (
-                          <span className="text-xs font-bold text-muted-foreground/75 bg-muted/40 px-1.5 py-0.5 rounded leading-none">
-                            Slot: {exam.slot}
+                        {displayVenue !== "Venue TBA" && (
+                          <span className="flex items-center gap-1 truncate">
+                            <MapPin className="w-3 h-3 text-primary/70 shrink-0" />
+                            <span className="truncate">{displayVenue}</span>
                           </span>
                         )}
                       </div>
-                      <h4 className="text-sm font-bold text-foreground truncate leading-snug">
-                        {exam.courseTitle}
-                      </h4>
-                      {isScheduled && (
-                        <p className="text-xs text-muted-foreground/60 leading-none flex items-center gap-1 pt-0.5">
-                          <Clock className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
-                          <span className="truncate">{displayExamTime} ({displayReporting})</span>
-                          <span className="mx-1">•</span>
-                          <MapPin className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
-                          <span className="truncate">{displayVenue}</span>
-                        </p>
-                      )}
-                    </div>
+                    )}
                   </div>
 
-                  {/* Seat & Icon */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    {isScheduled && exam.seatNo && exam.seatNo !== "-" && (
-                      <span className="text-xs font-bold px-2 py-1 rounded-md border border-border/10 bg-muted/10 text-foreground/80 leading-none">
-                        Seat {exam.seatNo}
-                      </span>
-                    )}
-                    <ChevronRight className="w-4 h-4 text-muted-foreground/45" />
-                  </div>
+                  {/* Right Chevron */}
+                  <ChevronRight className="w-4 h-4 text-muted-foreground/40 shrink-0" />
                 </div>
               );
             })}

@@ -11,7 +11,6 @@ import {
   MapPin,
   FileText,
   AlertCircle,
-  Info,
   CalendarRange,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -79,12 +78,6 @@ function parseDateStr(str: string): Date | null {
   }
   
   return new Date(year, month, day);
-}
-
-function getCalendarDayDifference(d1: Date, d2: Date): number {
-  const utc1 = Date.UTC(d1.getFullYear(), d1.getMonth(), d1.getDate());
-  const utc2 = Date.UTC(d2.getFullYear(), d2.getMonth(), d2.getDate());
-  return Math.round((utc2 - utc1) / (1000 * 60 * 60 * 24));
 }
 
 function parseExamTime(examDate: Date, examTimeStr: string): Date {
@@ -672,102 +665,42 @@ export default function ExamSchedulePage() {
                     const examDate = parseDateStr(item.examDate);
                     const isScheduled = examDate !== null;
                     
-                    // Formatted Date Bubbles
-                    const dayNum = isScheduled ? examDate.getDate() : "TBA";
-                    const weekDayStr = isScheduled ? examDate.toLocaleString("en-US", { weekday: "short" }).toUpperCase() : "";
-
                     // Values fallback
-                    const displayReporting = item.reportingTime && item.reportingTime !== "-" ? item.reportingTime : "30 mins before schedule";
                     const displayExamTime = item.examTime && item.examTime !== "-" ? item.examTime : "Schedule Pending";
                     const displayVenue = item.venue && item.venue !== "-" ? item.venue : "Venue TBA";
-
-                    // Calculate gap indicators between this exam and the next
-                    let gapElement = null;
-                    if (isScheduled && idx < activeSchedules.length - 1) {
-                      const nextExam = activeSchedules[idx + 1];
-                      const nextDate = parseDateStr(nextExam.examDate);
-                      if (nextDate) {
-                        const dayDiff = getCalendarDayDifference(examDate, nextDate);
-                        if (dayDiff > 1) {
-                          const gapDays = dayDiff - 1;
-                          gapElement = (
-                            <div className="relative py-3 flex items-center justify-center">
-                              {/* Line separator */}
-                              <div className="absolute left-[131px] right-0 border-t border-dashed border-border/20 hidden md:block" />
-                              {/* Pill */}
-                              <div className="relative z-10 bg-muted/65 text-muted-foreground text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full flex items-center gap-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                                <Info className="w-3.5 h-3.5 text-muted-foreground/75" />
-                                <span>{gapDays} {gapDays === 1 ? "Day" : "Days"} Gap</span>
-                              </div>
-                            </div>
-                          );
-                        }
-                      }
-                    }
 
                     return (
                       <div key={`${item.courseCode}-${idx}`} className="space-y-1">
                         <div className="p-3.5 bg-background/50 backdrop-blur-xl border border-border/20 rounded-xl shadow-sm flex items-center justify-between gap-4 hover:bg-muted/15 transition-all duration-150">
-                          {/* Left Column: Date bubble & Info */}
-                          <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                            <div className="w-11 h-11 rounded-lg flex flex-col items-center justify-center shrink-0 border border-primary/20 bg-primary/10 text-primary">
-                              {isScheduled ? (
-                                <>
-                                  <span className="text-sm font-extrabold leading-none">{dayNum}</span>
-                                  <span className="text-[10px] font-bold uppercase leading-none mt-0.5 tracking-wider">{weekDayStr}</span>
-                                </>
-                              ) : (
-                                <span className="text-xs font-bold text-muted-foreground/70">TBA</span>
-                              )}
-                            </div>
-
-                            <div className="min-w-0 flex-1 space-y-1">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-xs font-black tracking-widest text-primary uppercase leading-none">
-                                  {item.courseCode}
+                          {/* Course Code, Title & Sub-line */}
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <span className="text-xs font-black tracking-widest text-primary uppercase leading-none block">
+                              {item.courseCode}
+                            </span>
+                            <h4 className="text-sm font-bold text-foreground truncate leading-snug">
+                              {item.courseTitle}
+                            </h4>
+                            {isScheduled && (
+                              <div className="flex items-center gap-4 text-xs text-muted-foreground/80 font-medium pt-0.5 truncate">
+                                <span className="flex items-center gap-1 shrink-0">
+                                  <Clock className="w-3.5 h-3.5 text-primary/70 shrink-0" />
+                                  <span>{displayExamTime}</span>
                                 </span>
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none bg-primary/10 text-primary">
-                                  {item.courseType}
-                                </span>
-                                {item.slot && (
-                                  <span className="font-mono text-[10px] font-semibold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded leading-none">
-                                    {item.slot}
+                                {displayVenue !== "Venue TBA" && (
+                                  <span className="flex items-center gap-1 truncate">
+                                    <MapPin className="w-3.5 h-3.5 text-primary/70 shrink-0" />
+                                    <span className="truncate">{displayVenue}</span>
                                   </span>
                                 )}
                               </div>
-                              <h4 className="text-sm font-bold text-foreground truncate leading-snug">
-                                {item.courseTitle}
-                              </h4>
-                              {isScheduled && (
-                                <div className="flex items-center gap-4 text-xs text-muted-foreground/80 font-medium pt-0.5 truncate">
-                                  <span className="flex items-center gap-1 shrink-0">
-                                    <Clock className="w-3.5 h-3.5 text-primary/70 shrink-0" />
-                                    <span>{displayExamTime}</span>
-                                  </span>
-                                  {displayVenue !== "Venue TBA" && (
-                                    <span className="flex items-center gap-1 truncate">
-                                      <MapPin className="w-3.5 h-3.5 text-primary/70 shrink-0" />
-                                      <span className="truncate">{displayVenue}</span>
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Right Column: Seat & Export details */}
-                          <div className="shrink-0 flex items-center gap-3">
-                            {isScheduled && <SingleExamExportModal entry={item} />}
-                            {isScheduled && item.seatNo && item.seatNo !== "-" && (
-                              <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-primary/10 text-primary border border-primary/15 leading-none">
-                                Seat {item.seatNo}
-                              </span>
                             )}
                           </div>
-                        </div>
 
-                        {/* Gap element if applicable */}
-                        {gapElement}
+                          {/* Right Column: Export modal button */}
+                          <div className="shrink-0 flex items-center gap-3">
+                            {isScheduled && <SingleExamExportModal entry={item} />}
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
