@@ -668,36 +668,52 @@ export default function ExamSchedulePage() {
                     // Values fallback
                     const displayExamTime = item.examTime && item.examTime !== "-" ? item.examTime : "Schedule Pending";
                     const displayVenue = item.venue && item.venue !== "-" ? item.venue : "Venue TBA";
+                    const dayNum = isScheduled ? examDate.getDate() : "TBA";
+                    const weekDayStr = isScheduled ? examDate.toLocaleString("en-US", { weekday: "short" }).toUpperCase() : "";
 
                     return (
                       <div key={`${item.courseCode}-${idx}`} className="space-y-1">
                         <div className="p-3.5 bg-background/50 backdrop-blur-xl border border-border/20 rounded-xl shadow-sm flex items-center justify-between gap-4 hover:bg-muted/15 transition-all duration-150">
-                          {/* Course Code, Title & Sub-line */}
-                          <div className="min-w-0 flex-1 space-y-1">
-                            <span className="text-xs font-black tracking-widest text-primary uppercase leading-none block">
-                              {item.courseCode}
-                            </span>
-                            <h4 className="text-sm font-bold text-foreground truncate leading-snug">
-                              {item.courseTitle}
-                            </h4>
-                            {isScheduled && (
-                              <div className="flex items-center gap-4 text-xs text-muted-foreground/80 font-medium pt-0.5 truncate">
-                                <span className="flex items-center gap-1 shrink-0">
-                                  <Clock className="w-3.5 h-3.5 text-primary/70 shrink-0" />
-                                  <span>{displayExamTime}</span>
-                                </span>
-                                {displayVenue !== "Venue TBA" && (
-                                  <span className="flex items-center gap-1 truncate">
-                                    <MapPin className="w-3.5 h-3.5 text-primary/70 shrink-0" />
-                                    <span className="truncate">{displayVenue}</span>
+                          {/* Left Column: Date & Info */}
+                          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                            {/* Clean Date Text (No Badge Box) */}
+                            <div className="w-10 flex flex-col items-center justify-center shrink-0 text-muted-foreground select-none">
+                              <span className="text-base font-black leading-none text-foreground">{dayNum}</span>
+                              {isScheduled && <span className="text-[10px] font-bold uppercase leading-none mt-1 text-muted-foreground/60">{weekDayStr}</span>}
+                            </div>
+
+                            {/* Course Code, Title & Sub-line */}
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <span className="text-xs font-black tracking-widest text-primary uppercase leading-none block">
+                                {item.courseCode}
+                              </span>
+                              <h4 className="text-sm font-bold text-foreground truncate leading-snug">
+                                {item.courseTitle}
+                              </h4>
+                              {isScheduled && (
+                                <div className="flex items-center gap-4 text-xs text-muted-foreground/80 font-medium pt-0.5 truncate">
+                                  <span className="flex items-center gap-1 shrink-0">
+                                    <Clock className="w-3.5 h-3.5 text-primary/70 shrink-0" />
+                                    <span>{displayExamTime}</span>
                                   </span>
-                                )}
-                              </div>
-                            )}
+                                  {displayVenue !== "Venue TBA" && (
+                                    <span className="flex items-center gap-1 truncate">
+                                      <MapPin className="w-3.5 h-3.5 text-primary/70 shrink-0" />
+                                      <span className="truncate">{displayVenue}</span>
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
 
-                          {/* Right Column: Export modal button */}
+                          {/* Right Column: Seat text & Export modal button */}
                           <div className="shrink-0 flex items-center gap-3">
+                            {isScheduled && item.seatNo && item.seatNo !== "-" && (
+                              <span className="text-xs font-semibold text-muted-foreground/80 leading-none">
+                                Seat {item.seatNo}
+                              </span>
+                            )}
                             {isScheduled && <SingleExamExportModal entry={item} />}
                           </div>
                         </div>
