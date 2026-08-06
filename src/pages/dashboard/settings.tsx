@@ -1,378 +1,450 @@
-import { useEffect, useState } from "react";
-import { useNavigate, Link } from "@/router";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useSemester } from "@/hooks/useSemester";
-import { useCredentialStatus } from "@/hooks/useCredentialStatus";
-import { authGetTokens } from "@/lib/tauri-auth";
-import { useTheme } from "@/components/theme-provider";
+import { useNavigate, Link } from "@/router";
+import { openUrl } from "@tauri-apps/plugin-opener";
+
+import { ModeToggle } from "@/components/theme-toggle";
 import {
-  User,
-  LogOut,
-  KeyRound,
-  RefreshCw,
-  AlertTriangle,
-  Settings as SettingsIcon,
-  Sun,
-  Moon,
-  Laptop,
-  ChevronRight,
-  Palette,
-  Calendar,
-  Shield,
-  ShieldCheck,
-  Info,
+  Semester,
+  authGetSemester,
+  authSetSemester,
+  authGetSemesters,
+} from "@/lib/tauri-auth";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { 
+  Settings, 
+  Calendar, 
+  LogOut, 
+  SunMoon, 
+  ArrowUpCircle, 
+  Scale,
+  Loader2,
+  ExternalLink
 } from "lucide-react";
-import { DrawerSelect } from "@/components/ui/drawer-select";
-import { Drawer, DrawerContent, DrawerClose } from "@/components/ui/drawer";
-import { useOnlineStatus } from "@/hooks/use-online-status";
-import { isNetworkError } from "@/lib/utils";
-import settingsImg from "@/assets/settings.png";
+import { getVersion } from "@tauri-apps/api/app";
+import { check } from "@tauri-apps/plugin-updater";
+import { showNotification } from "@/lib/notifications";
+import { invoke } from "@tauri-apps/api/core";
 
-// ─── Skeleton Helper ──────────────────────────────────────────────────────────
-
-function Sk({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-lg bg-muted/65 ${className}`} />;
-}
-
-function SettingsSkeleton() {
-  return (
-    <div className="w-full space-y-6 px-2 py-4 animate-pulse font-saira">
-      <div className="space-y-1">
-        <Sk className="h-7 w-32" />
-        <Sk className="h-3.5 w-48" />
-      </div>
-
-      <Sk className="h-20 w-full rounded-2xl" />
-
-      <div className="space-y-3">
-        <Sk className="h-4 w-28" />
-        <Sk className="h-36 w-full rounded-2xl" />
-      </div>
-
-      <div className="space-y-3">
-        <Sk className="h-4 w-32" />
-        <Sk className="h-56 w-full rounded-2xl" />
-      </div>
-    </div>
-  );
-}
-
-// ─── Main Component ───────────────────────────────────────────────────────────
-
-export default function MobileSettings() {
-  const { authState, logout, loading: authLoading } = useAuth();
+export default function SettingsPage() {
+  const { isLoggedIn, loading: authLoading, logout } = useAuth();
   const navigate = useNavigate();
-  const { currentSemester, semesters, loading: semesterLoading, error: semesterError, setSemester } = useSemester();
-  const { theme, setTheme } = useTheme();
 
-  // Keyring / credential status
-  const { status: credStatus, loading: credLoading, refresh: refreshCred, error: credError } = useCredentialStatus();
-
-  const isOnline = useOnlineStatus();
-
-  // Session token (cookie) status
-  const [hasCookies, setHasCookies] = useState<boolean | null>(null);
-  const [cookiesLoading, setCookiesLoading] = useState(true);
-
-  // Logout confirmation drawer state
-  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
-
-  async function loadTokenStatus() {
-    setCookiesLoading(true);
+  const initialSemesters = useState<Semester[]>(() => {
     try {
-      const tokens = await authGetTokens();
-      setHasCookies(!!(tokens && tokens.cookies && tokens.cookies.length > 0));
-    } catch {
-      setHasCookies(false);
-    } finally {
-      setCookiesLoading(false);
-    }
-  }
+      const cached = localStorage.getItem("deskly::cache::semesters");
+      return cached ? JSON.parse(cached) : [];
+    } catch { return []; }
+  })[0];
 
+  const initialActiveSem = useState<Semester | null>(() => {
+    try {
+      const cached = localStorage.getItem("deskly::cache::current_semester");
+      return cached ? JSON.parse(cached) : null;
+    } catch { return null; }
+  })[0];
+
+  const [semesters, setSemesters] = useState<Semester[]>(initialSemesters);
+  const [selectedSemester, setSelectedSemester] = useState<Semester | null>(initialActiveSem);
+
+  // Software Update States
+  const [currentVersion, setCurrentVersion] = useState("");
+  const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "upToDate" | "available" | "downloading" | "finished" | "error">("idle");
+  const [latestVersion, setLatestVersion] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<{ downloaded: number; total?: number; percent?: number } | null>(null);
+  const [activeUpdate, setActiveUpdate] = useState<any>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  // "windows", "macos", "appimage", "linux-manual", "unknown"
+  const [installFormat, setInstallFormat] = useState<string>("unknown");
+
+  // Load version and detect install format on mount
   useEffect(() => {
-    loadTokenStatus();
+    async function loadVersion() {
+      try {
+        const ver = await getVersion();
+        setCurrentVersion(ver);
+      } catch (err) {
+        console.warn("Failed to get app version:", err);
+      }
+    }
+    async function detectInstallFormat() {
+      try {
+        const format = await invoke<string>("get_install_format");
+        setInstallFormat(format);
+      } catch (err) {
+        console.warn("Failed to detect install format:", err);
+        setInstallFormat("unknown");
+      }
+    }
+    loadVersion();
+    detectInstallFormat();
   }, []);
 
-  function handleRefreshKeyring() {
-    if (!isOnline) return;
-    refreshCred();
-    loadTokenStatus();
-  }
+  const handleUpdateCheck = async () => {
+    setUpdateStatus("checking");
+    setUpdateError(null);
+    try {
+      const update = await check();
+      if (!update) {
+        setUpdateStatus("upToDate");
+        return;
+      }
+      setLatestVersion(update.version);
+      setActiveUpdate(update);
+      setUpdateStatus("available");
+    } catch (err) {
+      console.error("Failed to check for updates:", err);
+      setUpdateError(err instanceof Error ? err.message : String(err));
+      setUpdateStatus("error");
+    }
+  };
 
-  async function handleSemesterChange(semesterId: string) {
-    if (!isOnline) return;
-    const semester = semesters.find((item) => item.id === semesterId);
-    if (!semester) return;
-    await setSemester(semester);
-  }
+  const handleInstallUpdate = async () => {
+    if (!activeUpdate) return;
+    setUpdateStatus("downloading");
+    setDownloadProgress({ downloaded: 0 });
+    
+    let downloadedBytes = 0;
+    let totalBytes: number | undefined = undefined;
 
-  const credItems = [
-    {
-      icon: <User className="w-5 h-5 text-primary shrink-0 mt-0.5" />,
-      label: "USERNAME / REG NO",
-      value: credStatus?.userId ?? authState?.userId ?? "—",
-      loading: credLoading,
-    },
-    {
-      icon: <KeyRound className="w-5 h-5 text-primary shrink-0 mt-0.5" />,
-      label: "PASSWORD (Keychain)",
-      value: credStatus?.hasPasswordStored ? "Stored securely in system keyring" : "Not stored",
-      loading: credLoading,
-    },
-    {
-      icon: <Shield className="w-5 h-5 text-primary shrink-0 mt-0.5" />,
-      label: "SESSION COOKIES",
-      value: hasCookies ? "Active session tokens present" : "No session cookies stored",
-      loading: cookiesLoading,
-    },
-  ];
+    try {
+      await activeUpdate.downloadAndInstall((event: any) => {
+        if (event.event === "Started") {
+          totalBytes = event.data.contentLength;
+          setDownloadProgress({ downloaded: 0, total: totalBytes, percent: 0 });
+        } else if (event.event === "Progress") {
+          downloadedBytes += event.data.chunkLength;
+          const percent = totalBytes ? Math.round((downloadedBytes / totalBytes) * 100) : undefined;
+          setDownloadProgress({ downloaded: downloadedBytes, total: totalBytes, percent });
+        } else if (event.event === "Finished") {
+          setUpdateStatus("finished");
+        }
+      });
+      
+      await showNotification(
+        "Update Installed",
+        "Update installed successfully. Please restart Deskly to apply changes."
+      );
+    } catch (err) {
+      console.error("Failed to download and install update:", err);
+      setUpdateError(err instanceof Error ? err.message : String(err));
+      setUpdateStatus("error");
+    }
+  };
 
-  if (authLoading) {
-    return <SettingsSkeleton />;
-  }
+  // Redirect to login if not logged in
+  useEffect(() => {
+    if (!authLoading && !isLoggedIn) {
+      navigate("/");
+    }
+  }, [isLoggedIn, authLoading, navigate]);
 
-  return (
-    <div className="w-full space-y-6 px-2 py-4 font-saira select-none overscroll-y-contain relative">
-      <style>{`.font-saira { font-family: 'Saira', sans-serif !important; }`}</style>
+  // Load configuration
+  useEffect(() => {
+    async function loadConfig() {
+      try {
+        const list = await authGetSemesters();
+        if (list && list.length > 0) {
+          setSemesters(list);
+          localStorage.setItem("deskly::cache::semesters", JSON.stringify(list));
+        }
 
-      {/* 3D Illustration Image absolute header */}
-      <div className="absolute -top-4 right-0 w-[180px] h-[150px] pointer-events-none select-none z-0">
-        <img
-          src={settingsImg}
-          className="w-full h-full object-contain opacity-95 dark:opacity-75"
-          style={{
-            maskImage: "radial-gradient(ellipse at 40% 40%, #fff 30%, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0.2) 80%, transparent 95%)",
-            WebkitMaskImage: "radial-gradient(ellipse at 40% 40%, #fff 30%, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0.2) 80%, transparent 95%)"
-          }}
-          alt="Settings Illustration"
-        />
-      </div>
+        const active = await authGetSemester();
+        if (active) {
+          setSelectedSemester(active);
+          localStorage.setItem("deskly::cache::current_semester", JSON.stringify(active));
+        }
+      } catch (err) {
+        console.error("Failed to load settings configuration:", err);
+      }
+    }
+    if (isLoggedIn) {
+      loadConfig();
+    }
+  }, [isLoggedIn]);
 
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <header className="relative z-10 flex items-start gap-2.5">
-        <SettingsIcon className="w-6 h-6 text-primary shrink-0 mt-0.5" />
-        <div className="space-y-1 min-w-0">
-          <h1 className="text-2xl font-extrabold tracking-tight text-foreground leading-none">
+  const handleSemesterChange = async (semId: string) => {
+    const sem = semesters.find((s) => s.id === semId);
+    if (sem) {
+      try {
+        await authSetSemester(sem);
+        setSelectedSemester(sem);
+      } catch (err) {
+        console.error("Failed to set semester:", err);
+      }
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/");
+    } catch (err) {
+      console.error("Failed to logout:", err);
+    }
+  };
+
+  const shell = (children: React.ReactNode) => (
+    <>{children}</>
+  );
+
+  return shell(
+    <div className="w-full space-y-8 px-2 sm:px-4">
+      {/* Header */}
+      <header className="pb-4 border-b border-border/15 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <Settings className="w-5 h-5 text-primary shrink-0" />
             Settings
           </h1>
-          <p className="text-xs text-muted-foreground/60 leading-none">
-            Manage your account and app preferences
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Configure application preferences, active semester, and hostel settings.
           </p>
         </div>
       </header>
 
-      {/* ── Student Profile Card ────────────────────────────────────────────── */}
-      <div
-        onClick={() => navigate("/dashboard/profile")}
-        className="relative z-10 p-4 bg-card/80 border border-border/40 rounded-2xl shadow-sm backdrop-blur-md flex items-center justify-between gap-4 cursor-pointer hover:bg-muted/5 active:opacity-75 transition-all"
-      >
-        <div className="flex items-center gap-3.5 min-w-0">
-          <div className="w-11 h-11 rounded-full bg-muted/20 flex items-center justify-center text-muted-foreground border border-border/10 shrink-0">
-            <User className="w-5 h-5" />
-          </div>
-          <div className="min-w-0 space-y-0.5">
-            <h2 className="text-base font-bold text-foreground leading-snug truncate">
-              Student
+      {/* Grid Layout - Two columns on desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+        
+        {/* Left Column: Preferences */}
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground/50 border-b border-border/10 pb-2 mb-2">
+              Preferences
             </h2>
-            <p className="text-xs font-mono font-medium text-muted-foreground/60 leading-none tracking-wide">
-              {authState?.userId ?? "—"}
-            </p>
-          </div>
-        </div>
-
-        <ChevronRight className="w-4.5 h-4.5 text-muted-foreground/40 shrink-0" />
-      </div>
-
-      {/* ── Preferences Section ─────────────────────────────────────────────── */}
-      <section className="relative z-10 space-y-2.5">
-        <h2 className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none px-1">
-          Preferences
-        </h2>
-
-        <div className="bg-card/80 border border-border/40 p-4 rounded-2xl shadow-sm backdrop-blur-md space-y-4">
-          {/* Visual Theme Row */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0 flex-1">
-              <Palette className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-              <div className="min-w-0 space-y-0.5">
-                <h3 className="text-sm font-bold text-foreground leading-snug">Visual Theme</h3>
-                <p className="text-xs text-muted-foreground/60 leading-relaxed">
-                  Select a theme light, dark, and system themes.
-                </p>
-              </div>
-            </div>
-
-            <DrawerSelect
-              value={theme}
-              onValueChange={(val) => setTheme(val as any)}
-              title="Visual Theme"
-              triggerClassName="w-[115px] h-8.5 rounded-lg text-xs"
-              options={[
-                { value: "light", label: <span className="flex items-center gap-1.5"><Sun className="w-3.5 h-3.5" /> Light</span> },
-                { value: "dark", label: <span className="flex items-center gap-1.5"><Moon className="w-3.5 h-3.5" /> Dark</span> },
-                { value: "system", label: <span className="flex items-center gap-1.5"><Laptop className="w-3.5 h-3.5" /> System</span> },
-              ]}
-            />
-          </div>
-
-          <div className="border-t border-border/15 pt-4">
-            {/* Active Semester Row */}
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-start gap-3 min-w-0 flex-1">
-                <Calendar className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                <div className="min-w-0 space-y-0.5">
-                  <h3 className="text-sm font-bold text-foreground leading-snug">Active Semester</h3>
-                  <p className="text-xs text-muted-foreground/60 leading-relaxed">
-                    Select the active semester to load relevant settings.
-                  </p>
-                  {semesterError && !isNetworkError(semesterError, isOnline) && (
-                    <p className="text-xs text-destructive mt-1 font-semibold">{semesterError}</p>
-                  )}
-                </div>
-              </div>
-
-              <DrawerSelect
-                value={currentSemester?.id || ""}
-                onValueChange={handleSemesterChange}
-                disabled={!isOnline || semesterLoading || semesters.length === 0}
-                title="Active Semester"
-                triggerClassName="w-[145px] h-8.5 rounded-lg text-xs"
-                placeholder={
-                  currentSemester?.name
-                    ? currentSemester.name
-                    : !isOnline
-                      ? "Offline"
-                      : semesterLoading
-                        ? "Loading..."
-                        : "Select"
-                }
-                options={semesters.map((semester) => ({ value: semester.id, label: semester.name }))}
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Keyring Status Section ─────────────────────────────────────────── */}
-      <section className="relative z-10 space-y-2.5">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none">
-            Keyring Status
-          </h2>
-          <button
-            onClick={handleRefreshKeyring}
-            disabled={credLoading || cookiesLoading}
-            className="w-7 h-7 rounded-full bg-muted/20 hover:bg-muted/30 border border-border/10 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer disabled:opacity-40 transition-all"
-            title="Refresh keyring status"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${(credLoading || cookiesLoading) ? "animate-spin" : ""}`} />
-          </button>
-        </div>
-
-        {/* Keyring Error Banner */}
-        {(credError || credStatus?.keyringError) && (
-          <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-xs text-destructive font-semibold">
-            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-            <span>{credError ?? credStatus?.keyringError}</span>
-          </div>
-        )}
-
-        <div className="bg-card/80 border border-border/40 p-4 rounded-2xl shadow-sm backdrop-blur-md space-y-3.5">
-          {credItems.map((item, idx) => (
-            <div key={item.label} className={idx > 0 ? "border-t border-border/15 pt-3.5" : ""}>
-              <div className="flex items-start gap-3">
-                {item.icon}
-                <div className="min-w-0 space-y-0.5 flex-1">
-                  <p className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-wider leading-none">
-                    {item.label}
-                  </p>
-                  {item.loading ? (
-                    <Sk className="h-3.5 w-32 mt-1" />
-                  ) : (
-                    <p className="text-xs font-bold text-foreground truncate leading-snug">
-                      {item.value}
+            <div className="divide-y divide-border/10">
+              
+              {/* Theme Settings Row */}
+              <div className="py-4 flex items-center justify-between gap-6">
+                <div className="flex items-start gap-3">
+                  <SunMoon className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div>
+                    <h3 className="text-xs font-semibold text-foreground">Theme Mode</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                      Toggle between light and dark visual themes.
                     </p>
-                  )}
+                  </div>
                 </div>
+                <ModeToggle />
+              </div>
+
+              {/* Academic Settings Row */}
+              <div className="py-4 flex items-center justify-between gap-6">
+                <div className="flex items-start gap-3">
+                  <Calendar className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div>
+                    <h3 className="text-xs font-semibold text-foreground">Active Semester</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                      Select active semester for grades, timetable, and marks.
+                    </p>
+                  </div>
+                </div>
+                <Select
+                  value={selectedSemester?.id || ""}
+                  onValueChange={handleSemesterChange}
+                  disabled={semesters.length === 0}
+                >
+                  <SelectTrigger className="w-[160px] h-8 rounded-md bg-muted/20 hover:bg-muted/30 border-border/20 text-xs focus:ring-1 focus:ring-primary/20">
+                    <SelectValue placeholder="Select Semester" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-md border-border/20 bg-popover/95 backdrop-blur-md">
+                    {semesters.map((s) => (
+                      <SelectItem key={s.id} value={s.id} className="rounded-md text-xs">
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Maintenance & Account */}
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground/50 border-b border-border/10 pb-2 mb-2">
+              System & Operations
+            </h2>
+            <div className="divide-y divide-border/10">
+              
+              {/* Software Update Row */}
+              <div className="py-4 space-y-3">
+                <div className="flex items-center justify-between gap-6">
+                  <div className="flex items-start gap-3">
+                    <ArrowUpCircle className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                    <div>
+                      <h3 className="text-xs font-semibold text-foreground">Software Update</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                        {updateStatus === "idle" && `Current version: v${currentVersion}`}
+                        {updateStatus === "checking" && "Checking for updates..."}
+                        {updateStatus === "upToDate" && `System is up to date (v${currentVersion})`}
+                        {updateStatus === "available" && `Update available! v${latestVersion} ready.`}
+                        {updateStatus === "downloading" && `Downloading: ${downloadProgress?.percent ?? 0}%`}
+                        {updateStatus === "finished" && "Restarting application..."}
+                        {updateStatus === "error" && "Failed to check for updates."}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="shrink-0">
+                    {/* Non-AppImage Linux installs: show manual download link instead */}
+                    {installFormat === "linux-manual" ? (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await openUrl("https://github.com/Vishal-770/deskly-tauri/releases/latest");
+                          } catch (err) {
+                            console.error("Failed to open download link:", err);
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-md flex items-center gap-1.5 transition-colors cursor-pointer border-0"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        Download
+                      </button>
+                    ) : (
+                      <>
+                        {(updateStatus === "idle" || updateStatus === "upToDate" || updateStatus === "error") && (
+                          <button
+                            onClick={handleUpdateCheck}
+                            className="px-3 py-1.5 bg-primary hover:bg-primary/95 text-primary-foreground text-xs font-bold rounded-md cursor-pointer transition-all"
+                          >
+                            Check
+                          </button>
+                        )}
+                        {updateStatus === "checking" && (
+                          <button
+                            disabled
+                            className="px-3 py-1.5 bg-muted text-muted-foreground text-xs font-bold rounded-md flex items-center gap-1.5"
+                          >
+                            <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
+                            Checking
+                          </button>
+                        )}
+                        {updateStatus === "available" && (
+                          <button
+                            onClick={handleInstallUpdate}
+                            className="px-3 py-1.5 bg-primary hover:bg-primary/95 text-primary-foreground text-xs font-bold rounded-md cursor-pointer transition-all animate-pulse"
+                          >
+                            Install
+                          </button>
+                        )}
+                        {updateStatus === "downloading" && (
+                          <button
+                            disabled
+                            className="px-3 py-1.5 bg-muted text-muted-foreground text-xs font-bold rounded-md flex items-center gap-1.5"
+                          >
+                            <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
+                            Downloading
+                          </button>
+                        )}
+                        {updateStatus === "finished" && (
+                          <button
+                            disabled
+                            className="px-3 py-1.5 bg-muted text-muted-foreground text-xs font-bold rounded-md"
+                          >
+                            Restarting
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+ 
+                {/* Non-AppImage notice */}
+                {installFormat === "linux-manual" && (
+                  <div className="pl-7 pt-1">
+                    <p className="text-xs text-muted-foreground/60 leading-relaxed">
+                      Auto-update is only supported for AppImage, Windows, and macOS installs. RPM/DEB users should download the new package manually from GitHub releases.
+                    </p>
+                  </div>
+                )}
+
+                {/* Inline Details */}
+                {updateStatus === "available" && activeUpdate && activeUpdate.body && (
+                  <div className="pl-7 pt-1">
+                    <div className="p-3 bg-muted/10 border border-border/10 rounded-md text-xs text-muted-foreground max-h-24 overflow-y-auto no-scrollbar font-medium">
+                      <p className="font-bold text-foreground/80 mb-1">Release Notes:</p>
+                      <p className="whitespace-pre-wrap leading-relaxed">{activeUpdate.body}</p>
+                    </div>
+                  </div>
+                )}
+
+                {updateStatus === "downloading" && downloadProgress && (
+                  <div className="pl-7 pt-1 space-y-2">
+                    <div className="w-full h-1 bg-muted/30 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-primary rounded-full transition-all duration-300"
+                        style={{ width: `${downloadProgress.percent ?? 0}%` }}
+                      />
+                    </div>
+                    <div className="text-xs text-muted-foreground/60 font-semibold">
+                      {downloadProgress.total 
+                        ? `${(downloadProgress.downloaded / (1024 * 1024)).toFixed(2)} MB / ${(downloadProgress.total / (1024 * 1024)).toFixed(2)} MB`
+                        : `${(downloadProgress.downloaded / (1024 * 1024)).toFixed(2)} MB downloaded`
+                      }
+                    </div>
+                  </div>
+                )}
+
+                {updateStatus === "error" && updateError && (
+                  <div className="pl-7 pt-1">
+                    <p className="text-xs text-destructive bg-destructive/5 border border-destructive/10 p-2 rounded-md font-semibold leading-relaxed">
+                      {updateError}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Legal & Privacy Policy Row */}
+              <div className="py-4 flex items-center justify-between gap-6">
+                <div className="flex items-start gap-3">
+                  <Scale className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div>
+                    <h3 className="text-xs font-semibold text-foreground">Legal &amp; Privacy Policy</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                      View unofficial app disclaimers and data policies.
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  to="/legal"
+                  className="px-3 py-1 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-md cursor-pointer border border-border/10 shrink-0"
+                >
+                  View
+                </Link>
+              </div>
+
+              {/* Account Settings (Logout) Row */}
+              <div className="py-4 flex items-center justify-between gap-6">
+                <div className="flex items-start gap-3">
+                  <LogOut className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+                  <div>
+                    <h3 className="text-xs font-semibold text-destructive">Sign Out</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                      Logout and clear saved credentials from device.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="px-3 py-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground text-xs font-bold rounded-md cursor-pointer shrink-0"
+                >
+                  Sign Out
+                </button>
               </div>
             </div>
-          ))}
-
-          {/* Info Sub-Card */}
-          <div className="mt-3 p-3.5 bg-muted/15 border border-border/15 rounded-xl flex items-start gap-3">
-            <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-            <p className="text-xs text-muted-foreground/60 leading-relaxed font-medium">
-              Credentials are stored securely in your device's native keyring. Session cookies are held in memory and refreshed automatically.
-            </p>
           </div>
         </div>
-      </section>
-
-      {/* ── Legal & Privacy Card ────────────────────────────────────────────── */}
-      <Link
-        to="/legal"
-        className="relative z-10 p-4 bg-card/80 border border-border/40 rounded-2xl shadow-sm backdrop-blur-md flex items-center justify-between gap-4 cursor-pointer hover:bg-muted/5 active:opacity-75 transition-all block text-left"
-      >
-        <div className="flex items-center gap-3.5 min-w-0">
-          <ShieldCheck className="w-5 h-5 text-primary shrink-0" />
-          <div className="min-w-0 space-y-0.5">
-            <h3 className="text-sm font-bold text-foreground leading-snug">Legal &amp; Privacy</h3>
-            <p className="text-xs text-muted-foreground/60 leading-none">View policies, terms and regulations.</p>
-          </div>
-        </div>
-        <ChevronRight className="w-4.5 h-4.5 text-muted-foreground/40 shrink-0" />
-      </Link>
-
-      {/* ── Sign Out Button ─────────────────────────────────────────────────── */}
-      <div className="relative z-10 pt-2">
-        <button
-          onClick={() => setIsLogoutConfirmOpen(true)}
-          className="w-full h-12 flex items-center justify-center gap-2 bg-destructive/10 hover:bg-destructive/15 text-destructive border border-destructive/20 text-sm font-bold rounded-2xl transition-all cursor-pointer shadow-sm active:opacity-80"
-        >
-          <LogOut className="w-4 h-4 shrink-0" />
-          <span>Sign Out</span>
-        </button>
       </div>
-
-      {/* Sign Out Confirmation Drawer */}
-      <Drawer open={isLogoutConfirmOpen} onOpenChange={setIsLogoutConfirmOpen} showSwipeHandle>
-        <DrawerContent className="p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] bg-background border-t border-border/10 rounded-t-[32px] flex flex-col font-saira max-h-[85vh]">
-          {/* Header */}
-          <div className="flex items-start gap-4 pt-2 pb-6 shrink-0 border-b border-border/5">
-            <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center text-destructive border border-destructive/20 shrink-0">
-              <LogOut className="w-5 h-5" />
-            </div>
-            <div className="space-y-1.5 min-w-0">
-              <h3 className="text-base font-bold text-foreground tracking-tight leading-none">Sign Out</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Are you sure you want to sign out? Your cached student data will be cleared from this device.
-              </p>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex flex-col gap-3 pt-5 shrink-0">
-            <button
-              onClick={async () => {
-                setIsLogoutConfirmOpen(false);
-                try {
-                  await logout();
-                } catch (e) {
-                  console.error("Logout error:", e);
-                } finally {
-                  navigate("/");
-                }
-              }}
-              className="w-full h-11 flex justify-center items-center bg-destructive text-destructive-foreground text-sm font-semibold rounded-lg active:opacity-90 transition-opacity cursor-pointer border-0 font-saira"
-            >
-              Sign Out
-            </button>
-            <DrawerClose className="w-full h-11 flex justify-center items-center bg-muted text-muted-foreground text-sm font-semibold rounded-lg cursor-pointer border-0 hover:bg-muted/80 focus:outline-none transition-colors font-saira">
-              Cancel
-            </DrawerClose>
-          </div>
-        </DrawerContent>
-      </Drawer>
-    </div>
+    </div>,
   );
 }

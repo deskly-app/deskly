@@ -3,7 +3,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { getTimetableCourses, TimetableCourse } from "@/lib/features";
 
 import { ErrorDisplay } from "@/components/error-display";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -29,21 +28,16 @@ import {
 function getCourseTypeStyle(type: string): { label: string; className: string } {
   const clean = type.trim().toUpperCase();
   if (clean.includes("EMBEDDED THEORY")) return { label: type, className: "text-primary" };
-  if (clean.includes("EMBEDDED LAB")) return { label: type, className: "text-chart-2" };
+  if (clean.includes("EMBEDDED LAB")) return { label: type, className: "text-primary" };
   if (clean.includes("THEORY")) return { label: type, className: "text-primary" };
-  if (clean.includes("LAB")) return { label: type, className: "text-chart-2" };
-  if (clean.includes("ONLINE")) return { label: type, className: "text-chart-1" };
-  if (clean.includes("SOFT SKILL") || clean.includes("SKILL")) return { label: type, className: "text-chart-4" };
+  if (clean.includes("LAB")) return { label: type, className: "text-primary" };
+  if (clean.includes("ONLINE")) return { label: type, className: "text-primary" };
+  if (clean.includes("SOFT SKILL") || clean.includes("SKILL")) return { label: type, className: "text-primary" };
   return { label: type, className: "text-muted-foreground" };
 }
 
 function getCategoryStyle(category: string): { label: string; className: string } {
   const clean = category.trim();
-  const lower = clean.toLowerCase();
-  if (lower.includes("discipline core")) return { label: clean, className: "text-foreground" };
-  if (lower.includes("discipline elective")) return { label: clean, className: "text-foreground/80" };
-  if (lower.includes("foundation core")) return { label: clean, className: "text-primary" };
-  if (lower.includes("open elective")) return { label: clean, className: "text-muted-foreground" };
   return { label: clean, className: "text-muted-foreground" };
 }
 
@@ -54,87 +48,73 @@ function CourseRow({ item, index }: { item: TimetableCourse; index: number }) {
   const catStyle = getCategoryStyle(item.category);
 
   return (
-    <div className="group py-4 px-3 -mx-3 rounded-md flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-muted/10 transition-colors duration-150">
+    <div className="py-4 border-b border-border/10 hover:bg-muted/5 transition-colors flex flex-col md:grid md:grid-cols-[1fr_280px_120px] items-start md:items-center gap-3 md:gap-6 min-w-0">
       
       {/* Left: Code, Badges & Title */}
-      <div className="flex-1 min-w-0 pr-4 space-y-2.5">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-medium text-muted-foreground/45 tabular-nums">
-            {(index + 1).toString().padStart(2, "0")}
+      <div className="min-w-0 space-y-1.5 w-full">
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          <span className="text-xs font-bold text-muted-foreground/40 tabular-nums shrink-0">
+            #{(index + 1).toString().padStart(2, "0")}
           </span>
-          <span className="text-xs font-semibold font-mono tracking-widest text-primary uppercase bg-primary/10 px-2 py-0.5 rounded-md leading-none">
+          <span className="text-xs font-black tracking-wider text-primary bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-full leading-none shrink-0">
             {item.code}
           </span>
           {item.slot && (
-            <span className="font-mono text-xs font-medium text-muted-foreground/75 bg-muted px-1.5 py-0.5 rounded leading-none">
+            <span className="font-mono text-xs font-bold text-muted-foreground/80 bg-muted/50 border border-border/20 px-2.5 py-0.5 rounded-full leading-none shrink-0">
               Slot: {item.slot}
             </span>
           )}
-          <Badge
-            variant="outline"
-            className={`text-xs font-medium rounded-md border inline-flex items-center justify-center ${typeStyle.className} bg-current/5 border-current/25`}
-          >
+          <span className="text-xs font-semibold text-muted-foreground shrink-0">
             {typeStyle.label}
-          </Badge>
+          </span>
           {item.category && (
-            <Badge
-              variant="outline"
-              className="text-xs font-medium border border-border/40 text-muted-foreground bg-muted/5 rounded-md inline-flex items-center justify-center truncate max-w-[180px]"
-              title={catStyle.label}
-            >
+            <span className="text-xs font-medium text-muted-foreground/70 bg-muted/40 border border-border/20 px-2.5 py-0.5 rounded-full leading-none shrink-0 truncate max-w-[180px] sm:max-w-[240px]" title={catStyle.label}>
               {catStyle.label}
-            </Badge>
+            </span>
           )}
         </div>
         
-        <h3 className="text-base font-semibold text-foreground leading-snug">
+        <h3 className="text-sm sm:text-base font-bold text-foreground leading-snug break-words md:truncate">
           {item.title}
         </h3>
       </div>
 
       {/* Middle: Instructor & Venue */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4 md:gap-8 shrink-0 min-w-[240px] md:w-80">
-        {/* Faculty */}
+      <div className="space-y-1 min-w-0 w-full md:w-auto flex flex-wrap md:flex-col items-center md:items-start justify-between md:justify-start gap-2 border-t border-border/5 md:border-t-0 pt-2 md:pt-0">
         {item.faculty?.name ? (
-          <div className="min-w-0 flex-1 space-y-1">
-            <div className="flex items-center gap-1.5">
-              <User className="w-4 h-4 text-muted-foreground/40 shrink-0" />
-              <span className="text-sm text-foreground/80 font-medium truncate" title={item.faculty.name}>
-                {item.faculty.name}
+          <div className="flex items-center gap-1.5 min-w-0">
+            <User className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0" />
+            <span className="text-xs font-semibold text-foreground truncate" title={item.faculty.name}>
+              {item.faculty.name}
+            </span>
+          </div>
+        ) : (
+          <span className="text-xs text-muted-foreground/40">—</span>
+        )}
+        {item.venue && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60 min-w-0">
+            <MapPin className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0" />
+            <span className="font-medium truncate">{item.venue}</span>
+            {item.faculty?.school && (
+              <span className="text-[11px] text-muted-foreground/40 font-semibold uppercase">
+                · {item.faculty.school}
               </span>
-            </div>
-            {item.faculty.school && (
-              <p className="text-xs text-muted-foreground/50 font-medium uppercase tracking-wider pl-5.5">
-                {item.faculty.school}
-              </p>
             )}
           </div>
-        ) : (
-          <div className="flex-1" />
-        )}
-
-        {/* Venue */}
-        {item.venue ? (
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground/80 shrink-0">
-            <MapPin className="w-4 h-4 text-muted-foreground/40 shrink-0" />
-            <span className="font-normal">{item.venue}</span>
-          </div>
-        ) : (
-          <div className="w-16 shrink-0" />
         )}
       </div>
 
       {/* Right: Credits */}
-      <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-1.5 shrink-0 md:w-28 border-t border-border/5 md:border-t-0 pt-2.5 md:pt-0">
-        <div className="text-left md:text-right">
-          <span className="text-lg font-bold text-foreground leading-none tabular-nums">
+      <div className="text-left md:text-right space-y-0.5 w-full md:w-auto flex flex-row md:flex-col items-center md:items-end justify-between md:justify-end gap-2 border-t border-border/5 md:border-t-0 pt-2 md:pt-0">
+        <div className="flex items-baseline md:justify-end gap-1">
+          <span className="text-xl font-black text-foreground tabular-nums leading-none">
             {item.credits?.total ?? 0}
           </span>
-          <span className="text-xs text-muted-foreground/60 font-medium ml-1">Credits</span>
+          <span className="text-xs text-muted-foreground/50 font-medium">Credits</span>
         </div>
-        <span className="font-mono text-xs text-muted-foreground/45 leading-none tabular-nums">
-          L·T·P·J: {item.credits?.lecture ?? 0}·{item.credits?.tutorial ?? 0}·{item.credits?.practical ?? 0}·{item.credits?.project ?? 0}
-        </span>
+        <p className="font-mono text-[11px] text-muted-foreground/50 leading-none tabular-nums">
+          L-T-P-J: {item.credits?.lecture ?? 0}-{item.credits?.tutorial ?? 0}-{item.credits?.practical ?? 0}-{item.credits?.project ?? 0}
+        </p>
       </div>
 
     </div>
@@ -146,39 +126,34 @@ function CourseRow({ item, index }: { item: TimetableCourse; index: number }) {
 function CoursesSkeleton() {
   return (
     <div className="w-full space-y-6">
-      <div className="flex justify-between pb-6 border-b border-border/40">
+      <div className="flex justify-between pb-4 border-b border-border/10">
         <div className="space-y-2">
-          <div className="animate-pulse rounded bg-muted/60 h-7 w-36" />
-          <div className="animate-pulse rounded bg-muted/60 h-3 w-52" />
+          <div className="animate-pulse rounded bg-muted/60 h-7 w-48" />
+          <div className="animate-pulse rounded bg-muted/60 h-3 w-64" />
         </div>
       </div>
-      <div className="flex flex-wrap gap-4 py-4 border-b border-border/10 justify-between animate-pulse">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 border-y border-border/10 py-5">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="flex-1 min-w-[100px] border-r border-border/10 last:border-r-0 px-2 first:pl-0 space-y-2">
-            <div className="rounded bg-muted/60 h-3 w-16" />
-            <div className="rounded bg-muted/60 h-5 w-10" />
+          <div key={i} className="flex items-center justify-start pr-4 border-r border-border/10 last:border-r-0 space-y-1.5">
+            <div className="animate-pulse rounded bg-muted/60 h-3 w-16" />
+            <div className="animate-pulse rounded bg-muted/60 h-6 w-12" />
           </div>
         ))}
       </div>
-      <div className="flex flex-col gap-3 pb-4 border-b border-border/20 pt-4">
-        <div className="animate-pulse rounded bg-muted/60 h-5 w-44" />
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="animate-pulse rounded-md bg-muted/60 h-8" />
-          <div className="animate-pulse rounded-md bg-muted/60 h-8" />
-          <div className="animate-pulse rounded-md bg-muted/60 h-8" />
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="animate-pulse rounded-md bg-muted/60 h-10" />
+        <div className="animate-pulse rounded-md bg-muted/60 h-10" />
+        <div className="animate-pulse rounded-md bg-muted/60 h-10" />
       </div>
-      <div className="divide-y divide-border/5 animate-pulse">
-        {[...Array(10)].map((_, i) => (
-          <div key={i} className="py-4 px-3 -mx-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex-1 space-y-2 pr-4">
-              <div className="rounded bg-muted/60 h-4 w-20" />
+      <div className="divide-y divide-border/10 animate-pulse">
+        {[...Array(8)].map((_, i) => (
+          <div key={i} className="py-4 flex flex-col md:grid md:grid-cols-[1fr_280px_120px] gap-4">
+            <div className="space-y-2">
+              <div className="rounded bg-muted/60 h-4 w-24" />
               <div className="rounded bg-muted/60 h-5 w-2/3" />
             </div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between md:justify-end gap-4 md:gap-8 shrink-0">
-              <div className="rounded bg-muted/60 h-4 w-40" />
-              <div className="rounded bg-muted/60 h-4 w-20" />
-            </div>
+            <div className="rounded bg-muted/60 h-4 w-40" />
+            <div className="rounded bg-muted/60 h-4 w-20" />
           </div>
         ))}
       </div>
@@ -319,39 +294,48 @@ export default function CoursesPage() {
   const isLoading = authLoading || loading;
 
   return shell(
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-6 select-none">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <header className="pb-4 border-b border-border/20 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+      <header className="pb-4 border-b border-border/10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
         <div className="space-y-1">
-          <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+          <h1 className="text-2xl font-medium tracking-tight text-foreground flex items-center gap-2">
             <Layers className="w-6 h-6 text-primary shrink-0" />
             My Registered Courses
           </h1>
           <p className="text-xs text-muted-foreground">Courses you are registered for this semester</p>
         </div>
         {!isLoading && courses.length > 0 && (
-          <span className="text-xs text-muted-foreground/50 font-bold pb-0.5">
+          <span className="text-xs text-muted-foreground/60 font-semibold pb-0.5">
             {filteredCourses.length} of {courses.length} courses
           </span>
         )}
       </header>
 
-      {/* ── Top Stats Cards ─────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap gap-4 py-4 border-b border-border/10 justify-between">
+      {/* ── Top Stats Grid ──────────────────────────────────────────────────── */}
+      <div className="w-full grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 border-y border-border/10 py-5">
         {[
           { label: "Total Courses", value: courseStats.total, sub: "" },
-          { label: "Total Credits", value: courseStats.totalCredits, sub: "" },
+          { label: "Total Credits", value: courseStats.totalCredits, sub: "Cr" },
           { label: "Theory", value: courseStats.theory.count, sub: `${courseStats.theory.credits} Cr` },
           { label: "Lab", value: courseStats.lab.count, sub: `${courseStats.lab.credits} Cr` },
           { label: "Online", value: courseStats.online.count, sub: `${courseStats.online.credits} Cr` },
           { label: "Soft Skill", value: courseStats.softSkill.count, sub: `${courseStats.softSkill.credits} Cr` },
-        ].map((stat) => (
-          <div key={stat.label} className="flex-1 min-w-[100px] border-r border-border/10 last:border-r-0 px-2 first:pl-0">
-            <span className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none block">{stat.label}</span>
-            <div className="mt-2.5 flex items-baseline gap-1">
-              <span className="text-xl font-semibold text-foreground leading-none">{stat.value}</span>
-              {stat.sub && <span className="text-xs text-muted-foreground/60 font-medium leading-none">{stat.sub}</span>}
+        ].map((stat, idx) => (
+          <div
+            key={stat.label}
+            className={`flex items-center justify-start py-2.5 px-3 border-border/10 ${
+              idx % 2 === 0 ? "border-r md:border-r" : "md:border-r"
+            } ${idx === 5 ? "md:border-r-0 lg:border-r-0" : ""} ${
+              idx < 4 ? "border-b md:border-b-0" : ""
+            }`}
+          >
+            <div className="space-y-1 min-w-0">
+              <span className="text-[11px] font-bold text-muted-foreground/60 uppercase tracking-wider block truncate">{stat.label}</span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl lg:text-3xl font-black text-foreground leading-none tabular-nums">{stat.value}</span>
+                {stat.sub && <span className="text-xs text-muted-foreground/50 font-medium leading-none">{stat.sub}</span>}
+              </div>
             </div>
           </div>
         ))}
@@ -367,7 +351,7 @@ export default function CoursesPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             disabled={isLoading}
-            className="w-full h-10 pl-10 pr-10 rounded-md border border-border/20 bg-muted/10 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/30 transition-all disabled:opacity-50 text-foreground"
+            className="w-full h-10 pl-10 pr-10 rounded-lg border border-border/20 bg-muted/10 text-xs placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/30 transition-all disabled:opacity-50 text-foreground"
           />
           {searchQuery && (
             <button
@@ -380,10 +364,10 @@ export default function CoursesPage() {
         </div>
 
         <Select value={selectedTypeFilter} onValueChange={setSelectedTypeFilter}>
-          <SelectTrigger className="w-full h-10 rounded-md bg-muted/10 border-border/20 text-xs">
+          <SelectTrigger className="w-full h-10 rounded-lg bg-muted/10 border-border/20 text-xs">
             <SelectValue placeholder="All Course Types" />
           </SelectTrigger>
-          <SelectContent className="rounded-md border-border/30 bg-card">
+          <SelectContent className="rounded-lg border-border/30 bg-card">
             <SelectItem value="ALL">All Course Types</SelectItem>
             {filterOptions.types.map((type) => (
               <SelectItem key={type} value={type}>{type}</SelectItem>
@@ -392,10 +376,10 @@ export default function CoursesPage() {
         </Select>
 
         <Select value={selectedCategoryFilter} onValueChange={setSelectedCategoryFilter}>
-          <SelectTrigger className="w-full h-10 rounded-md bg-muted/10 border-border/20 text-xs">
+          <SelectTrigger className="w-full h-10 rounded-lg bg-muted/10 border-border/20 text-xs">
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
-          <SelectContent className="rounded-md border-border/30 bg-card">
+          <SelectContent className="rounded-lg border-border/30 bg-card">
             <SelectItem value="ALL">All Categories</SelectItem>
             {filterOptions.categories.map((cat) => (
               <SelectItem key={cat} value={cat}>{cat}</SelectItem>
@@ -406,24 +390,22 @@ export default function CoursesPage() {
 
       {/* ── Registered Courses List ─────────────────────────────────────────── */}
       {filteredCourses.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-          <FileText className="w-10 h-10 text-muted-foreground/20" />
+        <div className="flex flex-col items-center justify-center py-20 gap-3 text-center border-b border-border/10">
+          <FileText className="w-8 h-8 text-muted-foreground/20" />
           <p className="text-sm font-bold text-foreground">No registered courses found</p>
           <p className="text-xs text-muted-foreground">Try modifying your filters or search terms.</p>
         </div>
       ) : (
         <div className="flex flex-col">
           {/* Table Header on Desktop */}
-          <div className="hidden md:flex items-center justify-between px-3 pb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/10">
+          <div className="hidden md:grid grid-cols-[1fr_280px_120px] items-center gap-6 pb-2.5 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest border-b border-border/10">
             <div>Course Information</div>
-            <div className="flex items-center gap-6">
-              <span className="w-80 text-left">Instructor & Venue</span>
-              <span className="w-28 text-right">Credits</span>
-            </div>
+            <div>Instructor & Venue</div>
+            <div className="text-right">Credits</div>
           </div>
 
-          {/* List Rows - Flat Design */}
-          <div className="divide-y divide-border/5">
+          {/* List Rows */}
+          <div className="flex flex-col">
             {filteredCourses.map((item, idx) => (
               <CourseRow key={`${item.code}-${idx}`} item={item} index={idx} />
             ))}
@@ -433,37 +415,37 @@ export default function CoursesPage() {
 
       {/* ── Footer Summary ──────────────────────────────────────────────────── */}
       {courses.length > 0 && (
-        <footer className="p-5 rounded-lg bg-muted/10 border border-border/10 mt-6">
+        <footer className="pt-4 border-t border-border/10 mt-6">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-md bg-primary/10 text-primary shrink-0">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
                 <FileText className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-xs font-black uppercase tracking-wider text-foreground">Summary</h3>
-                <p className="text-xs text-muted-foreground font-semibold">Credit breakdown</p>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">Credit Summary</h3>
+                <p className="text-xs text-muted-foreground/60">Semester credit breakdown</p>
               </div>
             </div>
-            <div className="bg-primary/10 border border-primary/20 text-primary px-3 py-1.5 rounded-md flex items-center gap-1.5 shrink-0">
-              <span className="text-xs font-black uppercase tracking-wider leading-none">Total</span>
-              <span className="text-base font-black leading-none">{courseStats.totalCredits}</span>
+            <div className="bg-primary/10 border border-primary/20 text-primary px-3 py-1.5 rounded-full flex items-center gap-1.5 shrink-0">
+              <span className="text-xs font-bold uppercase tracking-wider leading-none">Total</span>
+              <span className="text-base font-black leading-none tabular-nums">{courseStats.totalCredits}</span>
               <span className="text-xs font-semibold leading-none opacity-70">Cr</span>
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
-              { icon: <Monitor className="w-3.5 h-3.5 text-primary/70" />, label: "Theory", count: courseStats.theory.count, credits: courseStats.theory.credits },
-              { icon: <Beaker className="w-3.5 h-3.5 text-primary/70" />, label: "Lab", count: courseStats.lab.count, credits: courseStats.lab.credits },
-              { icon: <Globe className="w-3.5 h-3.5 text-primary/70" />, label: "Online", count: courseStats.online.count, credits: courseStats.online.credits },
-              { icon: <Users className="w-3.5 h-3.5 text-primary/70" />, label: "Soft Skill", count: courseStats.softSkill.count, credits: courseStats.softSkill.credits },
+              { icon: <Monitor className="w-3.5 h-3.5 text-primary" />, label: "Theory", count: courseStats.theory.count, credits: courseStats.theory.credits },
+              { icon: <Beaker className="w-3.5 h-3.5 text-primary" />, label: "Lab", count: courseStats.lab.count, credits: courseStats.lab.credits },
+              { icon: <Globe className="w-3.5 h-3.5 text-primary" />, label: "Online", count: courseStats.online.count, credits: courseStats.online.credits },
+              { icon: <Users className="w-3.5 h-3.5 text-primary" />, label: "Soft Skill", count: courseStats.softSkill.count, credits: courseStats.softSkill.credits },
             ].map((row) => (
               <div key={row.label} className="flex items-center gap-2 min-w-0">
                 <span className="shrink-0">{row.icon}</span>
                 <div className="min-w-0">
-                  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground/55 truncate">{row.label}</p>
-                  <p className="text-sm font-black text-foreground leading-none">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/50 truncate">{row.label}</p>
+                  <p className="text-sm font-black text-foreground leading-none tabular-nums">
                     {row.count}
-                    <span className="text-xs font-semibold text-muted-foreground ml-1">({row.credits} Cr)</span>
+                    <span className="text-xs font-semibold text-muted-foreground/60 ml-1">({row.credits} Cr)</span>
                   </p>
                 </div>
               </div>

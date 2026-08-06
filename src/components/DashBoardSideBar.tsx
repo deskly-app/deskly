@@ -11,10 +11,6 @@ import {
   TrendingUp,
   GraduationCap,
   Calendar,
-  Utensils,
-  WashingMachine,
-  Receipt,
-  BookUser,
   Briefcase,
   Phone,
   Settings,
@@ -107,31 +103,7 @@ const DashboardSidebar = () => {
         icon: <Calendar className="w-5 h-5" />,
         description: "",
       },
-      {
-        label: "Mess",
-        href: "/dashboard/mess",
-        icon: <Utensils className="w-5 h-5" />,
-        description: "",
-      },
-      {
-        label: "Laundry",
-        href: "/dashboard/laundry",
-        icon: <WashingMachine className="w-5 h-5" />,
-        description: "",
-      },
-      {
-        label: "Payment Receipts",
-        href: "/dashboard/payment-receipts",
-        icon: <Receipt className="w-5 h-5" />,
-        description: "",
-      },
       // Group 4: Support & Administration
-      {
-        label: "Faculty Info",
-        href: "/dashboard/faculty-info",
-        icon: <BookUser className="w-5 h-5" />,
-        description: "",
-      },
       {
         label: "HOD & Dean",
         href: "/dashboard/hod-dean",

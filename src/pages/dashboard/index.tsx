@@ -1,72 +1,26 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { invoke } from "@tauri-apps/api/core";
-import { getStudentProfile, getFeedbackStatus, getStudentGradeView, ProfileData } from "@/lib/features";
+import { Link } from "react-router-dom";
+
+import { ErrorDisplay } from "@/components/error-display";
+import { getStudentProfile, ProfileData } from "@/lib/features";
 import {
+  MessageSquare,
+  Calendar,
   BookOpen,
-  Clock,
   FileText,
-  ClipboardList,
-  GraduationCap,
-  TrendingUp,
+  Clock,
+  Settings,
+  ChevronRight,
 } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useOnlineStatus } from "@/hooks/use-online-status";
-import { OfflineDisplay } from "@/components/offline-display";
-import { isNetworkError, fetchWithTimeout } from "@/lib/utils";
-import dashboardImg from "@/assets/dashboard.png";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatStudentName(name: string | undefined) {
-  if (!name) return "Student";
-  const parts = name.trim().split(/\s+/);
-  return parts
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(" ");
-}
-
-function getGreeting() {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) return "Good morning,";
-  if (hour >= 12 && hour < 17) return "Good afternoon,";
-  return "Good evening,";
-}
-
-function parseFeedbackText(text: string) {
-  const n = text.toLowerCase();
-  const isGiven =
-    (n.includes("given") && !n.includes("not given")) || n.includes("submitted");
-  return { isGiven };
-}
-
-function getCubicBezierPath(points: { x: number; y: number }[]): string {
-  if (points.length === 0) return "";
-  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
-
-  let d = `M ${points[0].x} ${points[0].y}`;
-  for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[i === 0 ? i : i - 1];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[i + 2 < points.length ? i + 2 : i + 1];
-
-    const cp1x = p1.x + (p2.x - p0.x) * 0.15;
-    const cp1y = p1.y + (p2.y - p0.y) * 0.15;
-    const cp2x = p2.x - (p3.x - p1.x) * 0.15;
-    const cp2y = p2.y - (p3.y - p1.y) * 0.15;
-
-    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
-  }
-  return d;
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type CgpaData = {
-  currentCgpa: number;
-  earnedCredits: number;
   totalCreditsRequired: number;
+  earnedCredits: number;
+  currentCgpa: number;
   nonGradedCore: number;
 };
 
@@ -76,235 +30,144 @@ type FeedbackStatus = {
   teeSemester: string;
 };
 
-type GpaTrendPoint = {
-  id: string;
-  name: string;
-  gpa: number;
-};
+// ─── API Helpers ──────────────────────────────────────────────────────────────
 
-// ─── API ──────────────────────────────────────────────────────────────────────
-
-async function getCgpaPage(): Promise<{ success: boolean; cgpaData?: CgpaData; error?: string }> {
+async function getCgpaPage(): Promise<{
+  success: boolean;
+  cgpaData?: CgpaData;
+  error?: string;
+}> {
   try {
-    return await invoke("get_cgpa_page");
-  } catch (err) {
-    return { success: false, error: String(err) };
+    return await invoke<{ success: boolean; cgpaData?: CgpaData; error?: string }>(
+      "get_cgpa_page",
+    );
+  } catch (err: unknown) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+async function getFeedbackStatus(): Promise<{
+  success: boolean;
+  data?: FeedbackStatus[];
+  error?: string;
+}> {
+  try {
+    return await invoke<{
+      success: boolean;
+      data?: FeedbackStatus[];
+      error?: string;
+    }>("feedback_get_status");
+  } catch (err: unknown) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatStudentName(fullName: string | undefined): string {
+  if (!fullName) return "";
+  const name = fullName.trim().toLowerCase();
+  return name
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+const QUICK_LINKS = [
+  { label: "Timetable", path: "/dashboard/timetable", icon: Calendar },
+  { label: "Attendance", path: "/dashboard/attendance", icon: BookOpen },
+  { label: "My Marks", path: "/dashboard/marks", icon: FileText },
+  { label: "Academic Calendar", path: "/dashboard/academic-calendar", icon: Clock },
+  { label: "Settings", path: "/dashboard/settings", icon: Settings },
+];
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+function Sk({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse rounded-md bg-muted/65 ${className}`} />;
+}
 
 function DashboardSkeleton() {
   return (
-    <div className="space-y-6 px-1 py-2 animate-pulse font-saira">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-3.5 w-36" />
-        </div>
-        <Skeleton className="h-6 w-6 rounded-full" />
+    <div className="w-full space-y-10">
+      {/* Header skeleton */}
+      <div className="pb-6 border-b border-border/10 space-y-2">
+        <Sk className="h-7 w-56" />
+        <Sk className="h-4 w-44" />
       </div>
-
-      {/* CGPA block */}
-      <div className="space-y-5">
-        <Skeleton className="h-3 w-28" />
-        <Skeleton className="h-16 w-56" />
-        <div className="space-y-2">
-          <div className="flex justify-between">
-            <Skeleton className="h-3.5 w-28" />
-            <Skeleton className="h-3.5 w-32" />
+      
+      {/* Two column grid skeleton */}
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-12 items-start">
+        {/* Left side skeleton */}
+        <div className="space-y-8">
+          <div className="space-y-3">
+            <Sk className="h-3.5 w-48" />
+            <Sk className="h-14 w-36" />
           </div>
-          <Skeleton className="h-1.5 w-full" />
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          <Skeleton className="h-24 rounded-lg" />
-          <Skeleton className="h-24 rounded-lg" />
-          <Skeleton className="h-24 rounded-lg" />
-        </div>
-      </div>
+          
+          {/* Progress bar skeleton */}
+          <div className="pt-4 space-y-3 max-w-xl">
+            <div className="flex justify-between">
+              <Sk className="h-3 w-36" />
+              <Sk className="h-3 w-40" />
+            </div>
+            <Sk className="h-1.5 w-full" />
+          </div>
+          
+          {/* Stats skeleton */}
+          <div className="grid grid-cols-3 gap-8 pt-8 max-w-xl">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="space-y-2">
+                <Sk className="h-3 w-14" />
+                <Sk className="h-7 w-12" />
+                <Sk className="h-3 w-20" />
+              </div>
+            ))}
+          </div>
 
-      {/* Graph Skeleton */}
-      <Skeleton className="h-44 w-full rounded-[28px]" />
-    </div>
-  );
-}
-
-function GpaTrendGraph({ points }: { points: GpaTrendPoint[] }) {
-  const [activePointIndex, setActivePointIndex] = useState<number | null>(points.length - 1);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (scrollContainerRef.current) {
-      // Auto scroll to latest semester on mount/data change
-      scrollContainerRef.current.scrollLeft = scrollContainerRef.current.scrollWidth;
-    }
-  }, [points]);
-
-  if (!points || points.length === 0) return null;
-
-  const gpaValues = points.map((p) => p.gpa);
-  const highestGpa = Math.max(...gpaValues);
-  const avgGpa = gpaValues.reduce((a, b) => a + b, 0) / points.length;
-  const latestGpa = points[points.length - 1].gpa;
-
-  const minGpa = Math.max(0, Math.floor(Math.min(...gpaValues) - 0.8));
-  const maxGpa = 10;
-  const range = maxGpa - minGpa || 1;
-
-  const pointSpacing = 65;
-  const paddingX = 35;
-  const paddingY = 24;
-  
-  const width = Math.max(340, paddingX * 2 + (points.length - 1) * pointSpacing);
-  const height = 150;
-
-  const chartWidth = width - paddingX * 2;
-  const chartHeight = height - paddingY * 2 - 15; // reserve space for bottom label
-
-  const coords = points.map((pt, i) => {
-    const x = paddingX + (i / Math.max(1, points.length - 1)) * chartWidth;
-    const y = paddingY + chartHeight - ((pt.gpa - minGpa) / range) * chartHeight;
-    const prevGpa = i > 0 ? points[i - 1].gpa : null;
-    const diff = prevGpa !== null ? pt.gpa - prevGpa : null;
-    return { x, y, pt, diff };
-  });
-
-  const smoothLinePath = getCubicBezierPath(coords.map((c) => ({ x: c.x, y: c.y })));
-  const activeIdx = activePointIndex !== null && coords[activePointIndex] ? activePointIndex : coords.length - 1;
-  const active = coords[activeIdx];
-
-  return (
-    <div className="bg-gradient-to-br from-card/90 to-card/45 border border-border/15 p-5 rounded-[28px] shadow-sm space-y-4 font-saira">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="w-4.5 h-4.5 text-primary shrink-0" />
-          <h3 className="text-base font-bold text-foreground leading-none">
-            GPA History
-          </h3>
-        </div>
-        <span className="text-xs font-semibold text-muted-foreground bg-muted/40 border border-border/30 rounded-full px-2 py-0.5">
-          {points.length} Semesters
-        </span>
-      </div>
-
-      {/* Hero Metrics Row */}
-      <div className="grid grid-cols-3 gap-2 p-3 bg-muted/30 border border-border/30 rounded-lg">
-        <div className="text-center space-y-0.5">
-          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Latest</span>
-          <span className="text-sm font-black text-foreground">{latestGpa.toFixed(2)}</span>
-        </div>
-        <div className="text-center space-y-0.5 border-x border-border/30">
-          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Peak</span>
-          <span className="text-sm font-black text-primary">{highestGpa.toFixed(2)}</span>
-        </div>
-        <div className="text-center space-y-0.5">
-          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Average</span>
-          <span className="text-sm font-black text-foreground">{avgGpa.toFixed(2)}</span>
-        </div>
-      </div>
-
-      {/* Selected Node Details Bar */}
-      {active && (
-        <div className="flex items-center justify-between px-1 text-xs">
-          <span className="font-semibold text-muted-foreground truncate">{active.pt.name}</span>
-          <div className="flex items-center gap-2 font-bold shrink-0">
-            <span className="text-foreground">{active.pt.gpa.toFixed(2)} GPA</span>
-            {active.diff !== null && (
-              <span className={active.diff >= 0 ? "text-emerald-500" : "text-rose-500"}>
-                {active.diff >= 0 ? `(+${active.diff.toFixed(2)})` : `(${active.diff.toFixed(2)})`}
-              </span>
-            )}
+          {/* Quick Access skeleton */}
+          <div className="pt-8 border-t border-border/10 space-y-4 max-w-xl">
+            <Sk className="h-3.5 w-24" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-5">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="flex items-center justify-between py-2.5 border-b border-border/5">
+                  <div className="flex items-center gap-3">
+                    <Sk className="h-4 w-4 rounded-md" />
+                    <Sk className="h-3.5 w-20" />
+                  </div>
+                  <Sk className="h-3.5 w-3.5" />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      )}
-
-      {/* Horizontally Scrollable SVG Graph */}
-      <div ref={scrollContainerRef} className="relative w-full pt-1 px-1 overflow-x-auto no-scrollbar scroll-smooth">
-        <div style={{ width: `${width}px` }} className="h-[150px]">
-          <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} className="w-full h-full overflow-visible">
-            {/* Dashed Gridlines */}
-            {[10, 8, 6].filter((v) => v >= minGpa && v <= maxGpa).map((val) => {
-              const y = paddingY + chartHeight - ((val - minGpa) / range) * chartHeight;
-              return (
-                <g key={val}>
-                  <line
-                    x1={paddingX - 15}
-                    y1={y}
-                    x2={width - paddingX + 15}
-                    y2={y}
-                    stroke="var(--border)"
-                    strokeOpacity="0.4"
-                    strokeDasharray="3 3"
-                    strokeWidth="1"
-                  />
-                  <text x={paddingX - 18} y={y + 3} textAnchor="end" className="text-[10px] font-semibold fill-muted-foreground">
-                    {val}.0
-                  </text>
-                </g>
-              );
-            })}
-
-            {/* Clean Line Path (No gradient fill underneath) */}
-            <path
-              d={smoothLinePath}
-              fill="none"
-              stroke="var(--primary)"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-
-            {/* Point Nodes */}
-            {coords.map((c, i) => {
-              const isSelected = activeIdx === i;
-              return (
-                <g key={c.pt.id} onClick={() => setActivePointIndex(i)} className="cursor-pointer">
-                  {isSelected && (
-                    <circle
-                      cx={c.x}
-                      cy={c.y}
-                      r="8"
-                      fill="var(--primary)"
-                      fillOpacity="0.15"
-                    />
-                  )}
-                  <circle
-                    cx={c.x}
-                    cy={c.y}
-                    r={isSelected ? "4.5" : "3"}
-                    fill={isSelected ? "var(--background)" : "var(--primary)"}
-                    stroke="var(--primary)"
-                    strokeWidth={isSelected ? "2.5" : "0"}
-                    className="transition-all duration-150"
-                  />
-                  <text
-                    x={c.x}
-                    y={c.y - 9}
-                    textAnchor="middle"
-                    className={`text-xs font-bold transition-colors ${
-                      isSelected ? "fill-primary text-xs" : "fill-foreground/80"
-                    }`}
-                  >
-                    {c.pt.gpa.toFixed(2)}
-                  </text>
-                  
-                  {/* Inline Semester Label under each point */}
-                  <text
-                    x={c.x}
-                    y={height - 8}
-                    textAnchor="middle"
-                    className={`text-[8.5px] font-extrabold tracking-tight transition-colors ${
-                      isSelected ? "fill-primary font-black" : "fill-muted-foreground/45"
-                    }`}
-                  >
-                    {c.pt.name.replace("Semester", "").replace("20", "").trim()}
-                  </text>
-                </g>
-              );
-            })}
-          </svg>
+        
+        {/* Right side skeleton */}
+        <div className="space-y-6 lg:pl-8 lg:border-l lg:border-border/10">
+          <div className="space-y-2">
+            <Sk className="h-4.5 w-36" />
+            <Sk className="h-3.5 w-48" />
+          </div>
+          <div className="space-y-6 pt-4">
+            {[...Array(2)].map((_, i) => (
+              <div key={i} className="space-y-3 pb-5 border-b border-border/10 last:border-b-0">
+                <div className="space-y-1.5">
+                  <Sk className="h-4 w-28" />
+                  <Sk className="h-3.5 w-44" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between"><Sk className="h-3.5 w-24" /><Sk className="h-3.5 w-16" /></div>
+                  <div className="flex justify-between"><Sk className="h-3.5 w-24" /><Sk className="h-3.5 w-16" /></div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -313,326 +176,384 @@ function GpaTrendGraph({ points }: { points: GpaTrendPoint[] }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function MobileDashboardHome() {
+export default function DashboardHomePage() {
   const { isLoggedIn, loading: authLoading } = useAuth();
-  const isOnline = useOnlineStatus();
 
-  const cachedDashboard = useMemo(() => {
-    try {
-      const cached = localStorage.getItem("deskly::cache::dashboard");
-      return cached ? JSON.parse(cached) : null;
-    } catch {
-      return null;
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [cgpaData, setCgpaData] = useState<CgpaData | null>(null);
+  const [feedbackData, setFeedbackData] = useState<FeedbackStatus[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Today's Date formatted nicely
+  const formattedDate = useMemo(() => {
+    return new Date().toLocaleDateString("default", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  }, []);
+
+  // Load from Cache (SWR) first
+  useEffect(() => {
+    const cached = localStorage.getItem("deskly::cache::dashboard");
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed && (parsed.cgpaData || parsed.feedbackData || parsed.profile)) {
+          if (parsed.cgpaData) setCgpaData(parsed.cgpaData);
+          if (parsed.feedbackData) setFeedbackData(parsed.feedbackData);
+          if (parsed.profile) setProfile(parsed.profile);
+          setLoading(false);
+        }
+      } catch (e) {
+        console.error("Failed to parse cached dashboard data", e);
+      }
     }
   }, []);
 
-  const [profile, setProfile] = useState<ProfileData | null>(cachedDashboard?.profile ?? null);
-  const [cgpaData, setCgpaData] = useState<CgpaData | null>(cachedDashboard?.cgpaData ?? null);
-  const [feedbackData, setFeedbackData] = useState<FeedbackStatus[] | null>(cachedDashboard?.feedbackData ?? null);
-  const [gpaTrend, setGpaTrend] = useState<GpaTrendPoint[]>(cachedDashboard?.gpaTrend ?? []);
-  const [loading, setLoading] = useState(!cachedDashboard?.cgpaData && !cachedDashboard?.feedbackData);
-  const [error, setError] = useState<string | null>(null);
-
   async function loadData() {
-    if (authLoading || !isLoggedIn) return;
-    setError(null);
-
-    const hasCache = !!(cgpaData || feedbackData || profile);
-
     try {
+      if (!isLoggedIn && !authLoading) return;
+      setError(null);
+      if (authLoading) return;
+
       const [cgpaRes, feedbackRes, profileRes] = await Promise.all([
-        fetchWithTimeout(getCgpaPage(), 15000),
-        fetchWithTimeout(getFeedbackStatus(), 15000),
-        fetchWithTimeout(getStudentProfile().catch(() => null), 15000),
+        getCgpaPage(),
+        getFeedbackStatus(),
+        getStudentProfile().catch(() => null),
       ]);
 
       let updatedCgpa = cgpaData;
       let updatedFeedback = feedbackData;
       let updatedProfile = profile;
-      let updatedGpaTrend = gpaTrend;
 
       if (cgpaRes.success && cgpaRes.cgpaData) {
         setCgpaData(cgpaRes.cgpaData);
         updatedCgpa = cgpaRes.cgpaData;
-      } else if (cgpaRes.error && !hasCache) {
+      } else if (cgpaRes.error) {
+        console.error("CGPA fetch error:", cgpaRes.error);
         setError(cgpaRes.error);
       }
 
       if (feedbackRes.success && feedbackRes.data) {
         setFeedbackData(feedbackRes.data);
         updatedFeedback = feedbackRes.data;
-      } else if (feedbackRes.error && !hasCache) {
+      } else if (feedbackRes.error) {
+        console.error("Feedback fetch error:", feedbackRes.error);
         setError(feedbackRes.error);
       }
 
-      if (profileRes?.success && profileRes.data) {
+      if (profileRes && profileRes.success && profileRes.data) {
         setProfile(profileRes.data);
         updatedProfile = profileRes.data;
       }
 
-      // Fetch GPA trend in parallel for all semesters
-      try {
-        const initialGradeRes = await fetchWithTimeout(getStudentGradeView().catch(() => null), 15000);
-        if (initialGradeRes?.success && initialGradeRes.data) {
-          const semesters = initialGradeRes.data.semesters || [];
-          if (semesters.length > 0) {
-            const semResults = await Promise.all(
-              semesters.map(async (sem) => {
-                if (sem.id === initialGradeRes.data?.semesterSubId) {
-                  return { id: sem.id, name: sem.name, gpa: initialGradeRes.data.gpa ?? null };
-                }
-                const res = await fetchWithTimeout(getStudentGradeView(sem.id).catch(() => null), 15000);
-                return {
-                  id: sem.id,
-                  name: sem.name,
-                  gpa: res?.success && res.data?.gpa !== undefined ? res.data.gpa : null,
-                };
-              })
-            );
-
-            const validPoints = semResults
-              .filter((r): r is { id: string; name: string; gpa: number } => r.gpa !== null && r.gpa !== undefined)
-              .reverse();
-
-            if (validPoints.length > 0) {
-              setGpaTrend(validPoints);
-              updatedGpaTrend = validPoints;
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Failed to fetch GPA trend points", e);
-      }
-
+      // Save to cache
       localStorage.setItem(
         "deskly::cache::dashboard",
         JSON.stringify({
           cgpaData: updatedCgpa,
           feedbackData: updatedFeedback,
           profile: updatedProfile,
-          gpaTrend: updatedGpaTrend,
         })
       );
     } catch (e) {
-      if (!hasCache) {
-        setError(e instanceof Error ? e.message : String(e));
-      }
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    if (isLoggedIn) loadData();
+    if (isLoggedIn) {
+      loadData();
+    }
   }, [isLoggedIn, authLoading]);
 
-  const studentName = formatStudentName(profile?.student?.name);
+  function parseFeedbackText(text: string) {
+    const normalized = text.toLowerCase();
+    // "NOT Given" also contains "given", so we must explicitly exclude the "not given" case
+    const isGiven =
+      (normalized.includes("given") && !normalized.includes("not given")) ||
+      normalized.includes("submitted");
+    return {
+      isGiven,
+      statusText: isGiven ? "Submitted" : "Pending",
+      rawText: text,
+    };
+  }
 
-  const formattedDate = useMemo(
-    () =>
-      new Date().toLocaleDateString("default", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      }),
-    []
+  const studentName = profile?.student?.name
+    ? formatStudentName(profile.student.name)
+    : "Student";
+
+  const shell = (children: React.ReactNode) => (
+    <>{children}</>
   );
 
-  const showOffline = !cgpaData && !feedbackData && !profile && (isOnline === false || isNetworkError(error, isOnline));
-
-  if (showOffline && !loading) {
-    return <OfflineDisplay onRetry={loadData} />;
-  }
-
   if (authLoading || (loading && !cgpaData && !feedbackData)) {
-    return <DashboardSkeleton />;
+    return shell(<DashboardSkeleton />);
   }
 
-  const creditPct = cgpaData
-    ? ((cgpaData.earnedCredits / cgpaData.totalCreditsRequired) * 100).toFixed(1)
-    : "0";
+  if (error && !cgpaData && !feedbackData) {
+    return shell(
+      <div className="flex h-full items-center justify-center">
+        <ErrorDisplay message={error} onRetry={loadData} />
+      </div>,
+    );
+  }
 
-  return (
-    <div className="w-full space-y-7 px-0 pt-2 pb-6 font-saira select-none overscroll-y-contain relative">
-      {/* Google Font Saira Injection */}
-      <style>{`
-        .font-saira {
-          font-family: 'Saira', sans-serif !important;
-        }
-      `}</style>
-
-      {/* Illustration image absolute header */}
-      <div className="absolute -top-4 right-0 w-[200px] h-[160px] pointer-events-none select-none z-0">
-        <img
-          src={dashboardImg}
-          className="w-full h-full object-contain opacity-95 dark:opacity-75"
-          style={{
-            maskImage: "radial-gradient(ellipse at 30% 40%, black 30%, rgba(0,0,0,0.85) 50%, rgba(0,0,0,0.2) 80%, transparent 95%)",
-            WebkitMaskImage: "radial-gradient(ellipse at 30% 40%, black 30%, rgba(0,0,0,0.85) 50%, rgba(0,0,0,0.2) 80%, transparent 95%)"
-          }}
-          alt="Dashboard Illustration"
-        />
-      </div>
-
-      {/* Error banner */}
-      {error && !isNetworkError(error, isOnline) && (
-        <div className="relative z-10 flex items-center justify-between gap-4 px-4 py-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg">
-          <p className="text-xs font-semibold truncate">Sync failed — {error}</p>
-          <button
+  return shell(
+    <div className="w-full space-y-10">
+      {error && (
+        <div className="flex items-center justify-between p-3 bg-destructive/10 border border-destructive/20 text-destructive text-xs rounded-md gap-4 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse shrink-0" />
+            <span className="truncate">Sync failed: {error} (Viewing cached data)</span>
+          </div>
+          <button 
             onClick={loadData}
-            className="text-xs font-bold uppercase tracking-wider shrink-0 border-0 bg-transparent text-destructive cursor-pointer"
+            className="text-xs uppercase font-bold tracking-wider hover:underline focus:outline-none shrink-0"
           >
             Retry
           </button>
         </div>
       )}
 
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <header className="relative z-10 flex items-start justify-between gap-4">
-        <div className="space-y-1.5 min-w-0 pt-2">
-          <p className="text-sm font-medium text-muted-foreground/60 leading-none">
-            {getGreeting()}
-          </p>
-          <h1 className="text-3xl font-extrabold text-foreground tracking-tight leading-tight truncate">
-            {profile?.student?.name ? studentName : "Student"}
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <header className="pb-6 border-b border-border/10 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-xl font-bold tracking-tight text-foreground">
+            {profile?.student?.name ? `Welcome back, ${studentName}.` : "Academic Dashboard"}
           </h1>
-          <p className="text-xs text-muted-foreground/40 leading-none pt-0.5">{formattedDate}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {formattedDate}
+          </p>
         </div>
       </header>
 
-      {/* ── CGPA Card ───────────────────────────────────────────────────────── */}
-      {cgpaData && (
-        <section className="relative z-10 space-y-6">
-          <div className="bg-gradient-to-br from-card/90 to-card/45 border border-border/15 p-6 rounded-[30px] shadow-sm space-y-6">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold tracking-wider text-muted-foreground/50 uppercase leading-none">
-                Cumulative GPA
-              </span>
+      {/* ── Two Column Desktop Grid ─────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-12 items-start">
+        
+        {/* Left Column: CGPA Callout & Academic Stats */}
+        <div className="space-y-8">
+          {cgpaData ? (
+            <div className="space-y-6">
+              <div className="space-y-1">
+                <p className="text-xs font-black tracking-widest text-muted-foreground/60 uppercase">
+                  Cumulative Grade Point Average
+                </p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-6xl sm:text-7xl font-black tracking-tighter text-foreground leading-none">
+                    {cgpaData.currentCgpa.toFixed(2)}
+                  </span>
+                  <span className="text-sm font-semibold text-muted-foreground">/ 10.00</span>
+                </div>
+              </div>
+              
+              {/* Credit Completion Progress */}
+              <div className="pt-4 space-y-2.5 max-w-xl">
+                <div className="flex justify-between text-xs font-semibold">
+                  <span className="text-muted-foreground">Degree Credit Completion</span>
+                  <span className="text-foreground font-bold">
+                    {cgpaData.earnedCredits} of {cgpaData.totalCreditsRequired} credits ({((cgpaData.earnedCredits / cgpaData.totalCreditsRequired) * 100).toFixed(1)}%)
+                  </span>
+                </div>
+                <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-primary rounded-full transition-all duration-500" 
+                    style={{ width: `${(cgpaData.earnedCredits / cgpaData.totalCreditsRequired) * 100}%` }} 
+                  />
+                </div>
+              </div>
+              
+              {/* 3-Column Credit Metrics */}
+              <div className="grid grid-cols-3 gap-8 pt-8 border-t border-border/10 max-w-xl">
+                <div className="space-y-1">
+                  <p className="text-xs font-black tracking-widest text-muted-foreground/50 uppercase">
+                    Earned
+                  </p>
+                  <p className="text-2xl font-extrabold text-foreground">
+                    {cgpaData.earnedCredits}
+                  </p>
+                  <p className="text-xs text-muted-foreground/60">Credits earned</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-black tracking-widest text-muted-foreground/50 uppercase">
+                    Required
+                  </p>
+                  <p className="text-2xl font-extrabold text-foreground">
+                    {cgpaData.totalCreditsRequired}
+                  </p>
+                  <p className="text-xs text-muted-foreground/60">Degree required</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-black tracking-widest text-muted-foreground/50 uppercase">
+                    Non-Graded
+                  </p>
+                  <p className="text-2xl font-extrabold text-foreground">
+                    {cgpaData.nonGradedCore}
+                  </p>
+                  <p className="text-xs text-muted-foreground/60">Non-graded core</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Render Inline CGPA Skeleton */
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <Sk className="h-3.5 w-48" />
+                <div className="flex items-baseline gap-2 mt-1">
+                  <Sk className="h-14 w-36" />
+                  <Sk className="h-4 w-12" />
+                </div>
+              </div>
+              <div className="pt-4 space-y-3 max-w-xl">
+                <div className="flex justify-between"><Sk className="h-3 w-36" /><Sk className="h-3 w-40" /></div>
+                <Sk className="h-1.5 w-full" />
+              </div>
+              <div className="grid grid-cols-3 gap-8 pt-8 max-w-xl">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="space-y-2"><Sk className="h-3 w-14" /><Sk className="h-7 w-12" /><Sk className="h-3 w-20" /></div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Quick Access Links */}
+          <div className="pt-8 border-t border-border/10 space-y-4 max-w-xl">
+            <h2 className="text-xs font-black tracking-widest text-muted-foreground/60 uppercase">
+              Quick Access
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-5">
+              {QUICK_LINKS.map((link) => {
+                const Icon = link.icon;
+                return (
+                  <Link
+                    key={link.path}
+                    to={link.path}
+                    className="group flex items-center justify-between py-2.5 border-b border-border/5 hover:border-primary/20 transition-all duration-150"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Icon className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors shrink-0" />
+                      <span className="text-xs font-bold text-foreground/85 group-hover:text-foreground truncate transition-colors">
+                        {link.label}
+                      </span>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/25 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: VTOP Feedback status checklist */}
+        {feedbackData && feedbackData.length > 0 ? (
+          <div className="space-y-6 lg:pl-8 lg:border-l lg:border-border/10">
+            <div className="space-y-1">
+              <h2 className="text-base font-bold text-foreground tracking-tight flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-primary shrink-0" />
+                Feedback Checklist
+              </h2>
+              <p className="text-xs text-muted-foreground">VTOP feedback submission status</p>
             </div>
             
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-5xl font-extrabold text-foreground leading-none tracking-tight">
-                {cgpaData.currentCgpa.toFixed(2)}
-              </span>
-              <span className="text-sm font-medium text-muted-foreground/45 leading-none">/ 10.00</span>
-            </div>
-
-            <div className="space-y-2.5 pt-1">
-              <div className="flex items-center justify-between text-xs font-semibold">
-                <span className="text-muted-foreground/60">Credits Completed</span>
-                <span className="text-foreground tracking-tight">
-                  {cgpaData.earnedCredits} / {cgpaData.totalCreditsRequired} ({creditPct}%)
-                </span>
-              </div>
-              <div className="h-1.5 w-full bg-muted/20 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all duration-700"
-                  style={{
-                    width: `${(cgpaData.earnedCredits / cgpaData.totalCreditsRequired) * 100}%`,
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Three Circular Stats Badges */}
-          <div className="grid grid-cols-3 gap-4 pt-2">
-            {/* Earned */}
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-[60px] h-[60px] rounded-full border-2 border-t-primary/45 border-x-primary/45 border-b-transparent flex items-center justify-center text-primary shrink-0">
-                <GraduationCap className="w-6 h-6" />
-              </div>
-              <div className="text-center space-y-0.5">
-                <p className="text-lg font-extrabold text-foreground leading-tight">{cgpaData.earnedCredits}</p>
-                <p className="text-xs font-bold text-muted-foreground/50 uppercase tracking-wide">Earned</p>
-              </div>
-            </div>
-
-            {/* Required */}
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-[60px] h-[60px] rounded-full border-2 border-t-border border-x-border border-b-transparent flex items-center justify-center text-muted-foreground shrink-0">
-                <BookOpen className="w-5 h-5" />
-              </div>
-              <div className="text-center space-y-0.5">
-                <p className="text-lg font-extrabold text-foreground leading-tight">{cgpaData.totalCreditsRequired}</p>
-                <p className="text-xs font-bold text-muted-foreground/50 uppercase tracking-wide">Required</p>
-              </div>
-            </div>
-
-            {/* Non-Graded */}
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-[60px] h-[60px] rounded-full border-2 border-t-border border-x-border border-b-transparent flex items-center justify-center text-muted-foreground shrink-0">
-                <Clock className="w-5 h-5" />
-              </div>
-              <div className="text-center space-y-0.5">
-                <p className="text-lg font-extrabold text-foreground leading-tight">{cgpaData.nonGradedCore}</p>
-                <p className="text-xs font-bold text-muted-foreground/50 uppercase tracking-wide">Non-Graded</p>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── GPA Trend Graph ─────────────────────────────────────────────────── */}
-      {gpaTrend && gpaTrend.length > 0 && (
-        <section className="relative z-10">
-          <GpaTrendGraph points={gpaTrend} />
-        </section>
-      )}
-
-      {/* ── Feedback Status ──────────────────────────────────────────────────── */}
-      {feedbackData && feedbackData.length > 0 && (
-        <section className="relative z-10 space-y-4">
-          <div className="flex items-center justify-between text-foreground">
-            <div className="space-y-1">
-              <h2 className="text-lg font-extrabold tracking-tight leading-none">Feedback</h2>
-              <div className="w-6 h-0.5 bg-foreground rounded" />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            {feedbackData.map((item, idx) => {
-              const isCurriculum = item.type.toLowerCase().includes("curriculum");
-              const label = isCurriculum ? "Content Feedback" : "General Feedback";
-              const mid = parseFeedbackText(item.midSemester);
-              const tee = parseFeedbackText(item.teeSemester);
-              const Icon = isCurriculum ? FileText : ClipboardList;
-              const iconColor = "text-primary bg-primary/10";
-
-              return (
-                <div
-                  key={idx}
-                  className="bg-gradient-to-br from-card/90 to-card/45 border border-border/15 p-4 rounded-xl flex items-center justify-between shadow-sm"
-                >
-                  <div className="flex items-center min-w-0">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 mr-4 ${iconColor}`}>
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0 space-y-1">
-                      <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground/45 leading-none truncate">
+            <div className="space-y-6 pt-2">
+              {feedbackData.map((item, idx) => {
+                const isCurriculum = item.type.toLowerCase().includes("curriculum");
+                const label = isCurriculum ? "Content Feedback" : "General Feedback";
+                const desc = isCurriculum 
+                  ? "Syllabus & curriculum content status" 
+                  : "Course instruction & teaching status";
+                
+                const mid = parseFeedbackText(item.midSemester);
+                const tee = parseFeedbackText(item.teeSemester);
+ 
+                return (
+                  <div
+                    key={idx}
+                    className="space-y-3 pb-5 border-b border-border/10 last:border-b-0 last:pb-0"
+                  >
+                    <div className="space-y-0.5">
+                      <span className="text-xs font-black uppercase tracking-wider text-muted-foreground/55">
                         {item.type}
+                      </span>
+                      <h3 className="text-sm font-bold text-foreground mt-0.5">
+                        {label}
+                      </h3>
+                      <p className="text-xs text-muted-foreground/60">
+                        {desc}
                       </p>
-                      <h3 className="text-[13.5px] font-bold text-foreground leading-none">{label}</h3>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground font-semibold leading-none pt-0.5">
-                        <span>Mid:</span>
-                        <span className={mid.isGiven ? "text-primary" : "text-destructive font-extrabold"}>
-                          {mid.isGiven ? "Given" : "Pending"}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground font-semibold">
+                          Mid Semester:
                         </span>
-                        <span className="text-muted-foreground/15">|</span>
-                        <span>TEE:</span>
-                        <span className={tee.isGiven ? "text-primary" : "text-destructive font-extrabold"}>
-                          {tee.isGiven ? "Given" : "Pending"}
+                        <span
+                          className={`inline-flex items-center gap-1.5 font-bold ${
+                            mid.isGiven ? "text-emerald-500" : "text-destructive"
+                          }`}
+                          title={mid.rawText}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${mid.isGiven ? "bg-emerald-500" : "bg-destructive"} relative -translate-y-[0.5px]`} />
+                          {mid.statusText}
+                        </span>
+                      </div>
+ 
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground font-semibold">
+                          TEE Semester:
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1.5 font-bold ${
+                            tee.isGiven ? "text-emerald-500" : "text-destructive"
+                          }`}
+                          title={tee.rawText}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${tee.isGiven ? "bg-emerald-500" : "bg-destructive"} relative -translate-y-[0.5px]`} />
+                          {tee.statusText}
                         </span>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </section>
-      )}
+        ) : (
+          /* Render Inline Feedback Checklist Skeleton */
+          <div className="space-y-6 lg:pl-8 lg:border-l lg:border-border/10 w-full">
+            <div className="space-y-1">
+              <h2 className="text-base font-bold text-foreground tracking-tight flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-primary shrink-0" />
+                Feedback Checklist
+              </h2>
+              <p className="text-xs text-muted-foreground">VTOP feedback submission status</p>
+            </div>
+            
+            <div className="space-y-6 pt-2">
+              {[...Array(2)].map((_, i) => (
+                <div key={i} className="space-y-3 pb-5 border-b border-border/10 last:border-b-0">
+                  <div className="space-y-1.5">
+                    <Sk className="h-3 w-20" />
+                    <Sk className="h-4 w-28" />
+                    <Sk className="h-3.5 w-44" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between"><Sk className="h-3.5 w-24" /><Sk className="h-3.5 w-16" /></div>
+                    <div className="flex justify-between"><Sk className="h-3.5 w-24" /><Sk className="h-3.5 w-16" /></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

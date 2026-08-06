@@ -10,7 +10,6 @@ import {
   authSetSemester,
   authGetSemesters,
 } from "@/lib/tauri-auth";
-import { LAUNDRY_BLOCKS, LaundryBlock } from "@/lib/constants";
 import {
   Select,
   SelectContent,
@@ -21,7 +20,6 @@ import {
 import { 
   Settings, 
   Calendar, 
-  Building, 
   LogOut, 
   SunMoon, 
   ArrowUpCircle, 
@@ -54,7 +52,6 @@ export default function SettingsPage() {
 
   const [semesters, setSemesters] = useState<Semester[]>(initialSemesters);
   const [selectedSemester, setSelectedSemester] = useState<Semester | null>(initialActiveSem);
-  const [hostelBlock, setHostelBlock] = useState<LaundryBlock>("A");
 
   // Software Update States
   const [currentVersion, setCurrentVersion] = useState("");
@@ -163,11 +160,6 @@ export default function SettingsPage() {
           setSelectedSemester(active);
           localStorage.setItem("deskly::cache::current_semester", JSON.stringify(active));
         }
-
-        const savedBlock = localStorage.getItem("deskly::settings::hostelBlock");
-        if (savedBlock) {
-          setHostelBlock(savedBlock as LaundryBlock);
-        }
       } catch (err) {
         console.error("Failed to load settings configuration:", err);
       }
@@ -187,11 +179,6 @@ export default function SettingsPage() {
         console.error("Failed to set semester:", err);
       }
     }
-  };
-
-  const handleBlockChange = (val: string) => {
-    setHostelBlock(val as LaundryBlock);
-    localStorage.setItem("deskly::settings::hostelBlock", val);
   };
 
   const handleLogout = async () => {
@@ -270,31 +257,6 @@ export default function SettingsPage() {
                     {semesters.map((s) => (
                       <SelectItem key={s.id} value={s.id} className="rounded-md text-xs">
                         {s.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Hostel Block Selection Row */}
-              <div className="py-4 flex items-center justify-between gap-6">
-                <div className="flex items-start gap-3">
-                  <Building className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-                  <div>
-                    <h3 className="text-xs font-semibold text-foreground">Hostel Block</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                      Set hostel block for laundry calendar views.
-                    </p>
-                  </div>
-                </div>
-                <Select value={hostelBlock} onValueChange={handleBlockChange}>
-                  <SelectTrigger className="w-[100px] h-8 rounded-md bg-muted/20 hover:bg-muted/30 border-border/20 text-xs focus:ring-1 focus:ring-primary/20">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-md border-border/20 bg-popover/95 backdrop-blur-md">
-                    {LAUNDRY_BLOCKS.map((b) => (
-                      <SelectItem key={b} value={b} className="rounded-md text-xs">
-                        Block {b}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -2,28 +2,31 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { invoke } from "@tauri-apps/api/core";
-import { useOnlineStatus } from "@/hooks/use-online-status";
-import { OfflineDisplay } from "@/components/offline-display";
+
 import { ErrorDisplay } from "@/components/error-display";
-import { isNetworkError, fetchWithTimeout } from "@/lib/utils";
+import CalendarExportPopover from "@/components/calendar-export-popover";
 import SingleCourseExportModal from "@/components/single-course-export-modal";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
-import { Drawer, DrawerContent } from "@/components/ui/drawer";
+import { motion } from "framer-motion";
 import {
   Clock,
   Calendar,
   User,
-  MapPin,
-
-  Hash,
-  LayoutGrid,
+  ChevronLeft,
   ChevronRight,
-  X,
+  BookOpen,
+  MapPin,
+  Monitor,
 } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip as ReChartsTooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
 interface ScheduleEntry {
   day: string;
   startTime: string;
@@ -35,7 +38,6 @@ interface ScheduleEntry {
   venue: string;
   faculty: string;
 }
-
 interface WeeklySchedule {
   monday: ScheduleEntry[];
   tuesday: ScheduleEntry[];
@@ -45,660 +47,644 @@ interface WeeklySchedule {
   saturday: ScheduleEntry[];
   sunday: ScheduleEntry[];
 }
-
-interface ApiResult<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
-
-interface AttendanceFaculty {
-  id: string;
-  name: string;
-  school: string;
-}
-
+interface ApiResult<T> { success: boolean; data?: T; error?: string; }
+interface AttendanceFaculty { id: string; name: string; school: string; }
 interface AttendanceRecord {
-  slNo: number;
-  classId: string;
-  courseCode: string;
-  courseTitle: string;
-  courseType: string;
-  slot: string;
-  faculty: AttendanceFaculty;
-  attendanceType: string;
-  registrationDate: string;
-  attendanceDate: string;
-  attendedClasses: number;
-  totalClasses: number;
-  attendancePercentage: number;
-  status: string;
+  slNo: number; classId: string; courseCode: string; courseTitle: string;
+  courseType: string; slot: string; faculty: AttendanceFaculty;
+  attendanceType: string; registrationDate: string; attendanceDate: string;
+  attendedClasses: number; totalClasses: number; attendancePercentage: number; status: string;
 }
+interface AttendanceResponse { success: boolean; data?: AttendanceRecord[]; semesterId?: string; error?: string; }
 
-interface AttendanceResponse {
-  success: boolean;
-  data?: AttendanceRecord[];
-  semesterId?: string;
-  error?: string;
-}
-
-const EMPTY: WeeklySchedule = {
-  monday: [],
-  tuesday: [],
-  wednesday: [],
-  thursday: [],
-  friday: [],
-  saturday: [],
-  sunday: [],
-};
+const EMPTY: WeeklySchedule = { monday:[], tuesday:[], wednesday:[], thursday:[], friday:[], saturday:[], sunday:[] };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function todayIdx(): number {
-  const d = new Date().getDay();
-  return d === 0 ? 6 : d - 1;
+function toMins(t: string): number {
+  const c = t.trim().toUpperCase().split(" ");
+  if (c.length < 2) return 0;
+  const [h, m] = c[0].split(":").map(Number);
+  let hr = h || 0;
+  if (c[1] === "PM" && hr !== 12) hr += 12;
+  if (c[1] === "AM" && hr === 12) hr = 0;
+  return hr * 60 + (m || 0);
 }
-
-function getPercentageColor(pct: number) {
-  if (pct >= 75) return "text-emerald-500";
-  return "text-destructive";
-}
-
-function getCircleStrokeColor(pct: number) {
-  if (pct >= 75) return "stroke-emerald-500";
-  return "stroke-destructive";
-}
-
-function getBarBgColor(pct: number) {
-  if (pct >= 75) return "bg-emerald-500";
-  return "bg-destructive";
-}
-
-// ─── Attendance Hint ──────────────────────────────────────────────────────────
-
-function AttendanceHint({ attended, total, courseType }: { attended: number; total: number; courseType?: string }) {
-  if (total === 0) {
-    return <span className="text-xs font-medium text-muted-foreground">No classes conducted yet</span>;
-  }
-  const isLab = courseType?.toLowerCase().includes("lab") ?? false;
-  const factor = isLab ? 2 : 1;
-  const unit = isLab ? "lab" : "class";
-  const unitPlural = isLab ? "labs" : "classes";
-
-  const rawNeed = 3 * total - 4 * attended;
-  const need = Math.ceil(rawNeed / factor);
-
-  const rawCanSkip = Math.floor((4 * attended - 3 * total) / 3);
-  const canSkip = Math.floor(rawCanSkip / factor);
-
-  if (need > 0) {
-    return (
-      <span className="text-xs font-medium text-destructive">
-        Attend {need} more {need === 1 ? unit : unitPlural} to reach 75%
-      </span>
-    );
-  }
-  if (canSkip === 0) {
-    const nextSkipNeed = isLab 
-      ? Math.ceil((3 * total - 4 * attended + 6) / 2)
-      : (3 * total - 4 * attended + 3);
-    return (
-      <span className="text-xs font-medium text-emerald-500">
-        Can skip 1 if you attend {nextSkipNeed} more {nextSkipNeed === 1 ? unit : unitPlural}
-      </span>
-    );
-  }
-  return (
-    <span className="text-xs font-medium text-emerald-500">
-      Can skip {canSkip} more {canSkip === 1 ? unit : unitPlural}
-    </span>
-  );
-}
-
-// ─── Circular Progress ────────────────────────────────────────────────────────
-
-function ListCircularProgress({ percentage, size = 46 }: { percentage: number; size?: number }) {
-  const radius = (size - 5) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (Math.min(percentage, 100) / 100) * circumference;
-
-  return (
-    <div className="relative flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
-        <circle className="text-muted/15 stroke-current" strokeWidth="3" fill="transparent" r={radius} cx={size / 2} cy={size / 2} />
-        <circle
-          className={`${getCircleStrokeColor(percentage)} transition-all duration-500`}
-          strokeWidth="3"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          fill="transparent"
-          r={radius}
-          cx={size / 2}
-          cy={size / 2}
-        />
-      </svg>
-      <span className="absolute text-xs font-semibold text-foreground leading-none">{Math.round(percentage)}%</span>
-    </div>
-  );
-}
-
-function EmptyCircularProgress() {
-  return (
-    <div className="w-[46px] h-[46px] rounded-full bg-muted/10 flex items-center justify-center text-muted-foreground shrink-0 border border-border/5">
-      <Calendar className="w-5 h-5 text-muted-foreground/60" />
-    </div>
-  );
-}
+function todayIdx(): number { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; }
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
-
-function TimetableSkeleton() {
+function Sk({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse rounded-md bg-muted/65 ${className}`} />;
+}
+function CardSkeleton() {
   return (
-    <div className="space-y-6 px-2 py-4 animate-pulse font-saira">
-      {/* Header: title + refresh */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <Skeleton className="w-6 h-6 rounded-md" />
-            <Skeleton className="h-7 w-36" />
+    <div className="flex items-center gap-4 md:gap-6 py-4 px-3 border border-transparent border-b border-border/20 last:border-b-0 animate-pulse">
+      <div className="w-[72px] shrink-0 flex flex-col items-end gap-1">
+        <Sk className="h-3.5 w-14" />
+        <Sk className="h-3 w-10" />
+      </div>
+      <div className="relative hidden md:flex flex-col items-center justify-center self-stretch shrink-0 w-6">
+        <Sk className="h-3.5 w-3.5 rounded-full shrink-0" />
+      </div>
+      <div className="flex-1 flex items-start justify-between gap-4">
+        <div className="space-y-2 pt-0.5 flex-1">
+          <div className="flex gap-2">
+            <Sk className="h-3.5 w-16" />
+            <Sk className="h-3 w-12 rounded-full" />
           </div>
-          <Skeleton className="h-3.5 w-32" />
+          <Sk className="h-4 w-48" />
+          <Sk className="h-3 w-36" />
         </div>
-        <Skeleton className="h-5 w-5 rounded-full shrink-0" />
+        <Sk className="h-9 w-14 shrink-0 rounded-md" />
       </div>
-
-      {/* Day chip strip: 7 columns */}
-      <div className="grid grid-cols-7 gap-2">
-        {[...Array(7)].map((_, i) => (
-          <Skeleton key={i} className="h-14 rounded-md" />
-        ))}
-      </div>
-
-      <Separator />
-
-      {/* Active day info: class count */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-1.5">
-          <Skeleton className="h-4 w-28" />
-          <Skeleton className="h-3 w-16" />
+    </div>
+  );
+}
+function SidebarSkeleton() {
+  return (
+    <div className="space-y-8 animate-pulse">
+      {/* Current/Next skeleton */}
+      <div className="space-y-3">
+        <Sk className="h-3.5 w-16" />
+        <div className="border-l-2 border-primary/20 pl-4 py-1.5 space-y-3">
+          <Sk className="h-4 w-32" />
+          <Sk className="h-5 w-48" />
+          <div className="space-y-2 pt-1">
+            <Sk className="h-3 w-36" />
+            <Sk className="h-3 w-28" />
+          </div>
         </div>
-        <Skeleton className="h-5 w-20 rounded-full" />
       </div>
-
-      {/* Class rows: circle + slot chip + code/title + time + venue */}
-      <div className="divide-y divide-border/10">
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="flex items-center gap-4 py-4">
-            <Skeleton className="w-[46px] h-[46px] rounded-full shrink-0" />
-            <div className="flex-1 min-w-0 space-y-2">
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-3.5 w-8 rounded" />
-                <Skeleton className="h-3.5 w-24" />
-                <Skeleton className="h-4 w-12 rounded ml-auto" />
-              </div>
-              <Skeleton className="h-3 w-full max-w-[180px]" />
-              <div className="flex items-center gap-3">
-                <Skeleton className="h-3 w-24" />
-                <Skeleton className="h-3 w-20" />
-              </div>
+      {/* Day summary skeleton */}
+      <div className="space-y-4">
+        <Sk className="h-3 w-24 border-b border-border/10 pb-2 w-full" />
+        <div className="grid grid-cols-2 gap-4">
+          {[...Array(4)].map((_,i) => (
+            <div key={i} className="space-y-1.5">
+              <Sk className="h-7 w-10" />
+              <Sk className="h-2.5 w-16" />
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+      </div>
+      {/* Chart skeleton */}
+      <div className="space-y-3">
+        <Sk className="h-3 w-28 border-b border-border/10 pb-2 w-full" />
+        <Sk className="h-32 w-full" />
       </div>
     </div>
   );
 }
 
-// ─── Detail Drawer Component ──────────────────────────────────────────────────
+// ─── Attendance bar pill ───────────────────────────────────────────────────────
+function attHint(attended: number, total: number) {
+  const need = Math.ceil(3 * total - 4 * attended);
+  const canSkip = Math.floor((4 * attended - 3 * total) / 3);
+  if (need > 0) return { type: "need" as const, count: need };
+  if (canSkip > 0) return { type: "skip" as const, count: canSkip };
+  return null;
+}
 
-function TimetableDrawer({
-  item,
-  open,
-  onOpenChange,
-  attendanceRecord,
-  dayDate,
-}: {
-  item: ScheduleEntry | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  attendanceRecord: AttendanceRecord | undefined;
-  dayDate: Date;
-}) {
-  if (!item) return null;
-
-  const hasAtt = !!attendanceRecord;
-  const pct = attendanceRecord ? attendanceRecord.attendancePercentage : 0;
-  const displayType = item.courseType.toLowerCase().includes("lab") ? "Lab Only" : "Theory Only";
-
-  const details = [
-    { icon: Hash,          label: "Course Code",  value: item.courseCode },
-    { icon: LayoutGrid,    label: "Slot",         value: item.slot },
-    { icon: Clock,         label: "Class Time",   value: `${item.startTime} - ${item.endTime}` },
-    { icon: MapPin,        label: "Venue / Room", value: item.venue || "TBA" },
-    { icon: User,          label: "Faculty",      value: item.faculty || "TBA" },
-  ];
-
+function AttPill({ att }: { att: AttendanceRecord }) {
+  const p = att.attendancePercentage;
+  const textCls = p >= 75 ? "text-chart-2"
+                : p >= 60 ? "text-chart-3"
+                : "text-destructive";
+  const barCls  = p >= 75 ? "bg-chart-2"
+                : p >= 60 ? "bg-chart-3"
+                : "bg-destructive";
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="pb-8 font-saira max-h-[92vh]">
-        <div className="overflow-y-auto no-scrollbar px-6 space-y-7 pt-5">
-          
-          {/* Header Row */}
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 min-w-0 space-y-1">
-              <div className="flex items-center gap-2 leading-none flex-wrap">
-                <span className="text-xs font-bold tracking-wider text-primary uppercase">
-                  {item.courseCode}
-                </span>
-                <span className="text-xs font-medium text-muted-foreground/60">
-                  ({displayType})
-                </span>
-              </div>
-              <h2 className="text-xl font-bold text-foreground leading-snug tracking-tight break-words">
-                {item.courseTitle}
-              </h2>
-            </div>
-            
-            {/* Close Button */}
-            <button
-              onClick={() => onOpenChange(false)}
-              className="p-2 rounded-full bg-muted/40 hover:bg-muted/60 text-muted-foreground hover:text-foreground active:opacity-75 transition-all border-none cursor-pointer shrink-0"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Attendance Status block */}
-          {hasAtt && (
-            <div className="space-y-3 pt-2">
-              <p className="text-xs font-bold tracking-widest text-muted-foreground/50 uppercase leading-none">
-                Attendance Status
-              </p>
-              
-              <div className="flex items-center gap-4">
-                <span className={`text-3xl font-extrabold leading-none ${getPercentageColor(pct)}`}>
-                  {pct}%
-                </span>
-                <div className="h-2.5 flex-1 bg-muted/30 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-700 ${getBarBgColor(pct)}`}
-                    style={{ width: `${Math.min(pct, 100)}%` }}
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground leading-snug pt-0.5 flex-wrap">
-                <div className="flex-1 min-w-0">
-                  <AttendanceHint attended={attendanceRecord.attendedClasses} total={attendanceRecord.totalClasses} courseType={item.courseType} />
-                </div>
-                <span className="font-mono tabular-nums whitespace-nowrap shrink-0 text-right text-muted-foreground/75">
-                  {item.courseType.toLowerCase().includes("lab") ? attendanceRecord.attendedClasses / 2 : attendanceRecord.attendedClasses} /{" "}
-                  {item.courseType.toLowerCase().includes("lab") ? attendanceRecord.totalClasses / 2 : attendanceRecord.totalClasses}{" "}
-                  {item.courseType.toLowerCase().includes("lab") ? "labs" : "classes"} attended
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Course Details List */}
-          <div className="space-y-3 pt-1">
-            <p className="text-xs font-bold tracking-widest text-muted-foreground/50 uppercase leading-none">
-              Class Schedule Details
-            </p>
-
-            <div className="divide-y divide-border/15 border-t border-b border-border/15">
-              {details.map(({ icon: Icon, label, value }) => (
-                <div key={label} className="flex items-start justify-between gap-4 py-3">
-                  <div className="flex items-center gap-2.5 shrink-0 pt-0.5">
-                    <Icon className="w-4 h-4 text-muted-foreground/40 shrink-0" />
-                    <span className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wide leading-none">{label}</span>
-                  </div>
-                  <span className="text-sm font-semibold text-foreground text-right break-words min-w-0 max-w-[65%]">{value || "—"}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Action: Export Modal inside the drawer */}
-          <div className="pt-2">
-            <SingleCourseExportModal entry={item} dayDate={dayDate} fullWidth />
-          </div>
-
-        </div>
-      </DrawerContent>
-    </Drawer>
+    <div className="flex flex-col items-end gap-1 min-w-[64px]">
+      <span className={`text-lg font-bold leading-none ${textCls}`}>{p}%</span>
+      <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${barCls}`} style={{ width: `${Math.min(p,100)}%` }} />
+      </div>
+      <span className="text-xs text-muted-foreground font-medium">{att.attendedClasses}/{att.totalClasses}</span>
+    </div>
   );
 }
 
-// ─── Page Component ───────────────────────────────────────────────────────────
-
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function TimetablePage() {
   const navigate = useNavigate();
   const { isLoggedIn, loading: authLoading } = useAuth();
-  const isOnline = useOnlineStatus();
 
-  const [selectedDay, setSelectedDay] = useState(() => todayIdx());
-  const [weekStart] = useState<Date>(() => {
-    const n = new Date(),
-      d = n.getDay();
+  const [selectedDay, setSelectedDay]   = useState(() => todayIdx());
+  const [weekStart, setWeekStart]       = useState<Date>(() => {
+    const n = new Date(), d = n.getDay();
     const mon = new Date(n.setDate(n.getDate() - d + (d === 0 ? -6 : 1)));
-    mon.setHours(0, 0, 0, 0);
-    return mon;
+    mon.setHours(0,0,0,0); return mon;
   });
-  const initialTt = useMemo(() => {
-    try {
-      const cachedTt = localStorage.getItem("deskly::cache::timetable");
-      if (cachedTt) {
-        const parsedTt = JSON.parse(cachedTt);
-        if (parsedTt && Object.values(parsedTt).some((arr: any) => arr.length > 0)) return parsedTt;
-      }
-    } catch {}
-    return EMPTY;
-  }, []);
+  const [schedule, setSchedule]         = useState<WeeklySchedule>(EMPTY);
+  const [attendance, setAttendance]     = useState<AttendanceRecord[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState<string|null>(null);
+  const [now, setNow]                   = useState(() => new Date());
 
-  const initialAtt = useMemo(() => {
-    try {
-      const cachedAtt = localStorage.getItem("deskly::cache::timetable_attendance");
-      if (cachedAtt) {
-        const parsedAtt = JSON.parse(cachedAtt);
-        if (Array.isArray(parsedAtt) && parsedAtt.length > 0) return parsedAtt;
-      }
-    } catch {}
-    return [];
-  }, []);
+  useEffect(() => { const t = setInterval(() => setNow(new Date()), 60_000); return () => clearInterval(t); }, []);
+  useEffect(() => { if (!authLoading && !isLoggedIn) navigate("/"); }, [isLoggedIn, authLoading]);
 
-  const [schedule, setSchedule] = useState<WeeklySchedule>(initialTt);
-  const [attendance, setAttendance] = useState<AttendanceRecord[]>(initialAtt);
-  const [loading, setLoading] = useState(Object.values(initialTt).every((arr) => (arr as ScheduleEntry[]).length === 0));
-  const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<ScheduleEntry | null>(null);
-
+  // Load from Cache (SWR) first
   useEffect(() => {
-    if (!authLoading && !isLoggedIn) navigate("/");
-  }, [isLoggedIn, authLoading]);
+    const cachedTt = localStorage.getItem("deskly::cache::timetable");
+    const cachedAtt = localStorage.getItem("deskly::cache::timetable_attendance");
+    if (cachedTt || cachedAtt) {
+      try {
+        let hasData = false;
+        if (cachedTt) {
+          const parsedTt = JSON.parse(cachedTt);
+          if (parsedTt && Object.values(parsedTt).some((arr: any) => Array.isArray(arr) && arr.length > 0)) {
+            setSchedule(parsedTt);
+            hasData = true;
+          }
+        }
+        if (cachedAtt) {
+          const parsedAtt = JSON.parse(cachedAtt);
+          if (parsedAtt && parsedAtt.length > 0) {
+            setAttendance(parsedAtt);
+            hasData = true;
+          }
+        }
+        if (hasData) {
+          setLoading(false);
+        }
+      } catch (e) {
+        console.error("Failed to parse cached timetable/attendance", e);
+      }
+    }
+  }, []);
 
   async function load() {
     try {
       setError(null);
-      const isScheduleEmpty = Object.values(schedule).every((arr) => arr.length === 0);
+      const isScheduleEmpty = Object.values(schedule).every(arr => arr.length === 0);
       setLoading(isScheduleEmpty);
 
       const [tt, att] = await Promise.all([
-        fetchWithTimeout(invoke<ApiResult<WeeklySchedule>>("timetable_get_weekly", { semesterSubId: null }), 15000),
-        fetchWithTimeout(invoke<AttendanceResponse>("attendance_get_current").catch(() => ({ success: false } as AttendanceResponse)), 15000),
+        invoke<ApiResult<WeeklySchedule>>("timetable_get_weekly", { semesterSubId: null }),
+        invoke<AttendanceResponse>("attendance_get_current").catch(() => ({ success: false } as AttendanceResponse)),
       ]);
-
+      
       let updatedTt = schedule;
       let updatedAtt = attendance;
-
+      
       if (tt.success && tt.data) {
         setSchedule(tt.data);
         updatedTt = tt.data;
-      } else if (tt.error && isScheduleEmpty) {
+      } else if (tt.error) {
         setError(tt.error);
       }
-
+      
       if (att.success && att.data) {
         setAttendance(att.data);
         updatedAtt = att.data;
       }
-
+      
+      // Save cache
       localStorage.setItem("deskly::cache::timetable", JSON.stringify(updatedTt));
       localStorage.setItem("deskly::cache::timetable_attendance", JSON.stringify(updatedAtt));
-    } catch (e) {
-      const isScheduleEmpty = Object.values(schedule).every((arr) => arr.length === 0);
-      if (isScheduleEmpty) {
-        setError(e instanceof Error ? e.message : String(e));
-      }
-    } finally {
-      setLoading(false);
+    } catch (e) { 
+      setError(e instanceof Error ? e.message : String(e)); 
+    } finally { 
+      setLoading(false); 
     }
   }
+  useEffect(() => { if (isLoggedIn) load(); }, [isLoggedIn]);
 
-  useEffect(() => {
-    if (isLoggedIn) load();
-  }, [isLoggedIn]);
+  const DAY_KEYS: (keyof WeeklySchedule)[] = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
+  const DAY_SHORT = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  const DAY_FULL  = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
-  const DAY_KEYS: (keyof WeeklySchedule)[] = [
-    "monday",
-    "tuesday",
-    "wednesday",
-    "thursday",
-    "friday",
-    "saturday",
-    "sunday",
-  ];
-  const DAY_SHORT = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
-  const DAY_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const weekDays = useMemo(() => DAY_SHORT.map((name, i) => {
+    const d = new Date(weekStart); d.setDate(weekStart.getDate() + i);
+    return { name, full: DAY_FULL[i], num: d.getDate(), month: d.toLocaleString("default",{month:"short"}), date: d };
+  }), [weekStart]);
 
-  const weekDays = useMemo(() => {
-    return DAY_SHORT.map((name, i) => {
-      const d = new Date(weekStart);
-      d.setDate(weekStart.getDate() + i);
-      return {
-        name,
-        full: DAY_FULL[i],
-        num: d.getDate(),
-        month: d.toLocaleString("default", { month: "short" }),
-        date: d,
-      };
-    });
-  }, [weekStart]);
-
-
+  const weekLabel = useMemo(() => {
+    const s = weekDays[0], e = weekDays[6], sy = s.date.getFullYear(), ey = e.date.getFullYear();
+    return sy === ey ? `${s.month} ${s.num} – ${e.month} ${e.num}, ${sy}` : `${s.month} ${s.num}, ${sy} – ${e.month} ${e.num}, ${ey}`;
+  }, [weekDays]);
 
   const daySchedule = useMemo(() => schedule[DAY_KEYS[selectedDay]] || [], [schedule, selectedDay]);
+  const todaySchedule = useMemo(() => schedule[DAY_KEYS[todayIdx()]] || [], [schedule]);
+
+  const classStatus = useMemo(() => {
+    const nm = now.getHours()*60 + now.getMinutes();
+    let cur: ScheduleEntry|null=null, nxt: ScheduleEntry|null=null;
+    for (const e of todaySchedule) {
+      const s=toMins(e.startTime), en=toMins(e.endTime);
+      if (nm>=s && nm<en) cur=e;
+      else if (nm<s && !nxt) nxt=e;
+    }
+    return { cur, nxt };
+  }, [todaySchedule, now]);
+
+  const stats = useMemo(() => {
+    let th=0, lab=0, mins=0;
+    daySchedule.forEach(it => {
+      const isLab = it.courseType?.toLowerCase().includes("lab") || it.slot?.startsWith("L");
+      if (isLab) lab++; else th++;
+      const s=toMins(it.startTime), e=toMins(it.endTime);
+      mins += e>s ? e-s : 50;
+    });
+    const h=Math.floor(mins/60), m=mins%60;
+    return { total:daySchedule.length, th, lab, dur: h>0 ? `${h}h${m>0?` ${m}m`:""}` : m>0 ? `${m}m` : "0m" };
+  }, [daySchedule]);
+
+  const chartData = useMemo(() => DAY_KEYS.map((k,i) => ({ name:DAY_SHORT[i], classes:schedule[k]?.length||0 })), [schedule]);
+
+  const weeklyStats = useMemo(() => {
+    let total = 0, th = 0, lab = 0, mins = 0;
+    for (const key of DAY_KEYS) {
+      for (const item of (schedule[key] || [])) {
+        total++;
+        const isLab = item.courseType?.toLowerCase().includes("lab") || item.slot?.startsWith("L");
+        if (isLab) lab++; else th++;
+        const s = toMins(item.startTime), e = toMins(item.endTime);
+        mins += e > s ? (e - s) : 50;
+      }
+    }
+    const h = Math.floor(mins / 60), m = mins % 60;
+    return { total, th, lab, dur: h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : m > 0 ? `${m}m` : "0m" };
+  }, [schedule]);
 
   const attMap = useMemo(() => {
     const m = new Map<string, AttendanceRecord>();
-    for (const r of attendance) {
-      m.set(`${r.courseCode}::${r.courseType.toLowerCase().includes("lab") ? "lab" : "th"}`, r);
-    }
+    for (const r of attendance) m.set(`${r.courseCode}::${r.courseType.toLowerCase().includes("lab")?"lab":"th"}`, r);
     return m;
   }, [attendance]);
+  const getAtt = (code: string, slot: string) => attMap.get(`${code}::${slot.toUpperCase().startsWith("L")?"lab":"th"}`);
 
-  const getAtt = (code: string, courseType: string) => {
-    const isLab = courseType.toLowerCase().includes("lab");
-    return attMap.get(`${code}::${isLab ? "lab" : "th"}`);
-  };
+  // ── Skeleton pages ─────────────────────────────────────────────────────────
+  const shell = (children: React.ReactNode) => (
+    <>{children}</>
+  );
 
-  const isScheduleEmpty = Object.values(schedule).every((arr) => arr.length === 0);
-  const showOffline = isScheduleEmpty && (isOnline === false || isNetworkError(error, isOnline));
+  const isScheduleEmpty = Object.values(schedule).every(arr => arr.length === 0);
+  if (authLoading || (loading && isScheduleEmpty)) return shell(
+    <div className="w-full xl:h-[calc(100vh-10rem)] xl:flex xl:flex-col xl:overflow-hidden space-y-6">
+      <div className="flex justify-between pb-6 border-b border-border/40 shrink-0">
+        <div className="space-y-2"><Sk className="h-7 w-36" /><Sk className="h-3 w-52" /></div>
+        <Sk className="h-8 w-44 rounded-md" />
+      </div>
+      <div className="shrink-0">
+        <Sk className="h-14 w-full rounded-md" />
+      </div>
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-8 items-start min-h-0 flex-1 xl:overflow-hidden">
+        <div className="xl:h-full xl:overflow-y-auto no-scrollbar pb-6 pr-2 space-y-2 w-full">
+          {[...Array(5)].map((_,i) => <CardSkeleton key={i} />)}
+        </div>
+        <div className="hidden xl:block xl:space-y-8 xl:h-full xl:overflow-y-auto no-scrollbar pb-6 pr-2 xl:w-[320px]">
+          <SidebarSkeleton />
+        </div>
+      </div>
+    </div>
+  );
 
-  if (showOffline) {
-    return <OfflineDisplay onRetry={load} />;
-  }
+  const hasSchedule = Object.values(schedule).some(arr => Array.isArray(arr) && arr.length > 0);
 
-  if (authLoading || (loading && isScheduleEmpty)) {
-    return <TimetableSkeleton />;
-  }
-
-  if (error && isScheduleEmpty) {
-    return (
-      <div className="flex h-full items-center justify-center font-saira">
+  if (error && !hasSchedule) {
+    return shell(
+      <div className="flex h-full items-center justify-center">
         <ErrorDisplay message={error} onRetry={load} />
       </div>
     );
   }
 
-  return (
-    <div className="w-full space-y-6 px-2 py-4 font-saira select-none overscroll-y-contain">
-      {/* Google Font Saira Injection */}
-      <style>{`
-        .font-saira {
-          font-family: 'Saira', sans-serif !important;
-        }
-      `}</style>
+  const focused = classStatus.cur ?? classStatus.nxt;
+  const focusedLabel = classStatus.cur ? "In Progress" : classStatus.nxt ? "Up Next" : null;
 
-      {/* Sync Error banner */}
-      {error && !isNetworkError(error, isOnline) && (
+  return shell(
+    <div className="w-full xl:h-[calc(100vh-10rem)] xl:flex xl:flex-col xl:overflow-hidden space-y-6">
+      {error && (
         <div className="flex items-center justify-between p-3 bg-destructive/10 border border-destructive/20 text-destructive text-xs rounded-md gap-4 shrink-0">
-          <p className="truncate">Sync failed: {error}</p>
-          <button onClick={load} className="text-xs uppercase font-bold tracking-wider hover:underline shrink-0 border-none bg-transparent text-destructive">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse shrink-0" />
+            <span className="truncate">Sync failed: {error} (Viewing cached data)</span>
+          </div>
+          <button 
+            onClick={load}
+            className="text-xs uppercase font-bold tracking-wider hover:underline focus:outline-none shrink-0"
+          >
             Retry
           </button>
         </div>
       )}
 
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <header className="flex items-start justify-between gap-4">
-        <div className="space-y-0.5 min-w-0">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-6 h-6 text-primary shrink-0" />
-            <h1 className="text-2xl font-medium tracking-tight text-foreground leading-none truncate">
-              My Timetable
-            </h1>
-          </div>
-          <p className="text-xs text-muted-foreground leading-none pt-0.5">
-            Stay on track with your classes
-          </p>
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-6 border-b border-border/40 shrink-0">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">My Timetable</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Weekly schedule with attendance</p>
         </div>
-
+        <div className="flex items-center gap-2">
+          <CalendarExportPopover schedule={schedule} weekStartDate={weekStart} />
+          <div className="flex items-center gap-2 border border-border/50 bg-muted/40 rounded-md px-3 py-1.5 text-sm text-muted-foreground font-medium">
+            <Calendar className="w-4 h-4 text-primary shrink-0" />
+            <span>{weekLabel}</span>
+            <div className="flex items-center gap-0.5 ml-1.5 pl-1.5 border-l border-border/50">
+              <button onClick={() => setWeekStart(p => { const d=new Date(p); d.setDate(p.getDate()-7); return d; })}
+                className="p-0.5 rounded hover:text-foreground cursor-pointer transition-colors"><ChevronLeft className="w-3.5 h-3.5" /></button>
+              <button onClick={() => setWeekStart(p => { const d=new Date(p); d.setDate(p.getDate()+7); return d; })}
+                className="p-0.5 rounded hover:text-foreground cursor-pointer transition-colors"><ChevronRight className="w-3.5 h-3.5" /></button>
+            </div>
+          </div>
+        </div>
       </header>
 
-      {/* ── Calendar Days Horizontally Scrollable / Slidable Row ────────────────── */}
-      <div className="pb-4 overflow-hidden">
-        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar w-full py-1 snap-x snap-mandatory">
+      {/* ── Day tabs ───────────────────────────────────────────────────────── */}
+      <div className="border-b border-border/20 pb-3 shrink-0">
+        <div className="grid grid-cols-7 gap-2">
           {weekDays.map((d, i) => {
             const active = selectedDay === i;
-
+            const isToday = i === todayIdx();
+            const count = schedule[DAY_KEYS[i]]?.length || 0;
             return (
-              <button
-                key={d.full}
-                onClick={() => setSelectedDay(i)}
-                className={`relative flex flex-col items-center gap-1.5 py-3 px-1 rounded-md transition-all duration-200 cursor-pointer border-none min-w-[72px] shrink-0 snap-center ${
-                  active
-                    ? "bg-primary/10 border-b-2 border-primary text-primary"
-                    : "text-muted-foreground hover:text-foreground bg-transparent"
-                }`}
-              >
-                <span className={`text-xs font-semibold uppercase tracking-wider ${active ? "text-primary" : "opacity-55"}`}>
-                  {d.name}
-                </span>
+              <button key={d.full} onClick={() => setSelectedDay(i)}
+                className={`relative flex flex-col items-center gap-1.5 py-2 rounded-md cursor-pointer transition-colors duration-200 ${
+                  active ? "text-primary font-semibold animate-[pulse_0.15s_ease-out_1]" : "text-muted-foreground hover:text-foreground"
+                }`}>
+                <span className={`text-xs font-semibold uppercase tracking-wider ${active ? "opacity-90" : "opacity-55"}`}>{d.name}</span>
+                <span className="text-xl font-bold leading-none">{d.num}</span>
+                {/* today underline */}
+                {isToday && !active && <span className="absolute bottom-1.5 w-1 h-1 rounded-full bg-primary" />}
+                {/* classes dot */}
+                {count > 0 && <span className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${active ? "bg-primary" : "bg-chart-2"}`} />}
                 
-                <span className={`text-lg font-semibold leading-none ${active ? "text-foreground font-bold" : "text-muted-foreground"}`}>
-                  {d.num}
-                </span>
+                {/* Animated underline */}
+                {active && (
+                  <motion.div
+                    layoutId="activeDayTab"
+                    className="absolute bottom-0 h-[2px] bg-primary rounded-full"
+                    style={{ left: "15%", right: "15%" }}
+                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                  />
+                )}
               </button>
             );
           })}
         </div>
       </div>
 
-      <Separator className="bg-border/50" />
+      {/* ── Main content ───────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-8 items-start min-h-0 flex-1 xl:overflow-hidden">
 
-      {/* ── Active Day Info ───────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between py-1">
-        <div>
-          <h2 className="text-xl font-semibold text-foreground tracking-tight leading-none">
-            {weekDays[selectedDay].full}
-          </h2>
-          <p className="text-xs text-muted-foreground mt-1.5 leading-none">
-            {weekDays[selectedDay].date.toLocaleDateString("en-US", {
-              month: "long",
-              day: "numeric",
-              year: "numeric",
-            })}
-          </p>
-        </div>
-        {!loading && (
-          <span className="text-xs font-semibold bg-muted/20 text-muted-foreground px-3 py-1 rounded-full shrink-0">
-            {daySchedule.length} {daySchedule.length === 1 ? "Class" : "Classes"}
-          </span>
-        )}
-      </div>
-
-      {/* ── Class List (Clean, Separator-divided layout like attendance page) ─── */}
-      <div className="pt-2">
-        {loading ? (
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <Skeleton key={i} className="h-16 rounded-md w-full" />
-            ))}
+        {/* Schedule list */}
+        <div className="xl:h-full xl:overflow-y-auto no-scrollbar pb-6 pr-2 space-y-4 w-full">
+          {/* List header */}
+          <div className="flex items-center justify-between pb-3 border-b border-border/20">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground tracking-tight">{weekDays[selectedDay].full}</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">{weekDays[selectedDay].date.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}</p>
+            </div>
+            {!loading && <span className="text-sm font-medium bg-muted text-muted-foreground px-3 py-1 rounded-full">{daySchedule.length} {daySchedule.length === 1 ? "class" : "classes"}</span>}
           </div>
-        ) : daySchedule.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-            <Calendar className="w-10 h-10 text-muted-foreground/20" />
-            <p className="text-sm font-semibold text-foreground leading-none">No classes scheduled</p>
-            <p className="text-xs text-muted-foreground">Enjoy your day off!</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-border/20">
-            {daySchedule.map((item, idx) => {
-              const att = getAtt(item.courseCode, item.courseType);
-              
-              const attendancePct = att ? att.attendancePercentage : 0;
-              const hasAttendance = !!att;
-              
-              return (
-                <button
-                  key={`${item.courseCode}-${item.slot}-${idx}`}
-                  onClick={() => setSelected(item)}
-                  className="w-full flex items-center gap-4 py-4 px-3 text-left border-none bg-transparent hover:bg-muted/5 active:bg-muted/15 rounded-md transition-all cursor-pointer"
-                >
-                  {/* Left: Circular progress */}
-                  {hasAttendance ? (
-                    <ListCircularProgress percentage={attendancePct} size={48} />
-                  ) : (
-                    <EmptyCircularProgress />
-                  )}
 
-                  {/* Middle: Spacious details column */}
-                  <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-                    {/* First line: Course Code & Slot */}
-                    <div className="flex items-center gap-2 leading-none">
-                      <span className="text-sm font-semibold tracking-wide text-foreground uppercase">
-                        {item.courseCode}
-                      </span>
-                      <span className="text-xs font-semibold text-muted-foreground/60 font-mono leading-none">
-                        ({item.slot})
-                      </span>
-                    </div>
+          {/* Rows */}
+          <div className="relative">
+            {loading ? (
+              <div className="space-y-2 pt-2">
+                {[...Array(6)].map((_,i) => <CardSkeleton key={i} />)}
+              </div>
+            ) : daySchedule.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
+                <Calendar className="w-8 h-8 text-muted-foreground/20" />
+                <div>
+                  <p className="text-sm font-bold text-foreground">No classes scheduled</p>
+                  <p className="text-xs text-muted-foreground mt-1">Enjoy your day off!</p>
+                </div>
+              </div>
+            ) : (
+              <div className="relative">
+                {/* Continuous timeline vertical line on desktop */}
+                <div className="absolute top-0 bottom-0 left-[131px] w-[2px] bg-border/15 hidden md:block" />
 
-                    {/* Second line: Course Title */}
-                    <p className="text-xs text-muted-foreground truncate leading-none">
-                      {item.courseTitle}
-                    </p>
+                <div className="space-y-1 pt-2">
+                  {daySchedule.map((item, idx) => {
+                    const isLab = item.courseType?.toLowerCase().includes("lab") || item.slot?.startsWith("L");
+                    const isNow = classStatus.cur?.courseCode === item.courseCode && classStatus.cur?.slot === item.slot;
+                    const att = getAtt(item.courseCode, item.slot);
 
-                    {/* Third line: Time Range with Clock Icon */}
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground/80 font-mono leading-none">
-                      <Clock className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
-                      <span>{item.startTime} - {item.endTime}</span>
-                    </div>
-                  </div>
+                    return (
+                      <div key={`${item.courseCode}-${item.slot}-${idx}`}
+                        className={`relative flex flex-col md:flex-row md:items-center gap-4 md:gap-6 py-4 px-3 md:px-4 rounded-md transition-all duration-200 border border-transparent ${
+                          isNow ? "bg-primary/[0.03] border-primary/15 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]" : "hover:bg-muted/20"
+                        }`}>
 
-                  {/* Right: Attendance fraction details & Chevron */}
-                  <div className="flex items-center gap-3 shrink-0">
-                    {hasAttendance && (
-                      <div className="text-right">
-                        <p className="text-sm font-semibold text-foreground leading-none tabular-nums">
-                          {item.courseType.toLowerCase().includes("lab") ? att.attendedClasses / 2 : att.attendedClasses}{" "}
-                          <span className="text-muted-foreground/45 text-xs font-normal">
-                            / {item.courseType.toLowerCase().includes("lab") ? att.totalClasses / 2 : att.totalClasses}
-                          </span>
-                        </p>
+                        {/* Time */}
+                        <div className="w-[80px] shrink-0 flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-1">
+                          <span className="text-sm font-bold text-foreground leading-none">{item.startTime}</span>
+                          <span className="text-xs text-muted-foreground font-medium leading-none md:mt-1.5">{item.endTime}</span>
+                        </div>
+
+                        {/* Timeline dot */}
+                        <div className="relative hidden md:flex flex-col items-center justify-center self-stretch shrink-0 w-6">
+                          <div className={`w-3.5 h-3.5 rounded-full border-2 border-background z-10 transition-all duration-300 ${
+                            isNow ? "bg-primary ring-4 ring-primary/15 scale-110" : "bg-muted-foreground/35"
+                          }`} />
+                        </div>
+
+                        {/* Course info */}
+                        <div className="flex-1 min-w-0 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div className="space-y-1.5 flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-semibold tracking-wider text-primary uppercase">{item.courseCode}</span>
+                              <span className={`text-xs font-medium ${
+                                isLab ? "text-chart-2" : "text-primary"
+                              }`}>{isLab ? "Lab" : "Theory"}</span>
+                              {isNow && (
+                                <span className="flex items-center gap-1 text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full leading-none">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />Live
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-base font-semibold text-foreground leading-snug truncate">{item.courseTitle}</p>
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground font-medium flex-wrap">
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-3.5 h-3.5 shrink-0 text-muted-foreground/60" />{item.venue || "TBA"}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <User className="w-3.5 h-3.5 shrink-0 text-muted-foreground/60" />
+                                <span className="truncate max-w-[130px]" title={item.faculty}>{item.faculty || "TBA"}</span>
+                              </span>
+                              <span className="font-mono text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-medium">{item.slot}</span>
+                              {att && (() => {
+                                const h = attHint(att.attendedClasses, att.totalClasses);
+                                if (!h) return null;
+                                return (
+                                  <span className={`text-xs font-medium ${
+                                    h.type === "need"
+                                      ? "text-destructive"
+                                      : "text-chart-2"
+                                  }`}>
+                                    {h.type === "need" ? `↑ ${h.count} to attend` : `↓ ${h.count} can skip`}
+                                  </span>
+                                );
+                              })()}
+                            </div>
+                          </div>
+
+                          {/* Attendance & Export */}
+                          <div className="shrink-0 flex items-center justify-end gap-3">
+                            <SingleCourseExportModal entry={item} dayDate={weekDays[selectedDay].date} />
+                            {att ? (
+                              <AttPill att={att} />
+                            ) : (
+                              <div className="w-16 shrink-0" />
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                    <ChevronRight className="w-5 h-5 text-muted-foreground/35 shrink-0" />
-                  </div>
-                </button>
-              );
-            })}
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* ── Detail Drawer ────────────────────────────────────────────────────── */}
-      {selected && (
-        <TimetableDrawer
-          open={!!selected}
-          onOpenChange={(o) => !o && setSelected(null)}
-          item={selected}
-          attendanceRecord={getAtt(selected.courseCode, selected.courseType)}
-          dayDate={weekDays[selectedDay].date}
-        />
-      )}
+        {/* ── Sidebar ──────────────────────────────────────────────────────── */}
+        <div className="hidden xl:block xl:space-y-8 xl:h-full xl:overflow-y-auto no-scrollbar pb-6 xl:sticky xl:top-0 pr-2 shrink-0 xl:w-[320px]">
+          {loading ? <SidebarSkeleton /> : (
+            <>
+              {/* Current / Next class */}
+              {focusedLabel && focused ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b border-border/10 pb-2">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{focusedLabel}</p>
+                    {classStatus.cur && (
+                      <span className="flex items-center gap-1 text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />Live
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="border-l-2 border-primary pl-4 py-1.5 space-y-2.5">
+                    <div>
+                      <p className="text-xs font-semibold text-primary tracking-wide uppercase">{focused.courseCode}</p>
+                      <p className="text-base font-semibold text-foreground leading-snug">{focused.courseTitle}</p>
+                    </div>
+
+                    <div className="space-y-2 text-sm text-muted-foreground pt-1">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 shrink-0 text-muted-foreground/60" />
+                        <span className="font-medium text-foreground">{focused.startTime} – {focused.endTime}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4 shrink-0 text-muted-foreground/60" />
+                        <span className="font-medium">{focused.venue || "TBA"}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 shrink-0 text-muted-foreground/60" />
+                        <span className="truncate font-medium">{focused.faculty || "TBA"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Attendance footer */}
+                  {(() => {
+                    const a = getAtt(focused.courseCode, focused.slot);
+                    if (!a) return null;
+                    const p = a.attendancePercentage;
+                    const barCls = p >= 75 ? "bg-chart-2" : p >= 60 ? "bg-chart-3" : "bg-destructive";
+                    const txtCls = p >= 75 ? "text-chart-2" : p >= 60 ? "text-chart-3" : "text-destructive";
+                    const hint = attHint(a.attendedClasses, a.totalClasses);
+                    return (
+                      <div className="pl-4 pt-2 space-y-2.5">
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full ${barCls}`} style={{ width: `${Math.min(p,100)}%` }} />
+                          </div>
+                          <span className={`text-sm font-semibold shrink-0 ${txtCls}`}>{p}% · {a.attendedClasses}/{a.totalClasses}</span>
+                        </div>
+                        {hint && (
+                          <p className={`text-xs font-medium ${
+                            hint.type === "need" ? "text-destructive" : "text-chart-2"
+                          }`}>
+                            {hint.type === "need"
+                              ? `↑ Attend ${hint.count} more class${hint.count > 1 ? "es" : ""} to reach 75%`
+                              : `↓ Can skip ${hint.count} class${hint.count > 1 ? "es" : ""} and stay above 75%`}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground border-b border-border/10 pb-2">Today</p>
+                  <div className="flex items-center gap-3 py-1">
+                    <div className="p-2 rounded-md bg-muted shrink-0"><Calendar className="w-4 h-4 text-muted-foreground/60" /></div>
+                    <div>
+                      <p className="text-base font-semibold text-foreground">All done for today</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">No more classes scheduled.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Day stats */}
+              <div className="space-y-4">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground border-b border-border/10 pb-2">{DAY_FULL[selectedDay]}'s Summary</p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-4 pt-1">
+                  {([
+                    { label:"Classes",  val: stats.total,  Icon: Calendar  },
+                    { label:"Theory",   val: stats.th,     Icon: BookOpen  },
+                    { label:"Lab",      val: stats.lab,    Icon: Monitor   },
+                    { label:"Duration", val: stats.dur,    Icon: Clock     },
+                  ] as const).map(({ label, val, Icon }) => (
+                    <div key={label} className="space-y-1.5">
+                      <p className="text-3xl font-bold text-foreground leading-none">{val}</p>
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <Icon className="w-3.5 h-3.5 shrink-0 opacity-65" />
+                        <p className="text-xs font-medium uppercase tracking-wider">{label}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Weekly chart */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground border-b border-border/10 pb-2">Weekly Overview</p>
+                <div className="h-36 pt-2">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData} margin={{ top:6, right:4, left:-28, bottom:0 }}>
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill:"var(--muted-foreground)", fontSize:12 }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill:"var(--muted-foreground)", fontSize:12 }} allowDecimals={false} />
+                      <ReChartsTooltip
+                        cursor={{ fill:"var(--accent)", opacity:0.12 }}
+                        contentStyle={{ backgroundColor:"var(--card)", borderColor:"var(--border)", borderRadius:"10px", fontSize:"12px", color:"var(--foreground)" }}
+                      />
+                      <Bar dataKey="classes" fill="var(--primary)" radius={[4,4,0,0]} maxBarSize={14} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Weekly totals */}
+              <div className="space-y-4">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground border-b border-border/10 pb-2">Weekly Totals</p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-4 pt-1">
+                  {([
+                    { label: "Classes",  val: weeklyStats.total, Icon: Calendar  },
+                    { label: "Theory",   val: weeklyStats.th,    Icon: BookOpen  },
+                    { label: "Lab",      val: weeklyStats.lab,   Icon: Monitor   },
+                    { label: "Duration", val: weeklyStats.dur,   Icon: Clock     },
+                  ] as const).map(({ label, val, Icon }) => (
+                    <div key={label} className="space-y-1.5">
+                      <p className="text-3xl font-bold text-foreground leading-none">{val}</p>
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <Icon className="w-3.5 h-3.5 shrink-0 opacity-65" />
+                        <p className="text-xs font-medium uppercase tracking-wider">{label}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

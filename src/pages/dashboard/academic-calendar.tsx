@@ -8,13 +8,15 @@ import {
 } from "@/lib/features";
 
 import { ErrorDisplay } from "@/components/error-display";
-import { DrawerSelect } from "@/components/ui/drawer-select";
-import { useOnlineStatus } from "@/hooks/use-online-status";
-import { OfflineDisplay } from "@/components/offline-display";
-import { isNetworkError, fetchWithTimeout } from "@/lib/utils";
-import { Info } from "lucide-react";
-import { Drawer, DrawerContent } from "@/components/ui/drawer";
-import calendarImg from "@/assets/calender.png";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Calendar as CalendarIcon, Info, RefreshCw, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -56,22 +58,33 @@ function Sk({ className = "" }: { className?: string }) {
 
 function AcademicCalendarSkeleton() {
   return (
-    <div className="w-full space-y-6 px-2 py-4 animate-pulse font-saira">
-      <div className="space-y-1">
-        <Sk className="h-7 w-48" />
-      </div>
-      <div className="flex justify-between items-center gap-4">
+    <div className="w-full space-y-6">
+      {/* Selector skeleton */}
+      <div className="flex justify-between items-center gap-4 border-b border-border/20 pb-4">
         <Sk className="h-10 w-48 rounded-md" />
-        <Sk className="h-10 w-10 rounded-md" />
+        <Sk className="h-6 w-32 rounded-full" />
       </div>
-      <div className="space-y-3">
-        <Sk className="h-5 w-40" />
-        <div className="grid grid-cols-7 gap-1 border-t border-b border-border/10 py-3">
+
+      {/* Calendar grid skeleton */}
+      <div className="w-full space-y-4">
+        <Sk className="h-6 w-40 rounded-full" />
+        <div className="grid grid-cols-7 border border-border/10 rounded-lg overflow-hidden bg-background">
           {[...Array(7)].map((_, i) => (
-            <Sk key={i} className="h-6 w-full rounded-md" />
+            <div key={i} className="py-3 border-b border-r border-border/10 flex justify-center">
+              <Sk className="h-3.5 w-12 rounded-full" />
+            </div>
           ))}
           {[...Array(35)].map((_, i) => (
-            <Sk key={i} className="h-12 w-full rounded-md" />
+            <div
+              key={i}
+              className="min-h-[90px] sm:min-h-[120px] md:min-h-[145px] p-3 border-b border-r border-border/10 flex flex-col justify-between"
+            >
+              <Sk className="h-4 w-6 rounded-full" />
+              <div className="space-y-1.5 mt-2 w-full">
+                <Sk className="h-3 w-full rounded" />
+                <Sk className="h-3 w-4/5 rounded" />
+              </div>
+            </div>
           ))}
         </div>
       </div>
@@ -91,24 +104,30 @@ type CalendarCell = {
 
 export default function AcademicCalendarPage() {
   const { loading: authLoading } = useAuth();
-  const isOnline = useOnlineStatus();
-  const initialOptions = useMemo(() => {
-    try {
-      const cachedOptions = localStorage.getItem("deskly::cache::calendar_options");
-      if (cachedOptions) {
-        const parsed = JSON.parse(cachedOptions);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-    return null;
-  }, []);
-
-  const [options, setOptions] = useState<CalendarMonthOption[] | null>(initialOptions);
-  const [selectedOption, setSelectedOption] = useState<CalendarMonthOption | null>(initialOptions?.[0] ?? null);
+  const [options, setOptions] = useState<CalendarMonthOption[] | null>(null);
+  const [selectedOption, setSelectedOption] = useState<CalendarMonthOption | null>(null);
   const [schedule, setSchedule] = useState<MonthlySchedule | null>(null);
-  const [loading, setLoading] = useState(!initialOptions);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Selected cell details in side panel
   const [selectedCell, setSelectedCell] = useState<CalendarCell | null>(null);
+
+  // Load options from cache first
+  useEffect(() => {
+    const cachedOptions = localStorage.getItem("deskly::cache::calendar_options");
+    if (cachedOptions) {
+      try {
+        const parsed = JSON.parse(cachedOptions);
+        if (parsed && parsed.length > 0) {
+          setOptions(parsed);
+          setSelectedOption(parsed[0]);
+        }
+      } catch (e) {
+        console.error("Failed to parse cached academic calendar options", e);
+      }
+    }
+  }, []);
 
   // Load monthly view from cache first when selectedOption changes
   useEffect(() => {
@@ -132,11 +151,10 @@ export default function AcademicCalendarPage() {
   }, [selectedOption]);
 
   const fetchOptions = async () => {
-    const hasCache = !!(options && options.length > 0);
-    setLoading(!hasCache);
+    setLoading(options && options.length > 0 ? false : true);
     setError(null);
     try {
-      const res = await fetchWithTimeout(getAcademicCalendarOptions(), 15000);
+      const res = await getAcademicCalendarOptions();
       if (res.success && res.data && res.data.length > 0) {
         setOptions(res.data);
         localStorage.setItem("deskly::cache::calendar_options", JSON.stringify(res.data));
@@ -144,38 +162,29 @@ export default function AcademicCalendarPage() {
           setSelectedOption(res.data[0]);
         }
       } else {
-        if (!hasCache) {
-          setError(res.error ?? "No academic calendar semesters found.");
-        }
+        setError(res.error ?? "No academic calendar semesters found.");
         setLoading(false);
       }
     } catch (e) {
-      if (!hasCache) {
-        setError(e instanceof Error ? e.message : String(e));
-      }
+      setError(e instanceof Error ? e.message : String(e));
       setLoading(false);
     }
   };
 
   const fetchView = async (dateVal: string) => {
-    const hasCache = !!(schedule && schedule.days && schedule.days.length > 0);
-    setLoading(!hasCache);
+    setLoading(schedule ? false : true);
     setError(null);
     try {
-      const res = await fetchWithTimeout(getAcademicCalendarView(dateVal), 15000);
+      const res = await getAcademicCalendarView(dateVal);
       if (res.success && res.data) {
         setSchedule(res.data);
         localStorage.setItem(`deskly::cache::calendar_view_${dateVal}`, JSON.stringify(res.data));
-        setSelectedCell(null);
+        setSelectedCell(null); // Reset day details view on month change
       } else {
-        if (!hasCache) {
-          setError(res.error ?? "Failed to load academic calendar view.");
-        }
+        setError(res.error ?? "Failed to load academic calendar view.");
       }
     } catch (e) {
-      if (!hasCache) {
-        setError(e instanceof Error ? e.message : String(e));
-      }
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
@@ -191,19 +200,22 @@ export default function AcademicCalendarPage() {
     }
   }, [selectedOption]);
 
-  // Calendar Math
+  // Calendar Math: construct 35-42 grid cells based on loaded schedule and options
   const calendarCells = useMemo(() => {
     if (!schedule || !selectedOption) return [];
 
-    const dateVal = selectedOption.dateValue;
+    const dateVal = selectedOption.dateValue; // e.g. "06-2026" or "01-DEC-2025"
     let monthIndex = 0;
     let year = 2026;
 
+    // Parse dateValue string: VTOP uses "01-DEC-2025" or custom formats sometimes
     const parts = dateVal.split("-");
     if (parts.length === 2) {
+      // MM-YYYY
       monthIndex = parseInt(parts[0], 10) - 1;
       year = parseInt(parts[1], 10);
     } else if (parts.length === 3) {
+      // DD-MMM-YYYY (e.g. 01-DEC-2025)
       const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
       const mIdx = months.indexOf(parts[1].toUpperCase());
       if (mIdx !== -1) monthIndex = mIdx;
@@ -211,17 +223,17 @@ export default function AcademicCalendarPage() {
     }
 
     const firstDay = new Date(year, monthIndex, 1);
-    const startWeekday = firstDay.getDay();
+    const startWeekday = firstDay.getDay(); // 0 = Sunday, 1 = Monday, etc.
     const totalDays = new Date(year, monthIndex + 1, 0).getDate();
 
     const cells: CalendarCell[] = [];
 
-    // Prefix padding days
+    // 1. Prefix padding days
     for (let i = 0; i < startWeekday; i++) {
       cells.push({ isCurrentMonth: false, content: [] });
     }
 
-    // Current Month days
+    // 2. Current Month days
     for (let d = 1; d <= totalDays; d++) {
       const dayData = schedule.days.find((day) => day.date === d);
       cells.push({
@@ -231,7 +243,7 @@ export default function AcademicCalendarPage() {
       });
     }
 
-    // Postfix padding days
+    // 3. Postfix padding days
     while (cells.length % 7 !== 0) {
       cells.push({ isCurrentMonth: false, content: [] });
     }
@@ -239,16 +251,14 @@ export default function AcademicCalendarPage() {
     return cells;
   }, [schedule, selectedOption]);
 
-  const shell = (children: React.ReactNode) => <>{children}</>;
-  const showOffline = (!options || !schedule) && (isOnline === false || isNetworkError(error, isOnline));
 
-  if (showOffline) {
-    return shell(<OfflineDisplay onRetry={fetchOptions} />);
-  }
+  const shell = (children: React.ReactNode) => (
+    <>{children}</>
+  );
 
-  if (error && (!options || !schedule)) {
+  if (error && !options) {
     return shell(
-      <div className="flex h-full items-center justify-center font-saira">
+      <div className="flex h-full items-center justify-center">
         <ErrorDisplay title="Calendar Unavailable" message={error} onRetry={fetchOptions} />
       </div>
     );
@@ -256,197 +266,241 @@ export default function AcademicCalendarPage() {
 
   const isLoading = authLoading || loading;
 
-  if (isLoading) return shell(<AcademicCalendarSkeleton />);
-
   return shell(
-    <div className="w-full flex flex-col gap-6 px-2 py-4 font-saira select-none overscroll-y-contain relative">
-      <style>{`.font-saira { font-family: 'Saira', sans-serif !important; }`}</style>
-
-      {/* Header */}
-      <header className="relative z-10 flex items-start justify-between gap-4 mt-2">
-        <div className="space-y-1.5 min-w-0 pt-1">
-          <h1 className="text-3xl font-extrabold text-foreground tracking-tight leading-tight">
-            Calendar
+    <div className="w-full space-y-6">
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <header className="pb-4 border-b border-border/20 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
+            <CalendarIcon className="w-6 h-6 text-primary shrink-0" />
+            Academic Calendar
           </h1>
-          <p className="text-xs text-muted-foreground/60 leading-normal">
-            View monthly academic schedule and events
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Instructional working days, holidays, and semester exam schedule
           </p>
         </div>
+        {!isLoading && options && selectedOption && (
+          <div className="flex items-center gap-2">
+            <Select
+              value={selectedOption.dateValue}
+              onValueChange={(val) => {
+                const opt = options.find((o) => o.dateValue === val);
+                if (opt) setSelectedOption(opt);
+              }}
+            >
+              <SelectTrigger className="w-48 h-9 border border-border/20 bg-muted/10 text-xs sm:text-sm font-semibold rounded-md focus:outline-none">
+                <SelectValue placeholder="Select Month" />
+              </SelectTrigger>
+              <SelectContent className="border border-border/10 bg-popover text-popover-foreground">
+                {options.map((o) => (
+                  <SelectItem key={o.dateValue} value={o.dateValue} className="text-xs sm:text-sm">
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <button
+              onClick={() => fetchView(selectedOption.dateValue)}
+              title="Refresh calendar view"
+              className="p-2 h-9 w-9 rounded-md border border-border/10 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors flex items-center justify-center cursor-pointer"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </header>
 
-      {/* Illustration image absolute header */}
-      <div className="absolute -top-4 right-0 w-[180px] h-[140px] pointer-events-none select-none z-0">
-        <img
-          src={calendarImg}
-          className="w-full h-full object-contain opacity-95 dark:opacity-75"
-          alt="Calendar Illustration"
-        />
-      </div>
+      {isLoading ? (
+        <AcademicCalendarSkeleton />
+      ) : (
+        <div className="w-full flex flex-col gap-4 min-h-0">
+          <h2 className="text-base sm:text-lg font-extrabold text-foreground flex items-center gap-2">
+            {schedule?.month}
+          </h2>
 
-      {/* Month Selector Card */}
-      <div className="relative z-10 bg-card/80 border border-border/40 p-5 rounded-xl shadow-sm backdrop-blur-md flex items-center justify-between">
-        <div className="space-y-0.5">
-          <span className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest block">
-            Selected Month
-          </span>
-          <span className="text-base font-extrabold text-foreground leading-none uppercase">
-            {schedule?.month || "Loading..."}
-          </span>
-        </div>
-        {!isLoading && options && selectedOption && (
-          <DrawerSelect
-            value={selectedOption.dateValue}
-            onValueChange={(val) => {
-              const opt = options.find((o) => o.dateValue === val);
-              if (opt) setSelectedOption(opt);
-            }}
-            title="Select Month"
-            triggerClassName="h-9 w-[130px]"
-            options={options.map((o) => ({ value: o.dateValue, label: o.label }))}
-          />
-        )}
-      </div>
+          <div className="grid grid-cols-7 border-t border-l border-border/10 rounded-lg overflow-hidden bg-background shadow-sm shadow-border/5">
+            {/* Weekday Names */}
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+              <div key={day} className="py-3 text-center border-b border-r border-border/10 bg-muted/5">
+                <span className="text-xs sm:text-xs font-black tracking-widest text-muted-foreground/60 uppercase">
+                  {day}
+                </span>
+              </div>
+            ))}
 
-      {/* Calendar Grid Card */}
-      <div className="relative z-10 bg-card/80 border border-border/40 p-5 rounded-xl shadow-sm backdrop-blur-md">
-        <div className="grid grid-cols-7 gap-1">
-          {/* Weekday Names */}
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-            <div key={day} className="py-2 text-center select-none">
-              <span className="text-[10px] font-black tracking-widest text-muted-foreground/50 uppercase">
-                {day}
-              </span>
-            </div>
-          ))}
+            {/* Day Cells */}
+            {calendarCells.map((cell, idx) => {
+              const hasEvents = cell.content && cell.content.length > 0;
+              const isSelected = selectedCell && selectedCell.dayNumber === cell.dayNumber && cell.isCurrentMonth;
+              const isToday =
+                cell.isCurrentMonth &&
+                cell.dayNumber === new Date().getDate() &&
+                selectedOption?.label.toLowerCase().includes(
+                  new Date().toLocaleString("default", { month: "long" }).toLowerCase()
+                ) &&
+                selectedOption?.label.includes(new Date().getFullYear().toString());
 
-          {/* Day Cells */}
-          {calendarCells.map((cell, idx) => {
-            const hasEvents = cell.content && cell.content.length > 0;
-            const isSelected = selectedCell && selectedCell.dayNumber === cell.dayNumber && cell.isCurrentMonth;
-            const isToday =
-              cell.isCurrentMonth &&
-              cell.dayNumber === new Date().getDate() &&
-              selectedOption?.label.toLowerCase().includes(
-                new Date().toLocaleString("default", { month: "long" }).toLowerCase()
-              ) &&
-              selectedOption?.label.includes(new Date().getFullYear().toString());
-
-            if (!cell.isCurrentMonth) {
               return (
                 <div
                   key={idx}
-                  className="min-h-[54px] bg-muted/5 opacity-5 rounded-lg pointer-events-none"
-                />
-              );
-            }
-
-            return (
-              <div
-                key={idx}
-                onClick={() => setSelectedCell(cell)}
-                className={`min-h-[54px] p-2 flex flex-col justify-between rounded-lg relative overflow-hidden group border transition-all duration-150 cursor-pointer
-                  ${isToday 
-                    ? "bg-primary/10 border-primary/30 text-primary font-bold animate-pulse-subtle" 
-                    : isSelected
-                      ? "bg-muted/30 border-primary/20 text-primary"
-                      : "bg-muted/10 border-border/10 text-foreground hover:bg-muted/15"
-                  }`}
-              >
-                <span className={`text-[11px] font-bold leading-none w-4 h-4 rounded-full flex items-center justify-center
-                  ${isToday ? "bg-primary text-primary-foreground font-black" : ""}`}
+                  onClick={() => {
+                    if (cell.isCurrentMonth) {
+                      setSelectedCell(cell);
+                    }
+                  }}
+                  className={`min-h-[65px] sm:min-h-[110px] md:min-h-[135px] lg:min-h-[145px] p-1.5 sm:p-2 flex flex-col justify-between border-b border-r border-border/10 cursor-pointer select-none transition-colors duration-150 relative group
+                    ${cell.isCurrentMonth ? "bg-transparent hover:bg-muted/5" : "bg-muted/5 opacity-15 cursor-default pointer-events-none"}
+                    ${isSelected ? "bg-primary/5 font-semibold" : ""}
+                  `}
                 >
-                  {cell.dayNumber}
-                </span>
+                  <div className="flex items-center justify-between w-full">
+                    <span
+                      className={`text-xs sm:text-xs md:text-sm font-semibold rounded-full flex items-center justify-center transition-all
+                        ${
+                          isToday
+                            ? "bg-primary text-primary-foreground font-extrabold w-4.5 h-4.5 sm:w-6 sm:h-6 shadow-sm shadow-primary/20"
+                            : isSelected
+                              ? "text-primary font-bold"
+                              : cell.isCurrentMonth
+                                ? "text-foreground/90"
+                                : "text-muted-foreground/30"
+                        }
+                      `}
+                    >
+                      {cell.dayNumber}
+                    </span>
+                  </div>
 
-                {/* Event indicator dots */}
-                {hasEvents && (
-                  <div className="flex items-center gap-1 justify-center mt-auto">
-                    {cell.content.slice(0, 3).map((event, eventIdx) => (
-                      <span
-                        key={eventIdx}
-                        className={`w-1 h-1 rounded-full ${getEventDotClass(event)}`}
-                      />
-                    ))}
-                    {cell.content.length > 3 && (
-                      <span className="text-[7px] font-bold text-muted-foreground/60 leading-none">
-                        +
-                      </span>
+                  {/* Event indicators - Desktop: full text, Mobile: small indicators */}
+                  {cell.isCurrentMonth && hasEvents && (
+                    <>
+                      {/* Desktop: Event badges */}
+                      <div className="hidden sm:flex flex-col gap-1 mt-2 w-full overflow-hidden">
+                        {cell.content.slice(0, 3).map((event, eventIdx) => {
+                          const type = classifyEvent(event);
+                          let badgeStyle = "bg-muted text-muted-foreground border-transparent";
+                          if (type === "holiday") badgeStyle = "bg-destructive/10 text-destructive border-destructive/20";
+                          if (type === "exam") badgeStyle = "bg-amber-500/10 text-amber-500 border-amber-500/20";
+                          if (type === "instructional") badgeStyle = "bg-primary/10 text-primary border-primary/20";
+
+                          return (
+                            <div
+                              key={eventIdx}
+                              className={`px-1.5 py-0.5 border rounded text-xs font-semibold leading-tight truncate ${badgeStyle}`}
+                              title={event}
+                            >
+                              {event}
+                            </div>
+                          );
+                        })}
+                        {cell.content.length > 3 && (
+                          <span className="text-xs font-bold text-muted-foreground/60 pl-1">
+                            +{cell.content.length - 3} more
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Mobile: Tiny dots */}
+                      <div className="flex sm:hidden items-center gap-1 mt-auto">
+                        {cell.content.slice(0, 3).map((event, eventIdx) => (
+                          <span
+                            key={eventIdx}
+                            className={`w-1.5 h-1.5 rounded-full ${getEventDotClass(event)}`}
+                            title={event}
+                          />
+                        ))}
+                        {cell.content.length > 3 && (
+                          <span className="text-[7px] font-bold text-muted-foreground/60 leading-none">
+                            +{cell.content.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Modal for Day Details */}
+          <AnimatePresence>
+            {selectedCell && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                {/* Backdrop */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setSelectedCell(null)}
+                  className="absolute inset-0 bg-background/60 backdrop-blur-sm"
+                />
+                
+                {/* Modal Content */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                  transition={{ duration: 0.15, ease: "easeOut" }}
+                  className="relative w-full max-w-md bg-card border border-border/10 rounded-lg shadow-xl p-6 overflow-hidden z-10"
+                >
+                  <button
+                    onClick={() => setSelectedCell(null)}
+                    className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  
+                  <div className="space-y-4">
+                    <div className="space-y-1 pr-6 border-b border-border/10 pb-3">
+                      <p className="text-xs font-black uppercase tracking-widest text-muted-foreground/60">
+                        Day Schedule Details
+                      </p>
+                      <h3 className="text-base sm:text-lg font-bold text-foreground">
+                        {schedule?.month.split(" ")[0]} {selectedCell.dayNumber},{" "}
+                        {schedule?.month.split(" ")[1]}
+                      </h3>
+                    </div>
+
+                    {selectedCell.content.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-10 text-center gap-2 text-muted-foreground">
+                        <Info className="w-8 h-8 text-muted-foreground/20" />
+                        <p className="text-xs font-medium">No events scheduled for this day</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 max-h-[300px] overflow-y-auto no-scrollbar">
+                        {selectedCell.content.map((event, idx) => {
+                          const type = classifyEvent(event);
+                          let badgeStyle = "bg-muted text-muted-foreground";
+                          if (type === "holiday") badgeStyle = "bg-destructive/10 text-destructive border-destructive/20";
+                          if (type === "exam") badgeStyle = "bg-amber-500/10 text-amber-500 border-amber-500/20";
+                          if (type === "instructional") badgeStyle = "bg-primary/10 text-primary border-primary/20";
+
+                          return (
+                            <div
+                              key={idx}
+                              className="p-3 rounded-md border border-border/10 bg-muted/5 space-y-1.5"
+                            >
+                              <span
+                                className={`inline-block px-2 py-0.5 border rounded text-xs font-extrabold uppercase tracking-wider leading-none ${badgeStyle}`}
+                              >
+                                {type}
+                              </span>
+                              <p className="text-xs sm:text-sm text-foreground font-semibold leading-relaxed">
+                                {event}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
-                )}
+                </motion.div>
               </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Slide-up Bottom Drawer for Day Details */}
-      <Drawer
-        open={selectedCell !== null}
-        onOpenChange={(open) => {
-          if (!open) setSelectedCell(null);
-        }}
-      >
-        <DrawerContent className="pb-8 font-saira max-h-[85vh]">
-          <div className="overflow-y-auto no-scrollbar px-6 space-y-6 pt-5">
-            {/* Drawer Header */}
-            <div className="flex items-start justify-between gap-4 border-b border-border/10 pb-3">
-              <div className="space-y-1">
-                <span className="text-xs font-black uppercase tracking-widest text-muted-foreground/60 leading-none">
-                  Day Schedule Details
-                </span>
-                <h3 className="text-xl font-bold text-foreground leading-none">
-                  {selectedCell && schedule
-                    ? `${schedule.month.split(" ")[0]} ${selectedCell.dayNumber}, ${schedule.month.split(" ")[1]}`
-                    : ""}
-                </h3>
-              </div>
-              <button
-                onClick={() => setSelectedCell(null)}
-                className="w-8 h-8 rounded-full bg-muted/65 flex items-center justify-center text-foreground hover:bg-muted active:opacity-75 transition-colors border-none cursor-pointer shrink-0 font-sans"
-              >
-                <span className="text-lg leading-none">×</span>
-              </button>
-            </div>
-
-            {/* Event Content list */}
-            {selectedCell && (
-              selectedCell.content.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center gap-2 text-muted-foreground bg-muted/5 rounded-lg border border-border/10">
-                  <Info className="w-8 h-8 text-muted-foreground/20" />
-                  <p className="text-xs font-semibold">No events scheduled for this day</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {selectedCell.content.map((event, idx) => {
-                    const type = classifyEvent(event);
-                    let badgeStyle = "bg-muted text-muted-foreground";
-                    if (type === "holiday") badgeStyle = "bg-destructive/10 text-destructive border-destructive/20";
-                    if (type === "exam") badgeStyle = "bg-amber-500/10 text-amber-500 border-amber-500/20";
-                    if (type === "instructional") badgeStyle = "bg-primary/10 text-primary border-primary/20";
-
-                    return (
-                      <div
-                        key={idx}
-                        className="p-4 rounded-lg border border-border/10 bg-muted/5 space-y-2"
-                      >
-                        <span
-                          className={`inline-block px-2 py-0.5 border rounded text-xs font-extrabold uppercase tracking-wider leading-none ${badgeStyle}`}
-                        >
-                          {type}
-                        </span>
-                        <p className="text-sm text-foreground font-semibold leading-relaxed">
-                          {event}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              )
             )}
-          </div>
-        </DrawerContent>
-      </Drawer>
+          </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 }
