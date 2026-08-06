@@ -437,55 +437,80 @@ export default function ExamSchedulePage() {
                 <div
                   key={`${exam.courseCode}-${idx}`}
                   onClick={() => setSelectedExam(exam)}
-                  className="p-4 bg-card/80 border border-border/40 rounded-xl shadow-sm flex items-center justify-between gap-3 backdrop-blur-md cursor-pointer hover:bg-muted/5 active:opacity-75 transition-all"
+                  className="p-4 bg-card/90 border border-border/25 rounded-2xl shadow-sm flex flex-col gap-3.5 backdrop-blur-md cursor-pointer hover:bg-muted/10 active:opacity-75 transition-all duration-200"
                 >
-                  {/* Left Column: Date bubble & Details */}
-                  <div className="flex items-start gap-3 min-w-0 flex-1">
-                    <div className="w-12 h-12 rounded-lg flex flex-col items-center justify-center shrink-0 border border-border/20 bg-muted/20 text-muted-foreground mt-0.5">
-                      <span className="text-sm font-extrabold leading-none">{dayNum}</span>
-                      {isScheduled && <span className="text-[10px] font-bold uppercase leading-none mt-1">{weekDayStr}</span>}
+                  {/* Top Section: Header & Course Metadata */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      {/* Structured Date Tile */}
+                      <div className="w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0 border border-primary/20 bg-primary/10 text-primary mt-0.5 shadow-sm">
+                        <span className="text-base font-black leading-none">{dayNum}</span>
+                        {isScheduled && <span className="text-[10px] font-extrabold uppercase leading-none mt-1 tracking-wider">{weekDayStr}</span>}
+                      </div>
+
+                      {/* Course Code, Slot & Title */}
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-black tracking-widest text-primary uppercase leading-none">
+                            {exam.courseCode}
+                          </span>
+                          {exam.slot && (
+                            <span className="text-[10px] font-bold text-muted-foreground/80 bg-muted/50 border border-border/20 px-2 py-0.5 rounded-full leading-none">
+                              Slot: {exam.slot}
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="text-sm font-bold text-foreground leading-snug break-words">
+                          {exam.courseTitle}
+                        </h4>
+                      </div>
                     </div>
 
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-xs font-black tracking-wider text-primary uppercase leading-none">
-                          {exam.courseCode}
+                    {/* Right Side: Seat Badge + Chevron */}
+                    <div className="flex items-center gap-2 shrink-0 pt-0.5">
+                      {isScheduled && exam.seatNo && exam.seatNo !== "-" && (
+                        <span className="text-xs font-black px-2.5 py-1 rounded-full border border-primary/20 bg-primary/10 text-primary leading-none">
+                          Seat {exam.seatNo}
                         </span>
-                        {exam.slot && (
-                          <span className="text-[11px] font-bold text-muted-foreground/80 bg-muted/50 border border-border/20 px-1.5 py-0.5 rounded leading-none">
-                            Slot: {exam.slot}
+                      )}
+                      <ChevronRight className="w-4 h-4 text-muted-foreground/45 shrink-0" />
+                    </div>
+                  </div>
+
+                  {/* Bottom Section: Timing & Venue Structured Metadata Chips */}
+                  {isScheduled && (
+                    <div className="pt-3 border-t border-border/15 grid grid-cols-1 gap-2">
+                      <div className="flex items-center gap-2.5 bg-muted/20 border border-border/15 rounded-xl px-3 py-2">
+                        <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                          <Clock className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest leading-none block">
+                            Exam Time & Reporting
                           </span>
-                        )}
+                          <p className="text-xs font-bold text-foreground truncate leading-tight">
+                            {displayExamTime} <span className="text-muted-foreground font-semibold">· Reporting {displayReporting}</span>
+                          </p>
+                        </div>
                       </div>
-                      <h4 className="text-sm font-bold text-foreground leading-snug break-words">
-                        {exam.courseTitle}
-                      </h4>
-                      {isScheduled && (
-                        <div className="space-y-1 pt-1.5 text-xs text-muted-foreground/80 font-medium border-t border-border/10 mt-2">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <Clock className="w-3.5 h-3.5 text-primary/70 shrink-0" />
-                            <span className="truncate">{displayExamTime} (Reporting: {displayReporting})</span>
+
+                      {displayVenue !== "Venue TBA" && (
+                        <div className="flex items-center gap-2.5 bg-muted/20 border border-border/15 rounded-xl px-3 py-2">
+                          <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                            <MapPin className="w-3.5 h-3.5" />
                           </div>
-                          {displayVenue !== "Venue TBA" && (
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <MapPin className="w-3.5 h-3.5 text-primary/70 shrink-0" />
-                              <span className="truncate">{displayVenue}</span>
-                            </div>
-                          )}
+                          <div className="min-w-0 flex-1 space-y-0.5">
+                            <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest leading-none block">
+                              Venue / Hall
+                            </span>
+                            <p className="text-xs font-bold text-foreground truncate leading-tight">
+                              {displayVenue}
+                            </p>
+                          </div>
                         </div>
                       )}
                     </div>
-                  </div>
-
-                  {/* Right Column: Seat & Icon */}
-                  <div className="flex items-center gap-2 shrink-0 self-center">
-                    {isScheduled && exam.seatNo && exam.seatNo !== "-" && (
-                      <span className="text-xs font-bold px-2.5 py-1 rounded-md border border-border/20 bg-muted/20 text-foreground leading-none">
-                        Seat {exam.seatNo}
-                      </span>
-                    )}
-                    <ChevronRight className="w-4 h-4 text-muted-foreground/45 shrink-0" />
-                  </div>
+                  )}
                 </div>
               );
             })}
