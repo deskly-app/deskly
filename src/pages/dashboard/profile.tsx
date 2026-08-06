@@ -93,6 +93,7 @@ export default function StudentProfilePage() {
   const [error, setError] = useState<string | null>(null);
 
   async function fetchProfile() {
+    setError(null);
     const hasCache = !!profile;
     setLoading(!hasCache);
     try {

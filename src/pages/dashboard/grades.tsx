@@ -1,367 +1,231 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  getGradesHistory,
-  StudentHistoryData,
-  getStudentGradeView,
-  SemesterGradeViewData,
-  SemesterGradeEntry,
-} from "@/lib/features";
-import { SemesterOption } from "@/lib/features";
-import { Separator } from "@/components/ui/separator";
+import { getGradesHistory, StudentHistoryData } from "@/lib/features";
+
+import { ErrorDisplay } from "@/components/error-display";
 import { Input } from "@/components/ui/input";
-import { useOnlineStatus } from "@/hooks/use-online-status";
-import { OfflineDisplay } from "@/components/offline-display";
-import { isNetworkError, fetchWithTimeout } from "@/lib/utils";
-import { DrawerSelect } from "@/components/ui/drawer-select";
-import { Drawer, DrawerContent } from "@/components/ui/drawer";
-import gradeHistoryImg from "@/assets/grade-history.png";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   GraduationCap,
-  Search,
-  FileText,
-  Monitor,
-  CalendarDays,
-  ChevronRight,
-  X,
+  BookOpen,
+  Bookmark,
   Award,
+  Search,
+  HelpCircle,
+  FileText
 } from "lucide-react";
 
-// ─── Skeletons ────────────────────────────────────────────────────────────────
-
-function Sk({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-lg bg-muted/65 ${className}`} />;
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function formatCourseType(type: string) {
+  const clean = type.trim().toUpperCase();
+  let colorClass = "text-muted-foreground";
+  if (clean === "TH") colorClass = "text-chart-1 font-bold";
+  else if (clean === "LO" || clean === "LA") colorClass = "text-chart-2 font-bold";
+  else if (clean === "ETL") colorClass = "text-chart-4 font-bold";
+  else if (clean === "PJT") colorClass = "text-chart-3 font-bold";
+  else if (clean === "SS") colorClass = "text-chart-5 font-bold";
+  
+  return (
+    <span className={`text-xs tracking-wide ${colorClass}`}>
+      {clean}
+    </span>
+  );
 }
 
+function formatGrade(grade: string) {
+  const clean = grade.trim().toUpperCase();
+  let colorClass = "text-muted-foreground";
+  if (clean === "S" || clean === "A") colorClass = "text-chart-2 font-black";
+  else if (clean === "B") colorClass = "text-chart-3 font-black";
+  else if (clean === "C" || clean === "P") colorClass = "text-chart-1 font-black";
+  else if (clean === "D") colorClass = "text-chart-5 font-black";
+  else if (clean === "E" || clean === "F") colorClass = "text-destructive font-black";
+
+  return (
+    <span className={`text-sm tracking-wide ${colorClass}`}>
+      {clean}
+    </span>
+  );
+}
+
+function formatDistribution(dist: string) {
+  const clean = dist.trim().toUpperCase();
+  return (
+    <span className="text-xs font-semibold text-muted-foreground tracking-wide">
+      {clean}
+    </span>
+  );
+}
+
+
+function Sk({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse rounded-md bg-muted/65 ${className}`} />;
+}
+
+// ─── Loader Skeleton Layout ───────────────────────────────────────────────────
 function GradesSkeleton() {
   return (
-    <div className="w-full space-y-6 px-2 py-4 font-saira">
-      <Sk className="h-11 w-full rounded-lg" />
-      <Sk className="h-28 w-full rounded-xl" />
-      <div className="space-y-3">
-        <Sk className="h-10 w-full rounded-md" />
+    <div className="w-full lg:h-[calc(100vh-5rem)] lg:flex lg:flex-col lg:overflow-hidden space-y-6">
+      {/* Header skeleton */}
+      <div className="flex justify-between pb-6 border-b border-border/40 shrink-0">
+        <div className="space-y-2">
+          <Sk className="h-7 w-36" />
+          <Sk className="h-3 w-52" />
+        </div>
       </div>
-      <div className="space-y-3 pt-2">
-        {[...Array(6)].map((_, i) => (
-          <Sk key={i} className="h-20 w-full rounded-xl" />
+
+      {/* Cards skeleton */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="flex flex-col justify-between bg-card/40 border border-border/30 rounded-lg p-5 min-h-[104px]">
+            <div className="flex items-center justify-between w-full">
+              <Sk className="h-3 w-16" />
+              <Sk className="h-4 w-4 rounded-md" />
+            </div>
+            <Sk className="h-7 w-12 mt-3" />
+          </div>
         ))}
+      </div>
+
+
+      {/* Search & filters skeleton */}
+      <div className="flex items-center justify-between pb-4 border-b border-border/20 shrink-0 pt-4">
+        <div className="space-y-2">
+          <Sk className="h-5 w-44" />
+          <Sk className="h-3 w-64" />
+        </div>
+        <div className="flex gap-3">
+          <Sk className="h-9 w-48 rounded-md" />
+          <Sk className="h-9 w-32 rounded-md" />
+        </div>
+      </div>
+
+      {/* Table skeleton */}
+      <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-2 pr-2">
+        <table className="w-full border-collapse text-left">
+          <thead>
+            <tr className="border-b border-border/30 text-xs font-black uppercase tracking-wider text-muted-foreground">
+              <th className="py-4 px-3 w-12">#</th>
+              <th className="py-4 px-3 w-28">Course Code</th>
+              <th className="py-4 px-3">Course Title</th>
+              <th className="py-4 px-3 w-28">Course Type</th>
+              <th className="py-4 px-3 w-20 text-center">Credits</th>
+              <th className="py-4 px-3 w-20 text-center">Grade</th>
+              <th className="py-4 px-3 w-28">Exam Month</th>
+              <th className="py-4 px-3 w-32">Result Declared</th>
+              <th className="py-4 px-3 w-36">Course Distribution</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/10 text-sm font-semibold">
+            {[...Array(8)].map((_, i) => (
+              <tr key={i} className="animate-pulse border-b border-border/10">
+                <td className="py-4 px-3"><Sk className="h-4 w-6" /></td>
+                <td className="py-4 px-3"><Sk className="h-4 w-20" /></td>
+                <td className="py-4 px-3"><Sk className="h-4 w-64" /></td>
+                <td className="py-4 px-3"><Sk className="h-5 w-12 rounded" /></td>
+                <td className="py-4 px-3 text-center"><Sk className="h-4 w-8 mx-auto" /></td>
+                <td className="py-4 px-3 text-center"><Sk className="h-5 w-8 rounded-full mx-auto" /></td>
+                <td className="py-4 px-3"><Sk className="h-4 w-16" /></td>
+                <td className="py-4 px-3"><Sk className="h-4 w-24" /></td>
+                <td className="py-4 px-3"><Sk className="h-5 w-16 rounded" /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 }
 
-// ─── Grade Detail Drawers ─────────────────────────────────────────────────────
-
-function HistoryGradeDrawer({
-  item,
-  open,
-  onOpenChange,
-}: {
-  item: StudentHistoryData["grades"][number] | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  if (!item) return null;
-
-  return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="pb-8 font-saira max-h-[92vh]">
-        <div className="overflow-y-auto no-scrollbar px-6 space-y-6 pt-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 min-w-0 space-y-2">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-extrabold uppercase bg-primary/10 text-primary border border-primary/20 tracking-wider">
-                  {item.courseCode}
-                </span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-extrabold uppercase bg-muted text-muted-foreground tracking-wider">
-                  {item.courseType.trim()}
-                </span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-extrabold uppercase bg-primary/10 text-primary border border-primary/20 tracking-wider">
-                  Grade {item.grade.trim().toUpperCase()}
-                </span>
-              </div>
-              <h2 className="text-xl font-bold text-foreground leading-snug tracking-tight">
-                {item.courseTitle}
-              </h2>
-            </div>
-            
-            <button
-              onClick={() => onOpenChange(false)}
-              className="p-2 rounded-full bg-muted/40 hover:bg-muted/60 text-muted-foreground hover:text-foreground active:opacity-75 transition-all border-none cursor-pointer shrink-0"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <Separator className="bg-border/15" />
-
-          <div className="grid grid-cols-2 gap-y-5 gap-x-4 py-1">
-            <div className="space-y-1">
-              <span className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none block">
-                Credits
-              </span>
-              <div className="flex items-center gap-2 pt-0.5">
-                <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0 text-primary">
-                  <Monitor className="w-4 h-4" />
-                </div>
-                <span className="text-sm font-semibold text-foreground">{item.credits} Credits</span>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <span className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none block">
-                Exam Session
-              </span>
-              <div className="flex items-center gap-2 pt-0.5">
-                <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0 text-primary">
-                  <CalendarDays className="w-4 h-4" />
-                </div>
-                <span className="text-sm font-semibold text-foreground truncate">{item.examMonth || "—"}</span>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <span className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none block">
-                Result Declared
-              </span>
-              <div className="flex items-center gap-2 pt-0.5">
-                <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0 text-primary">
-                  <CalendarDays className="w-4 h-4" />
-                </div>
-                <span className="text-sm font-semibold text-foreground truncate">{item.resultDeclared || "—"}</span>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <span className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none block">
-                Distribution
-              </span>
-              <div className="flex items-center gap-2 pt-0.5">
-                <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0 text-primary">
-                  <FileText className="w-4 h-4" />
-                </div>
-                <span className="text-sm font-semibold text-foreground truncate">{item.courseDistribution || "—"}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </DrawerContent>
-    </Drawer>
-  );
-}
-
-function SemesterGradeDrawer({
-  item,
-  open,
-  onOpenChange,
-}: {
-  item: SemesterGradeEntry | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  if (!item) return null;
-
-  return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="pb-8 font-saira max-h-[92vh]">
-        <div className="overflow-y-auto no-scrollbar px-6 space-y-6 pt-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 min-w-0 space-y-2">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-extrabold uppercase bg-primary/10 text-primary border border-primary/20 tracking-wider">
-                  {item.courseCode}
-                </span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-extrabold uppercase bg-muted text-muted-foreground tracking-wider">
-                  {item.courseType}
-                </span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-extrabold uppercase bg-primary/10 text-primary border border-primary/20 tracking-wider">
-                  Grade {item.grade}
-                </span>
-              </div>
-              <h2 className="text-xl font-bold text-foreground leading-snug tracking-tight">
-                {item.courseTitle}
-              </h2>
-            </div>
-            
-            <button
-              onClick={() => onOpenChange(false)}
-              className="p-2 rounded-full bg-muted/40 hover:bg-muted/60 text-muted-foreground hover:text-foreground active:opacity-75 transition-all border-none cursor-pointer shrink-0"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <Separator className="bg-border/15" />
-
-          {/* Credits Breakdown L-P-J-C */}
-          <div className="space-y-2">
-            <span className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest block">
-              Credit Breakdown
-            </span>
-            <div className="grid grid-cols-4 gap-2">
-              <div className="p-3 bg-muted/15 border border-border/15 rounded-lg text-center space-y-1">
-                <span className="text-xs font-bold text-muted-foreground/50 uppercase">Lecture (L)</span>
-                <p className="text-base font-black text-foreground">{item.credits.l}</p>
-              </div>
-              <div className="p-3 bg-muted/15 border border-border/15 rounded-lg text-center space-y-1">
-                <span className="text-xs font-bold text-muted-foreground/50 uppercase">Practical (P)</span>
-                <p className="text-base font-black text-foreground">{item.credits.p}</p>
-              </div>
-              <div className="p-3 bg-muted/15 border border-border/15 rounded-lg text-center space-y-1">
-                <span className="text-xs font-bold text-muted-foreground/50 uppercase">Project (J)</span>
-                <p className="text-base font-black text-foreground">{item.credits.j}</p>
-              </div>
-              <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg text-center space-y-1">
-                <span className="text-xs font-bold text-primary uppercase">Total (C)</span>
-                <p className="text-base font-black text-primary">{item.credits.c}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Grading Type & Grand Total */}
-          <div className="divide-y divide-border/15 border-t border-b border-border/15">
-            <div className="flex items-center justify-between py-3">
-              <span className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wide">Grading Type</span>
-              <span className="text-sm font-bold text-foreground">{item.gradingType || "—"}</span>
-            </div>
-            <div className="flex items-center justify-between py-3">
-              <span className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wide">Grand Total Marks</span>
-              <span className="text-sm font-bold text-foreground">{item.grandTotal !== undefined && item.grandTotal !== null ? item.grandTotal : "—"}</span>
-            </div>
-            <div className="flex items-center justify-between py-3">
-              <span className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wide">Final Grade</span>
-              <span className="text-base font-black text-primary">{item.grade}</span>
-            </div>
-          </div>
-        </div>
-      </DrawerContent>
-    </Drawer>
-  );
-}
-
 // ─── Main Page Component ──────────────────────────────────────────────────────
-
 export default function GradesPage() {
   const { isLoggedIn, loading: authLoading } = useAuth();
-  const isOnline = useOnlineStatus();
 
-  // Tab State: "semester" vs "history"
-  const [activeTab, setActiveTab] = useState<"semester" | "history">("semester");
-
-  // Semesters list state
-  const [semesters, setSemesters] = useState<SemesterOption[]>([]);
-  const [selectedSemId, setSelectedSemId] = useState<string>("");
-
-  // Semester Grade View State
-  const initialSemGrade = useMemo(() => {
-    try {
-      const cached = localStorage.getItem("deskly::cache::sem_grades");
-      return cached ? JSON.parse(cached) : null;
-    } catch { return null; }
-  }, []);
-
-  const [semGradeData, setSemGradeData] = useState<SemesterGradeViewData | null>(initialSemGrade);
-  const [semLoading, setSemLoading] = useState(!initialSemGrade);
-  const [semError, setSemError] = useState<string | null>(null);
-  const [selectedSemGrade, setSelectedSemGrade] = useState<SemesterGradeEntry | null>(null);
-
-  // Grade History State
-  const initialHistory = useMemo(() => {
-    try {
-      const cached = localStorage.getItem("deskly::cache::grade_history");
-      return cached ? JSON.parse(cached) : null;
-    } catch { return null; }
-  }, []);
-
-  const [historyData, setHistoryData] = useState<StudentHistoryData | null>(initialHistory);
-  const [historyLoading, setHistoryLoading] = useState(!initialHistory);
-  const [historyError, setHistoryError] = useState<string | null>(null);
-  const [selectedHistoryGrade, setSelectedHistoryGrade] = useState<StudentHistoryData["grades"][number] | null>(null);
-
+  const [data, setData] = useState<StudentHistoryData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGradeFilter, setSelectedGradeFilter] = useState("ALL");
 
-  // Load Semester Grade View
-  async function loadSemesterGrade(semId?: string) {
-    const hasCache = !!(semGradeData && semGradeData.grades && semGradeData.grades.length > 0);
-    setSemLoading(!hasCache);
-    setSemError(null);
-    try {
-      const targetSem = semId !== undefined ? semId : selectedSemId;
-      const res = await fetchWithTimeout(getStudentGradeView(targetSem || undefined), 15000);
-      if (res.success && res.data) {
-        setSemGradeData(res.data);
-        localStorage.setItem("deskly::cache::sem_grades", JSON.stringify(res.data));
-        if (res.data.semesters && res.data.semesters.length > 0) {
-          setSemesters(res.data.semesters);
+  // Load from Cache (SWR) first
+  useEffect(() => {
+    const cached = localStorage.getItem("deskly::cache::grades");
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached) as StudentHistoryData;
+        if (parsed && parsed.grades && parsed.grades.length > 0) {
+          setData(parsed);
+          setLoading(false);
         }
-        if (res.data.semesterSubId) {
-          setSelectedSemId(res.data.semesterSubId);
-        }
-      } else {
-        if (!hasCache) {
-          setSemError(res.error ?? "Failed to fetch semester grades.");
-        }
+      } catch (e) {
+        console.error("Failed to parse cached grades", e);
       }
-    } catch (e) {
-      if (!hasCache) {
-        setSemError(e instanceof Error ? e.message : String(e));
-      }
-    } finally {
-      setSemLoading(false);
     }
-  }
+  }, []);
 
-  // Load Grade History
-  async function loadHistory() {
-    const hasCache = !!(historyData && historyData.grades && historyData.grades.length > 0);
-    setHistoryLoading(!hasCache);
-    setHistoryError(null);
+  // Fetch fresh grades data
+  async function load() {
     try {
-      const res = await fetchWithTimeout(getGradesHistory(), 15000);
+      if (!isLoggedIn && !authLoading) return;
+      setError(null);
+      if (authLoading) return;
+
+      setLoading(data && data.grades && data.grades.length > 0 ? false : true);
+
+      const res = await getGradesHistory();
       if (res.success && res.data) {
-        setHistoryData(res.data);
-        localStorage.setItem("deskly::cache::grade_history", JSON.stringify(res.data));
+        setData(res.data);
+        localStorage.setItem("deskly::cache::grades", JSON.stringify(res.data));
       } else {
-        if (!hasCache) {
-          setHistoryError(res.error ?? "Failed to fetch grade history.");
-        }
+        setError(res.error ?? "Failed to fetch grade history.");
       }
     } catch (e) {
-      if (!hasCache) {
-        setHistoryError(e instanceof Error ? e.message : String(e));
-      }
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setHistoryLoading(false);
+      setLoading(false);
     }
   }
 
   useEffect(() => {
     if (isLoggedIn) {
-      loadSemesterGrade();
-      loadHistory();
+      load();
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, authLoading]);
 
-  // Grade History Metrics
-  const totalSubjects = useMemo(() => historyData?.grades?.length ?? 0, [historyData]);
-  const totalCredits = useMemo(() => historyData?.cgpa?.creditsEarned ?? 0, [historyData]);
-  const cgpaVal = useMemo(() => historyData?.cgpa?.cgpa ?? 0, [historyData]);
+  // Derived values
+  const totalSubjects = useMemo(() => data?.grades?.length ?? 0, [data]);
+  const totalCredits = useMemo(() => data?.cgpa?.creditsEarned ?? 0, [data]);
+  const cgpaVal = useMemo(() => data?.cgpa?.cgpa ?? 0, [data]);
 
+  // Grade distribution counts computed dynamically from grades list for accuracy
   const gradeCounts = useMemo(() => {
-    const counts: Record<string, number> = { S: 0, A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, P: 0, N: 0 };
-    if (historyData?.grades) {
-      historyData.grades.forEach((g) => {
-        const cg = g.grade.trim().toUpperCase();
-        counts[cg] = (counts[cg] || 0) + 1;
+    const counts: Record<string, number> = {
+      S: 0, A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, P: 0, N: 0
+    };
+    if (data?.grades) {
+      data.grades.forEach((g) => {
+        const cleanGrade = g.grade.trim().toUpperCase();
+        if (cleanGrade in counts) {
+          counts[cleanGrade]++;
+        } else {
+          counts[cleanGrade] = (counts[cleanGrade] || 0) + 1;
+        }
       });
     }
     return counts;
-  }, [historyData]);
+  }, [data]);
 
-  const filteredHistoryGrades = useMemo(() => {
-    if (!historyData?.grades) return [];
-    return historyData.grades.filter((g) => {
+  // Filtered grades list
+  const filteredGrades = useMemo(() => {
+    if (!data?.grades) return [];
+    return data.grades.filter((g) => {
       const matchesSearch =
         g.courseCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
         g.courseTitle.toLowerCase().includes(searchQuery.toLowerCase());
@@ -369,364 +233,215 @@ export default function GradesPage() {
         selectedGradeFilter === "ALL" || g.grade.trim().toUpperCase() === selectedGradeFilter;
       return matchesSearch && matchesGrade;
     });
-  }, [historyData, searchQuery, selectedGradeFilter]);
+  }, [data, searchQuery, selectedGradeFilter]);
 
-  const filteredSemesterGrades = useMemo(() => {
-    if (!semGradeData?.grades) return [];
-    return semGradeData.grades.filter((g) => {
-      const matchesSearch =
-        g.courseCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        g.courseTitle.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesGrade =
-        selectedGradeFilter === "ALL" || g.grade.trim().toUpperCase() === selectedGradeFilter;
-      return matchesSearch && matchesGrade;
-    });
-  }, [semGradeData, searchQuery, selectedGradeFilter]);
+  const shell = (children: React.ReactNode) => (
+    <>{children}</>
+  );
 
-  const totalSemCredits = useMemo(() => {
-    if (!semGradeData?.grades) return 0;
-    return semGradeData.grades.reduce((acc, curr) => acc + curr.credits.c, 0);
-  }, [semGradeData]);
-
-  const activeSemesterName = useMemo(() => {
-    if (!semGradeData) return "";
-    const match = semesters.find((s) => s.id === selectedSemId);
-    return match ? match.name : "";
-  }, [semGradeData, semesters, selectedSemId]);
-
-  const showOffline =
-    !semGradeData &&
-    !historyData &&
-    (isOnline === false || isNetworkError(semError || historyError, isOnline));
-
-  if (showOffline) {
-    return <OfflineDisplay onRetry={() => { loadSemesterGrade(); loadHistory(); }} />;
+  if (authLoading || (loading && !data)) {
+    return shell(<GradesSkeleton />);
   }
 
-  if (authLoading || (activeTab === "semester" && semLoading && !semGradeData) || (activeTab === "history" && historyLoading && !historyData)) {
-    return <GradesSkeleton />;
-  }
-
-  return (
-    <div className="w-full space-y-6 px-2 py-4 font-saira select-none overscroll-y-contain relative">
-      <style>{`.font-saira { font-family: 'Saira', sans-serif !important; }`}</style>
-
-      {/* Background illustration */}
-      <div className="absolute -top-4 right-0 w-[200px] h-[160px] pointer-events-none select-none z-0">
-        <img
-          src={gradeHistoryImg}
-          className="w-full h-full object-contain opacity-90 dark:opacity-70"
-          style={{
-            maskImage: "radial-gradient(ellipse at 30% 40%, black 30%, rgba(0,0,0,0.85) 50%, rgba(0,0,0,0.2) 80%, transparent 95%)",
-            WebkitMaskImage: "radial-gradient(ellipse at 30% 40%, black 30%, rgba(0,0,0,0.85) 50%, rgba(0,0,0,0.2) 80%, transparent 95%)"
-          }}
-          alt="Grade History Illustration"
-        />
+  if (error && !data) {
+    return shell(
+      <div className="flex h-full items-center justify-center">
+        <ErrorDisplay message={error} onRetry={load} />
       </div>
+    );
+  }
 
-      <header className="relative z-10 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <GraduationCap className="w-6 h-6 text-primary shrink-0" />
-          <h1 className="text-2xl font-medium tracking-tight text-foreground leading-none truncate">
+  return shell(
+    <div className="w-full lg:h-[calc(100vh-5rem)] lg:flex lg:flex-col lg:overflow-hidden space-y-6">
+      {error && (
+        <div className="flex items-center justify-between p-3 bg-destructive/10 border border-destructive/20 text-destructive text-xs rounded-md gap-4 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse shrink-0" />
+            <span className="truncate">Sync failed: {error} (Viewing cached data)</span>
+          </div>
+          <button 
+            onClick={load}
+            className="text-xs uppercase font-bold tracking-wider hover:underline focus:outline-none shrink-0"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+      
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-border/20 shrink-0">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <GraduationCap className="w-6 h-6 text-primary shrink-0" />
             My Grades
           </h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Your complete academic records</p>
         </div>
       </header>
 
-      {/* Tab Selector */}
-      <div className="relative z-10 p-1 bg-card/80 border border-border/40 rounded-lg shadow-sm backdrop-blur-md flex items-center">
-        <button
-          onClick={() => setActiveTab("semester")}
-          className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold transition-all border-none cursor-pointer text-center ${
-            activeTab === "semester"
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "bg-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Semester View
-        </button>
-        <button
-          onClick={() => setActiveTab("history")}
-          className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold transition-all border-none cursor-pointer text-center ${
-            activeTab === "history"
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "bg-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Grade History
-        </button>
+      {/* ── Top Stats Cards ────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
+        
+        {/* Total Subjects */}
+        <div className="flex flex-col justify-between bg-card/40 border border-border/30 rounded-lg p-5 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:border-primary/10 transition-colors duration-200 min-h-[104px]">
+          <div className="flex items-center justify-between w-full">
+            <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground">Total Subjects</span>
+            <BookOpen className="w-5 h-5 text-primary shrink-0" />
+          </div>
+          <div className="mt-4 flex items-baseline justify-between">
+            <span className="text-2xl font-black text-foreground leading-none">{totalSubjects}</span>
+            <span className="text-xs font-bold text-muted-foreground/60 leading-none">Completed</span>
+          </div>
+        </div>
+
+        {/* Total Credits */}
+        <div className="flex flex-col justify-between bg-card/40 border border-border/30 rounded-lg p-5 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:border-primary/10 transition-colors duration-200 min-h-[104px]">
+          <div className="flex items-center justify-between w-full">
+            <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground">Total Credits</span>
+            <Bookmark className="w-5 h-5 text-primary shrink-0" />
+          </div>
+          <div className="mt-4 flex items-baseline justify-between">
+            <span className="text-2xl font-black text-foreground leading-none">{totalCredits}</span>
+            <span className="text-xs font-bold text-muted-foreground/60 leading-none">Earned</span>
+          </div>
+        </div>
+
+        {/* CGPA */}
+        <div className="flex flex-col justify-between bg-card/40 border border-border/30 rounded-lg p-5 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:border-primary/10 transition-colors duration-200 min-h-[104px]">
+          <div className="flex items-center justify-between w-full">
+            <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground">SGPA (Current)</span>
+            <Award className="w-5 h-5 text-primary shrink-0" />
+          </div>
+          <div className="mt-4 flex items-baseline justify-between">
+            <span className="text-2xl font-black text-foreground leading-none">{cgpaVal}</span>
+            <span className="text-xs font-bold text-muted-foreground/60 leading-none">Cumulative</span>
+          </div>
+        </div>
+
       </div>
 
-      {/* ── TAB 1: SEMESTER GRADE VIEW ────────────────────────────────────────── */}
-      {activeTab === "semester" && (
-        <>
-          {/* Current Semester Label Card */}
-          {activeSemesterName && (
-            <div className="relative z-10 bg-gradient-to-br from-card/90 to-card/45 border border-border/15 p-4 rounded-lg shadow-sm backdrop-blur-md flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
-                  <Award className="w-4 h-4" />
-                </div>
-                <div className="space-y-0.5">
-                  <span className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none block">Active Semester</span>
-                  <span className="text-sm font-bold text-foreground leading-none">{activeSemesterName}</span>
-                </div>
-              </div>
-            </div>
-          )}
 
-          {/* Error Banner */}
-          {semError && !isNetworkError(semError, isOnline) && (
-            <div className="relative z-10 flex items-center justify-between gap-4 px-4 py-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg">
-              <p className="text-xs font-semibold truncate">Sync failed — {semError}</p>
-              <button onClick={() => loadSemesterGrade()} className="text-xs font-bold uppercase tracking-wider shrink-0 border-0 bg-transparent text-destructive cursor-pointer">
-                Retry
-              </button>
-            </div>
-          )}
-
-          {/* Stats Card */}
-          <div className="relative z-10 bg-card/80 border border-border/40 p-5 rounded-xl shadow-sm flex items-center justify-between text-center backdrop-blur-md">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none mb-2">GPA</p>
-              <p className="text-2xl font-black text-foreground leading-none">
-                {semGradeData?.gpa !== undefined && semGradeData?.gpa !== null ? semGradeData.gpa : "—"}
-              </p>
-            </div>
-            <Separator orientation="vertical" className="h-8 bg-border/15 shrink-0 mx-2" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none mb-2">Courses</p>
-              <p className="text-2xl font-black text-foreground leading-none">{semGradeData?.grades?.length ?? 0}</p>
-            </div>
-            <Separator orientation="vertical" className="h-8 bg-border/15 shrink-0 mx-2" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none mb-2">Credits</p>
-              <p className="text-2xl font-black text-foreground leading-none">{totalSemCredits}</p>
-            </div>
-          </div>
-
-          {/* Search & Filter */}
-          <div className="relative z-10 space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 pointer-events-none" />
-              <Input
-                type="text"
-                placeholder="Search course..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-10 bg-card/80 border-border/40 rounded-lg text-sm text-foreground placeholder:text-muted-foreground/40 focus-visible:ring-1 focus-visible:ring-primary/30"
-              />
-            </div>
-          </div>
-
-          {/* Course List */}
-          {!semGradeData || filteredSemesterGrades.length === 0 ? (
-            <div className="relative z-10 flex flex-col items-center justify-center py-16 gap-3 text-center bg-card/80 border border-border/40 rounded-xl shadow-sm backdrop-blur-md">
-              <Award className="w-8 h-8 text-muted-foreground/20" />
-              <p className="text-sm font-semibold text-foreground leading-none">No grade records found</p>
-              <p className="text-xs text-muted-foreground">Results for this semester may not be published yet.</p>
-            </div>
-          ) : (
-            <div className="relative z-10 flex flex-col gap-3">
-              {filteredSemesterGrades.map((item, idx) => (
-                <div
-                  key={`${item.courseCode}-${idx}`}
-                  onClick={() => setSelectedSemGrade(item)}
-                  className="p-4 bg-card/80 border border-border/40 rounded-xl shadow-sm flex items-center justify-between gap-4 active:opacity-75 hover:bg-muted/5 transition-all cursor-pointer backdrop-blur-md"
-                >
-                  <div className="flex-1 min-w-0 flex items-center gap-4">
-                    <span className="text-xs font-semibold text-muted-foreground/30 tabular-nums w-5 shrink-0">
-                      {item.slNo ?? idx + 1}
-                    </span>
-
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60 font-medium flex-wrap">
-                        <span className="text-xs font-semibold text-primary uppercase tracking-wide leading-none">
-                          {item.courseCode}
-                        </span>
-                        <span>&bull;</span>
-                        <span className="uppercase">{item.courseType.length > 15 ? item.courseType.slice(0, 12) + "..." : item.courseType}</span>
-                        <span>&bull;</span>
-                        <span>{item.credits.c} Credits</span>
-                      </div>
-                      <p className="text-sm font-bold text-foreground leading-snug truncate">
-                        {item.courseTitle}
-                      </p>
-                      {item.grandTotal !== undefined && item.grandTotal !== null && (
-                        <p className="text-xs text-muted-foreground/50 font-mono leading-none pt-0.5">
-                          Total Marks: {item.grandTotal}
-                        </p>
-                      )}
-                    </div>
-
-                    <span className="text-xl font-black tracking-tight shrink-0 w-8 text-center leading-none text-foreground">
-                      {item.grade}
-                    </span>
-                  </div>
-
-                  <ChevronRight className="w-4 h-4 text-muted-foreground/30 shrink-0" />
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      {/* ── TAB 2: GRADE HISTORY ──────────────────────────────────────────────── */}
-      {activeTab === "history" && (
-        <>
-          {/* Error Banner */}
-          {historyError && !isNetworkError(historyError, isOnline) && (
-            <div className="relative z-10 flex items-center justify-between gap-4 px-4 py-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg">
-              <p className="text-xs font-semibold truncate">Sync failed — {historyError}</p>
-              <button onClick={loadHistory} className="text-xs font-bold uppercase tracking-wider shrink-0 border-0 bg-transparent text-destructive cursor-pointer">
-                Retry
-              </button>
-            </div>
-          )}
-
-          {/* Stats Card */}
-          <div className="relative z-10 bg-card/80 border border-border/40 p-5 rounded-xl shadow-sm flex items-center justify-between text-center backdrop-blur-md">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none mb-2">Subjects</p>
-              <p className="text-2xl font-black text-foreground leading-none">{totalSubjects}</p>
-            </div>
-            <Separator orientation="vertical" className="h-8 bg-border/15 shrink-0 mx-2" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none mb-2">Credits</p>
-              <p className="text-2xl font-black text-foreground leading-none">{totalCredits}</p>
-            </div>
-            <Separator orientation="vertical" className="h-8 bg-border/15 shrink-0 mx-2" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none mb-2">CGPA</p>
-              <p className="text-2xl font-black text-foreground leading-none">{cgpaVal}</p>
-            </div>
-          </div>
-
-          {/* Search & Filter */}
-          <div className="relative z-10 space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 pointer-events-none" />
-              <Input
-                type="text"
-                placeholder="Search code or title..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-10 bg-card/80 border-border/40 rounded-lg text-sm text-foreground placeholder:text-muted-foreground/40 focus-visible:ring-1 focus-visible:ring-primary/30"
-              />
-            </div>
-            <DrawerSelect
-              value={selectedGradeFilter}
-              onValueChange={setSelectedGradeFilter}
-              title="Filter by Grade"
-              triggerClassName="w-full h-10"
-              options={[
-                { value: "ALL", label: "All Grades" },
-                ...["S", "A", "B", "C", "D", "E", "F", "P", "N"].map((g) => ({ value: g, label: `Grade ${g}` })),
-              ]}
+      {/* ── Search & Filter Controls ───────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/20 shrink-0 pt-2">
+        <div>
+          <h2 className="text-base font-bold text-foreground tracking-tight">Academic Grade History</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Chronological record of course assessments and completions</p>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap w-full sm:w-auto">
+          {/* Search Input */}
+          <div className="relative w-full sm:w-48 md:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60" />
+            <Input
+              type="text"
+              placeholder="Search code or title..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-3 w-full h-9 bg-muted/40 hover:bg-muted/60 focus:bg-background border-border/40 rounded-md text-xs focus-visible:ring-1 focus-visible:ring-primary/30"
             />
           </div>
+          
+          {/* Grade Filter Select */}
+          <Select value={selectedGradeFilter} onValueChange={setSelectedGradeFilter}>
+            <SelectTrigger className="w-full sm:w-[130px] h-9 rounded-md bg-muted/40 hover:bg-muted/60 border-border/40 text-xs focus:ring-1 focus:ring-primary/30">
+              <SelectValue placeholder="All Grades" />
+            </SelectTrigger>
+            <SelectContent className="rounded-md border-border/40 bg-popover/95 backdrop-blur-md">
+              <SelectItem value="ALL" className="rounded-md">All Grades</SelectItem>
+              {["S", "A", "B", "C", "D", "E", "F", "P", "N"].map((g) => (
+                <SelectItem key={g} value={g} className="rounded-md">
+                  Grade {g}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-          {/* Course List */}
-          {filteredHistoryGrades.length === 0 ? (
-            <div className="relative z-10 flex flex-col items-center justify-center py-16 gap-3 text-center bg-card/80 border border-border/40 rounded-xl shadow-sm backdrop-blur-md">
-              <FileText className="w-8 h-8 text-muted-foreground/20" />
-              <p className="text-sm font-semibold text-foreground leading-none">No grades found</p>
-              <p className="text-xs text-muted-foreground">Try modifying your search or filter.</p>
+      {/* ── Table: Grade History ───────────────────────────────────────────── */}
+      <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pr-2">
+        {filteredGrades.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
+            <FileText className="w-8 h-8 text-muted-foreground/20" />
+            <div>
+              <p className="text-sm font-bold text-foreground">No grades found</p>
+              <p className="text-xs text-muted-foreground mt-1">Try modifying your search or filter settings.</p>
             </div>
-          ) : (
-            <div className="relative z-10 flex flex-col gap-3">
-              {filteredHistoryGrades.map((item, idx) => (
-                <div
-                  key={`${item.courseCode}-${idx}`}
-                  onClick={() => setSelectedHistoryGrade(item)}
-                  className="p-4 bg-card/80 border border-border/40 rounded-xl shadow-sm flex items-center justify-between gap-4 active:opacity-75 hover:bg-muted/5 transition-all cursor-pointer backdrop-blur-md"
-                >
-                  <div className="flex-1 min-w-0 flex items-center gap-4">
-                    <span className="text-xs font-semibold text-muted-foreground/30 tabular-nums w-5 shrink-0">
-                      {item.slNo ?? idx + 1}
-                    </span>
+          </div>
+        ) : (
+          <div className="overflow-x-auto no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="border-b border-border/30 text-xs font-black uppercase tracking-wider text-muted-foreground">
+                  <th className="py-4 px-3 w-12">#</th>
+                  <th className="py-4 px-3 w-28">Course Code</th>
+                  <th className="py-4 px-3">Course Title</th>
+                  <th className="py-4 px-3 w-28">Course Type</th>
+                  <th className="py-4 px-3 w-20 text-center">Credits</th>
+                  <th className="py-4 px-3 w-20 text-center">Grade</th>
+                  <th className="py-4 px-3 w-28">Exam Month</th>
+                  <th className="py-4 px-3 w-32">Result Declared</th>
+                  <th className="py-4 px-3 w-36">Course Distribution</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/10 text-sm font-semibold text-muted-foreground/90">
+                {filteredGrades.map((item, idx) => (
+                  <tr key={`${item.courseCode}-${idx}`} className="hover:bg-muted/15 transition-colors duration-150 border-b border-border/10">
+                    <td className="py-4 px-3 font-bold text-foreground/80">{item.slNo ?? idx + 1}</td>
+                    <td className="py-4 px-3 font-extrabold tracking-wider text-primary uppercase">{item.courseCode}</td>
+                    <td className="py-4 px-3 font-bold text-foreground leading-normal max-w-[200px] md:max-w-[350px] break-words" title={item.courseTitle}>
+                      {item.courseTitle}
+                    </td>
+                    <td className="py-4 px-3">{formatCourseType(item.courseType)}</td>
+                    <td className="py-4 px-3 text-center font-bold text-foreground">{item.credits}</td>
+                    <td className="py-4 px-3 text-center">{formatGrade(item.grade)}</td>
+                    <td className="py-4 px-3 text-xs font-bold">{item.examMonth}</td>
+                    <td className="py-4 px-3 text-xs font-bold">{item.resultDeclared || "-"}</td>
+                    <td className="py-4 px-3">{formatDistribution(item.courseDistribution)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60 font-medium flex-wrap">
-                        <span className="text-xs font-semibold text-primary uppercase tracking-wide leading-none">
-                          {item.courseCode}
-                        </span>
-                        <span>&bull;</span>
-                        <span className="uppercase">{item.courseType.trim().length > 15 ? item.courseType.trim().slice(0, 12) + "..." : item.courseType.trim()}</span>
-                        <span>&bull;</span>
-                        <span>{item.credits} Credits</span>
-                      </div>
-                      <p className="text-sm font-bold text-foreground leading-snug truncate">
-                        {item.courseTitle}
-                      </p>
-                      <p className="text-xs text-muted-foreground/50 font-mono leading-none pt-0.5">
-                        Exam Session: {item.examMonth}
-                      </p>
-                    </div>
-
-                    <span className="text-xl font-black tracking-tight shrink-0 w-8 text-center leading-none text-foreground">
-                      {item.grade.trim().toUpperCase()}
-                    </span>
-                  </div>
-
-                  <ChevronRight className="w-4 h-4 text-muted-foreground/30 shrink-0" />
+      {/* ── Footer: Grades Summary Breakdown & Grade Key ─────────────────────── */}
+      {data?.cgpa?.gradeDistribution && (
+        <footer className="space-y-6 pt-6 border-t border-border/20 shrink-0">
+          
+          {/* Grades Summary Breakdown */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 p-5 rounded-lg bg-muted/20 border border-border/10">
+            <div className="space-y-1">
+              <h3 className="text-xs font-black uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                <HelpCircle className="w-3.5 h-3.5 text-primary" /> Grades Summary
+              </h3>
+              <p className="text-xs text-muted-foreground font-semibold">Cumulative distribution count across all semesters</p>
+            </div>
+            
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: "S", count: gradeCounts.S, color: "bg-chart-2/10 text-chart-2 border border-chart-2/15" },
+                { label: "A", count: gradeCounts.A, color: "bg-chart-2/5 text-chart-2 border border-chart-2/10" },
+                { label: "B", count: gradeCounts.B, color: "bg-chart-3/10 text-chart-3 border border-chart-3/15" },
+                { label: "C", count: gradeCounts.C, color: "bg-chart-1/10 text-chart-1 border border-chart-1/15" },
+                { label: "D", count: gradeCounts.D, color: "bg-chart-5/10 text-chart-5 border border-chart-5/15" },
+                { label: "E", count: gradeCounts.E, color: "bg-destructive/10 text-destructive border border-destructive/15" },
+                { label: "F", count: gradeCounts.F, color: "bg-destructive/15 text-destructive border border-destructive/20" },
+                { label: "P", count: gradeCounts.P, color: "bg-chart-1/5 text-chart-1 border border-chart-1/10" },
+                { label: "N", count: gradeCounts.N, color: "bg-muted text-muted-foreground border border-border/20" },
+              ].map(({ label, count, color }) => (
+                <div key={label} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-black leading-none ${color}`}>
+                  <span>{label}</span>
+                  <span className="opacity-30 font-normal">|</span>
+                  <span>{count}</span>
                 </div>
               ))}
             </div>
-          )}
+          </div>
 
-          {/* Grade Distribution */}
-          {historyData?.cgpa?.gradeDistribution && (
-            <section className="relative z-10 space-y-4 pt-2">
-              <h3 className="text-xs font-bold text-primary uppercase tracking-widest leading-none">
-                Grade Distribution
-              </h3>
-              <div className="bg-card/80 border border-border/40 p-5 rounded-xl shadow-sm backdrop-blur-md">
-                <div className="grid grid-cols-3 gap-3">
-                  {["S", "A", "B", "C", "D", "E", "F", "P", "N"].map((label) => {
-                    const count = gradeCounts[label] ?? 0;
-                    const pct = totalSubjects > 0 ? (count / totalSubjects) * 100 : 0;
-                    return (
-                      <div key={label} className="bg-muted/15 border border-border/15 rounded-xl p-3 flex flex-col justify-between gap-2 relative overflow-hidden">
-                        <div 
-                          className="absolute bottom-0 left-0 h-0.5 bg-primary/30 transition-all duration-500" 
-                          style={{ width: `${pct}%` }} 
-                        />
-                        <div className="flex items-center justify-between leading-none">
-                          <span className="text-xs font-black uppercase text-muted-foreground/45 tracking-wider">
-                            Grade {label}
-                          </span>
-                          <span className="text-xs font-bold text-muted-foreground/30">
-                            {Math.round(pct)}%
-                          </span>
-                        </div>
-                        <div className="flex items-baseline gap-0.5 leading-none">
-                          <span className="text-xl font-black text-foreground">{count}</span>
-                          <span className="text-xs font-semibold text-muted-foreground/45 ml-0.5">{count === 1 ? "course" : "courses"}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </section>
-          )}
-        </>
+        </footer>
       )}
 
-      {/* Drawers */}
-      <SemesterGradeDrawer
-        item={selectedSemGrade}
-        open={!!selectedSemGrade}
-        onOpenChange={(open: boolean) => !open && setSelectedSemGrade(null)}
-      />
-
-      <HistoryGradeDrawer
-        item={selectedHistoryGrade}
-        open={!!selectedHistoryGrade}
-        onOpenChange={(open: boolean) => !open && setSelectedHistoryGrade(null)}
-      />
     </div>
   );
 }

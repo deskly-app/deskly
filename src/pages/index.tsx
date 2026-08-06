@@ -74,21 +74,9 @@ export default function MobileHome() {
     }
   };
 
-  if (!initialized || loading || authState?.loggedIn) {
+  if (!initialized || authState?.loggedIn) {
     return (
-      <main className="h-full w-full flex flex-col justify-center items-center bg-background text-foreground antialiased p-7">
-        <div className="w-[72px] h-[72px] rounded-full bg-muted/30 flex items-center justify-center animate-pulse mb-12">
-          <div className="w-10 h-10 bg-muted/40 rounded-full" />
-        </div>
-        <div className="w-full max-w-[280px] space-y-6">
-          <div className="h-4 bg-muted/30 rounded animate-pulse w-3/4 mx-auto" />
-          <div className="h-3 bg-muted/20 rounded animate-pulse w-1/2 mx-auto" />
-          <div className="space-y-4 pt-8">
-            <div className="h-10 bg-muted/20 rounded-md animate-pulse" />
-            <div className="h-10 bg-muted/20 rounded-md animate-pulse" />
-          </div>
-        </div>
-      </main>
+      <main className="h-full w-full bg-background" />
     );
   }
 

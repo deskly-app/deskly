@@ -11,9 +11,6 @@ import {
   BookOpen,
   FileText,
   Clock,
-  Shirt,
-  Utensils,
-  Users,
   Settings,
   ChevronRight,
 } from "lucide-react";
@@ -87,9 +84,6 @@ const QUICK_LINKS = [
   { label: "Attendance", path: "/dashboard/attendance", icon: BookOpen },
   { label: "My Marks", path: "/dashboard/marks", icon: FileText },
   { label: "Academic Calendar", path: "/dashboard/academic-calendar", icon: Clock },
-  { label: "Laundry Calendar", path: "/dashboard/laundry", icon: Shirt },
-  { label: "Mess Menu", path: "/dashboard/mess", icon: Utensils },
-  { label: "Faculty Info", path: "/dashboard/faculty-info", icon: Users },
   { label: "Settings", path: "/dashboard/settings", icon: Settings },
 ];
 

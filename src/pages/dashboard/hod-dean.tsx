@@ -81,6 +81,7 @@ export default function HodDeanDetailsPage() {
   const [error, setError] = useState<string | null>(null);
 
   async function fetchDetails() {
+    setError(null);
     try {
       const hasCache = !!(details && details.length > 0);
       setLoading(!hasCache);

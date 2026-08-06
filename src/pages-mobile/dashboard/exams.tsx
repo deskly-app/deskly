@@ -52,15 +52,19 @@ interface ExamScheduleResponse {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function parseDateStr(str: string): Date {
+function parseDateStr(str: string): Date | null {
+  if (!str) return null;
   const cleanStr = str.trim();
+  if (!cleanStr || cleanStr === "-" || cleanStr.toLowerCase() === "tba") return null;
+  
   const parts = cleanStr.split(/[-/]/);
-  if (parts.length < 3) return new Date();
+  if (parts.length < 3) return null;
   
   const day = parseInt(parts[0], 10);
   const monthPart = parts[1].trim();
   const year = parseInt(parts[2], 10);
-  
+  if (isNaN(day) || isNaN(year)) return null;
+
   const months: Record<string, number> = {
     jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
     jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
@@ -69,9 +73,11 @@ function parseDateStr(str: string): Date {
   let month = 0;
   if (isNaN(Number(monthPart))) {
     const monthStr = monthPart.toLowerCase();
-    month = months[monthStr.substring(0, 3)] ?? 0;
+    month = months[monthStr.substring(0, 3)] ?? -1;
+    if (month === -1) return null;
   } else {
     month = parseInt(monthPart, 10) - 1; // 1-indexed to 0-indexed
+    if (isNaN(month) || month < 0 || month > 11) return null;
   }
   
   return new Date(year, month, day);
@@ -213,7 +219,12 @@ export default function ExamSchedulePage() {
     const group = groups.find((g) => g.examType === selectedTab);
     if (!group) return [];
     return [...group.schedules].sort((a, b) => {
-      return parseDateStr(a.examDate).getTime() - parseDateStr(b.examDate).getTime();
+      const da = parseDateStr(a.examDate);
+      const db = parseDateStr(b.examDate);
+      if (da && db) return da.getTime() - db.getTime();
+      if (da) return -1;
+      if (db) return 1;
+      return a.serialNo - b.serialNo;
     });
   }, [groups, selectedTab]);
 
@@ -226,9 +237,11 @@ export default function ExamSchedulePage() {
         const nextExam = activeSchedules[idx + 1];
         const examDate = parseDateStr(exam.examDate);
         const nextDate = parseDateStr(nextExam.examDate);
-        const dayDiff = getCalendarDayDifference(examDate, nextDate);
-        if (dayDiff > 1) {
-          items.push({ type: "gap", days: dayDiff - 1 });
+        if (examDate && nextDate) {
+          const dayDiff = getCalendarDayDifference(examDate, nextDate);
+          if (dayDiff > 1) {
+            items.push({ type: "gap", days: dayDiff - 1 });
+          }
         }
       }
     });
@@ -242,9 +255,17 @@ export default function ExamSchedulePage() {
       const count = g.schedules.length;
       
       if (count === 0) return { id: g.examType, label, count, range: "" };
-      const parsedDates = g.schedules.map(s => parseDateStr(s.examDate).getTime());
-      const minDate = new Date(Math.min(...parsedDates));
-      const maxDate = new Date(Math.max(...parsedDates));
+      
+      const validDates = g.schedules
+        .map(s => parseDateStr(s.examDate))
+        .filter((d): d is Date => d !== null);
+
+      if (validDates.length === 0) {
+        return { id: g.examType, label, count, range: "Schedule Pending" };
+      }
+
+      const minDate = new Date(Math.min(...validDates.map(d => d.getTime())));
+      const maxDate = new Date(Math.max(...validDates.map(d => d.getTime())));
       
       const formatShort = (d: Date) => {
         const day = d.getDate();
@@ -403,50 +424,63 @@ export default function ExamSchedulePage() {
 
               const exam = item.data;
               const examDate = parseDateStr(exam.examDate);
-              const dayNum = examDate.getDate();
-              const weekDayStr = examDate.toLocaleString("en-US", { weekday: "short" }).toUpperCase();
+              const isScheduled = examDate !== null;
+              
+              const dayNum = isScheduled ? examDate.getDate() : "TBA";
+              const weekDayStr = isScheduled ? examDate.toLocaleString("en-US", { weekday: "short" }).toUpperCase() : "";
+
+              const displayExamTime = exam.examTime && exam.examTime !== "-" ? exam.examTime.split("-")[0].trim() : "TBA";
+              const displayVenue = exam.venue && exam.venue !== "-" ? exam.venue : "TBA";
+              const displaySeatNo = exam.seatNo && exam.seatNo !== "-" ? `Seat ${exam.seatNo}` : "Seat TBA";
 
               return (
                 <div
                   key={`${exam.courseCode}-${idx}`}
                   onClick={() => setSelectedExam(exam)}
-                  className="p-4 bg-card/80 border border-border/40 rounded-xl shadow-sm flex items-center justify-between gap-4 backdrop-blur-md cursor-pointer hover:bg-muted/5 active:opacity-75 transition-all"
+                  className="p-3.5 bg-background/50 backdrop-blur-xl border border-border/20 rounded-xl shadow-sm flex items-center justify-between gap-3 cursor-pointer hover:bg-muted/15 active:opacity-80 transition-all duration-150"
                 >
-                  {/* Date bubble */}
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-11 h-11 rounded-md flex flex-col items-center justify-center shrink-0 border border-border/10 bg-muted/20 text-muted-foreground">
-                      <span className="text-base font-bold leading-none">{dayNum}</span>
-                      <span className="text-xs font-bold uppercase leading-none mt-1">{weekDayStr}</span>
+                  {/* Left: Date Tile & Info */}
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    {/* Glassmorphic Date Bubble */}
+                    <div className="w-11 h-11 rounded-lg flex flex-col items-center justify-center shrink-0 border border-border/20 bg-muted/20 text-foreground/80">
+                      <span className="text-sm font-extrabold leading-none">{dayNum}</span>
+                      {isScheduled && <span className="text-[10px] font-bold uppercase leading-none mt-0.5 tracking-wider">{weekDayStr}</span>}
                     </div>
 
-                    <div className="min-w-0 space-y-1">
+                    {/* Course Code, Slot, Title & Sub-line */}
+                    <div className="min-w-0 flex-1 space-y-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-xs font-black tracking-wider text-primary uppercase leading-none">
+                        <span className="text-xs font-black tracking-widest text-primary uppercase leading-none">
                           {exam.courseCode}
                         </span>
-                        <span className="text-xs font-bold text-muted-foreground/75 bg-muted/40 px-1.5 py-0.5 rounded leading-none">
-                          Slot: {exam.slot}
-                        </span>
+                        {exam.slot && (
+                          <span className="text-[10px] font-semibold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded leading-none">
+                            {exam.slot}
+                          </span>
+                        )}
                       </div>
-                      <h4 className="text-sm font-bold text-foreground truncate leading-snug">
+                      <h4 className="text-xs font-bold text-foreground truncate leading-snug">
                         {exam.courseTitle}
                       </h4>
-                      <p className="text-xs text-muted-foreground/60 leading-none flex items-center gap-1 pt-0.5">
-                        <Clock className="w-3.5 h-3.5 text-muted-foreground/50" />
-                        <span>{exam.examTime.split("-")[0].trim()}</span>
-                        <span className="mx-1">•</span>
-                        <MapPin className="w-3.5 h-3.5 text-muted-foreground/50" />
-                        <span className="truncate">{exam.venue}</span>
-                      </p>
+                      <div className="flex items-center gap-3 text-[11px] text-muted-foreground/80 font-medium pt-0.5 truncate">
+                        <span className="flex items-center gap-1 shrink-0">
+                          <Clock className="w-3 h-3 text-primary/70 shrink-0" />
+                          <span>{displayExamTime}</span>
+                        </span>
+                        <span className="flex items-center gap-1 truncate">
+                          <MapPin className="w-3 h-3 text-primary/70 shrink-0" />
+                          <span className="truncate">{displayVenue}</span>
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Seat & Icon */}
+                  {/* Right: Seat & Chevron */}
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs font-bold px-2 py-1 rounded-md border border-border/10 bg-muted/10 text-foreground/80 leading-none">
-                      Seat {exam.seatNo}
+                    <span className="text-xs font-semibold text-muted-foreground/80 leading-none">
+                      {displaySeatNo}
                     </span>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground/45" />
+                    <ChevronRight className="w-4 h-4 text-muted-foreground/40 shrink-0" />
                   </div>
                 </div>
               );
@@ -497,12 +531,21 @@ export default function ExamSchedulePage() {
 
             {/* Drawer Body details */}
             {selectedExam && (() => {
+              const isExamScheduled = parseDateStr(selectedExam.examDate) !== null;
+              const seatText = selectedExam.seatNo && selectedExam.seatNo !== "-" ? `Seat ${selectedExam.seatNo}` : "Seat TBA";
+              const timingText = selectedExam.examTime && selectedExam.examTime !== "-" 
+                ? `${selectedExam.examTime} (Reporting: ${selectedExam.reportingTime && selectedExam.reportingTime !== "-" ? selectedExam.reportingTime : "30 mins before schedule"})`
+                : "Schedule Pending";
+              const venueText = selectedExam.venue && selectedExam.venue !== "-"
+                ? (selectedExam.seatLocation && selectedExam.seatLocation !== "-" ? `${selectedExam.venue} (Location: ${selectedExam.seatLocation})` : selectedExam.venue)
+                : "Venue TBA";
+
               const detailsList = [
-                { icon: Hash,          label: "Class ID",       value: selectedExam.classId },
-                { icon: LayoutGrid,    label: "Slot",           value: selectedExam.slot },
-                { icon: Award,         label: "Seat Number",    value: `Seat ${selectedExam.seatNo}` },
-                { icon: Clock,         label: "Exam Timing",    value: `${selectedExam.examTime} (Reporting: ${selectedExam.reportingTime})` },
-                { icon: MapPin,        label: "Venue / Room",   value: selectedExam.seatLocation !== "-" ? `${selectedExam.venue} (Location: ${selectedExam.seatLocation})` : selectedExam.venue },
+                { icon: Hash,          label: "Class ID",       value: selectedExam.classId || "N/A" },
+                { icon: LayoutGrid,    label: "Slot",           value: selectedExam.slot || "N/A" },
+                { icon: Award,         label: "Seat Number",    value: seatText },
+                { icon: Clock,         label: "Exam Timing",    value: timingText },
+                { icon: MapPin,        label: "Venue / Room",   value: venueText },
               ];
               return (
                 <div className="space-y-6">
@@ -525,7 +568,9 @@ export default function ExamSchedulePage() {
 
                   {/* Calendar Add Button */}
                   <button
+                    disabled={!isExamScheduled}
                     onClick={async () => {
+                      if (!isExamScheduled) return;
                       const icsContent = generateExamGroupIcs([selectedExam]);
                       const filename = `${selectedExam.courseCode}_Exam.ics`;
                       try {
@@ -537,10 +582,10 @@ export default function ExamSchedulePage() {
                         console.error("Failed to save calendar file", e);
                       }
                     }}
-                    className="w-full py-3 bg-primary hover:opacity-90 active:opacity-75 transition-all text-primary-foreground font-black text-sm rounded-lg flex items-center justify-center gap-2 border-0 cursor-pointer"
+                    className="w-full py-3 bg-primary hover:opacity-90 active:opacity-75 transition-all text-primary-foreground font-black text-sm rounded-lg flex items-center justify-center gap-2 border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <CalendarRange className="w-4 h-4 shrink-0" />
-                    <span>Add to Calendar</span>
+                    <span>{isExamScheduled ? "Add to Calendar" : "Calendar Export Unavailable (TBA)"}</span>
                   </button>
                 </div>
               );
