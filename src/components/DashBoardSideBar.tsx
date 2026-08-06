@@ -11,6 +11,7 @@ import {
   TrendingUp,
   GraduationCap,
   Calendar,
+  Receipt,
   Briefcase,
   Phone,
   Settings,
@@ -101,6 +102,12 @@ const DashboardSidebar = () => {
         label: "Academic Calendar",
         href: "/dashboard/academic-calendar",
         icon: <Calendar className="w-5 h-5" />,
+        description: "",
+      },
+      {
+        label: "Payments",
+        href: "/dashboard/payment-receipts",
+        icon: <Receipt className="w-5 h-5" />,
         description: "",
       },
       // Group 4: Support & Administration
