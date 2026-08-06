@@ -456,7 +456,7 @@ export default function ExamSchedulePage() {
           <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">My Exams</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Your exam schedule at a glance</p>
         </div>
-        {activeSchedules.length > 0 && (
+        {activeSchedules.some((s) => parseDateStr(s.examDate) !== null) && (
           <Button
             variant="outline"
             onClick={handleDownloadGroupIcs}
@@ -681,7 +681,6 @@ export default function ExamSchedulePage() {
                     const displayReporting = item.reportingTime && item.reportingTime !== "-" ? item.reportingTime : "30 mins before schedule";
                     const displayExamTime = item.examTime && item.examTime !== "-" ? item.examTime : "Schedule Pending";
                     const displayVenue = item.venue && item.venue !== "-" ? item.venue : "Venue TBA";
-                    const displaySeatNo = item.seatNo && item.seatNo !== "-" ? `Seat ${item.seatNo}` : "Seat TBA";
 
                     // Calculate gap indicators between this exam and the next
                     let gapElement = null;
@@ -751,39 +750,38 @@ export default function ExamSchedulePage() {
                                     Slot: {item.slot}
                                   </span>
                                 )}
-                                {!isScheduled && (
-                                  <span className="text-[11px] font-medium text-muted-foreground bg-muted/50 border border-border/20 px-2 py-0.5 rounded-full leading-none">
-                                    Schedule Not Announced
-                                  </span>
-                                )}
                               </div>
                               <p className="text-base font-extrabold text-foreground leading-snug truncate">
                                 {item.courseTitle}
                               </p>
                               
-                              <div className="flex items-center gap-4 text-xs text-muted-foreground font-semibold flex-wrap pt-0.5">
-                                <span className="flex items-center gap-1.5">
-                                  <Clock className="w-3.5 h-3.5 shrink-0 text-muted-foreground/60" />
-                                  <span>{displayExamTime} (Reporting: {displayReporting})</span>
-                                </span>
-                                <span className="flex items-center gap-1.5">
-                                  <MapPin className="w-3.5 h-3.5 shrink-0 text-muted-foreground/60" />
-                                  <span>{displayVenue}</span>
-                                </span>
-                              </div>
+                              {isScheduled && (
+                                <div className="flex items-center gap-4 text-xs text-muted-foreground font-semibold flex-wrap pt-0.5">
+                                  <span className="flex items-center gap-1.5">
+                                    <Clock className="w-3.5 h-3.5 shrink-0 text-muted-foreground/60" />
+                                    <span>{displayExamTime} (Reporting: {displayReporting})</span>
+                                  </span>
+                                  <span className="flex items-center gap-1.5">
+                                    <MapPin className="w-3.5 h-3.5 shrink-0 text-muted-foreground/60" />
+                                    <span>{displayVenue}</span>
+                                  </span>
+                                </div>
+                              )}
                             </div>
 
                             {/* Seat & Export details */}
                             <div className="shrink-0 flex items-center gap-3">
                               {isScheduled && <SingleExamExportModal entry={item} />}
-                              <div className="flex flex-col items-end md:items-end justify-center bg-muted/20 border border-border/10 rounded-md px-4 py-2 min-w-[100px]">
-                                <span className="text-sm font-bold text-foreground leading-none">{displaySeatNo}</span>
-                                {item.seatLocation && item.seatLocation !== "-" && (
-                                  <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider mt-1.5">
-                                    {item.seatLocation}
-                                  </span>
-                                )}
-                              </div>
+                              {isScheduled && item.seatNo && item.seatNo !== "-" && (
+                                <div className="flex flex-col items-end md:items-end justify-center bg-muted/20 border border-border/10 rounded-md px-4 py-2 min-w-[100px]">
+                                  <span className="text-sm font-bold text-foreground leading-none">Seat {item.seatNo}</span>
+                                  {item.seatLocation && item.seatLocation !== "-" && (
+                                    <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider mt-1.5">
+                                      {item.seatLocation}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>

@@ -30,6 +30,7 @@ export default function SingleExamExportModal({
   }, [entry.examDate]);
 
   const dateFormatted = useMemo(() => {
+    if (!parsedDate) return "Schedule Pending (TBA)";
     const formattedOptions: Intl.DateTimeFormatOptions = {
       weekday: "long",
       day: "numeric",

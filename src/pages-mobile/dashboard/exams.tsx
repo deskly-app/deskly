@@ -432,7 +432,6 @@ export default function ExamSchedulePage() {
               const displayReporting = exam.reportingTime && exam.reportingTime !== "-" ? exam.reportingTime : "30 mins before schedule";
               const displayExamTime = exam.examTime && exam.examTime !== "-" ? exam.examTime.split("-")[0].trim() : "Schedule Pending";
               const displayVenue = exam.venue && exam.venue !== "-" ? exam.venue : "Venue TBA";
-              const displaySeatNo = exam.seatNo && exam.seatNo !== "-" ? `Seat ${exam.seatNo}` : "Seat TBA";
 
               return (
                 <div
@@ -457,30 +456,29 @@ export default function ExamSchedulePage() {
                             Slot: {exam.slot}
                           </span>
                         )}
-                        {!isScheduled && (
-                          <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 border border-border/20 px-1.5 py-0.5 rounded-full leading-none">
-                            Schedule Pending
-                          </span>
-                        )}
                       </div>
                       <h4 className="text-sm font-bold text-foreground truncate leading-snug">
                         {exam.courseTitle}
                       </h4>
-                      <p className="text-xs text-muted-foreground/60 leading-none flex items-center gap-1 pt-0.5">
-                        <Clock className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
-                        <span className="truncate">{displayExamTime} ({displayReporting})</span>
-                        <span className="mx-1">•</span>
-                        <MapPin className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
-                        <span className="truncate">{displayVenue}</span>
-                      </p>
+                      {isScheduled && (
+                        <p className="text-xs text-muted-foreground/60 leading-none flex items-center gap-1 pt-0.5">
+                          <Clock className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+                          <span className="truncate">{displayExamTime} ({displayReporting})</span>
+                          <span className="mx-1">•</span>
+                          <MapPin className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+                          <span className="truncate">{displayVenue}</span>
+                        </p>
+                      )}
                     </div>
                   </div>
 
                   {/* Seat & Icon */}
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs font-bold px-2 py-1 rounded-md border border-border/10 bg-muted/10 text-foreground/80 leading-none">
-                      {displaySeatNo}
-                    </span>
+                    {isScheduled && exam.seatNo && exam.seatNo !== "-" && (
+                      <span className="text-xs font-bold px-2 py-1 rounded-md border border-border/10 bg-muted/10 text-foreground/80 leading-none">
+                        Seat {exam.seatNo}
+                      </span>
+                    )}
                     <ChevronRight className="w-4 h-4 text-muted-foreground/45" />
                   </div>
                 </div>
@@ -532,6 +530,7 @@ export default function ExamSchedulePage() {
 
             {/* Drawer Body details */}
             {selectedExam && (() => {
+              const isExamScheduled = parseDateStr(selectedExam.examDate) !== null;
               const seatText = selectedExam.seatNo && selectedExam.seatNo !== "-" ? `Seat ${selectedExam.seatNo}` : "Seat TBA";
               const timingText = selectedExam.examTime && selectedExam.examTime !== "-" 
                 ? `${selectedExam.examTime} (Reporting: ${selectedExam.reportingTime && selectedExam.reportingTime !== "-" ? selectedExam.reportingTime : "30 mins before schedule"})`
@@ -568,7 +567,9 @@ export default function ExamSchedulePage() {
 
                   {/* Calendar Add Button */}
                   <button
+                    disabled={!isExamScheduled}
                     onClick={async () => {
+                      if (!isExamScheduled) return;
                       const icsContent = generateExamGroupIcs([selectedExam]);
                       const filename = `${selectedExam.courseCode}_Exam.ics`;
                       try {
@@ -580,10 +581,10 @@ export default function ExamSchedulePage() {
                         console.error("Failed to save calendar file", e);
                       }
                     }}
-                    className="w-full py-3 bg-primary hover:opacity-90 active:opacity-75 transition-all text-primary-foreground font-black text-sm rounded-lg flex items-center justify-center gap-2 border-0 cursor-pointer"
+                    className="w-full py-3 bg-primary hover:opacity-90 active:opacity-75 transition-all text-primary-foreground font-black text-sm rounded-lg flex items-center justify-center gap-2 border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <CalendarRange className="w-4 h-4 shrink-0" />
-                    <span>Add to Calendar</span>
+                    <span>{isExamScheduled ? "Add to Calendar" : "Calendar Export Unavailable (TBA)"}</span>
                   </button>
                 </div>
               );
