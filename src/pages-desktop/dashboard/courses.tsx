@@ -41,17 +41,17 @@ function getCategoryStyle(category: string): { label: string; className: string 
   return { label: clean, className: "text-muted-foreground" };
 }
 
-// ─── Course Row Component ──────────────────────────────────────────────────────
+// ─── Desktop Course Row Component ─────────────────────────────────────────────
 
-function CourseRow({ item, index }: { item: TimetableCourse; index: number }) {
+function DesktopCourseRow({ item, index }: { item: TimetableCourse; index: number }) {
   const typeStyle = getCourseTypeStyle(item.courseType);
   const catStyle = getCategoryStyle(item.category);
 
   return (
-    <div className="py-4 border-b border-border/10 hover:bg-muted/5 transition-colors flex flex-col md:grid md:grid-cols-[1fr_280px_120px] items-start md:items-center gap-3 md:gap-6 min-w-0">
+    <div className="py-4 border-b border-border/20 hover:bg-muted/5 transition-colors hidden md:grid grid-cols-[1fr_280px_120px] items-center gap-6 min-w-0">
       
       {/* Left: Code, Badges & Title */}
-      <div className="min-w-0 space-y-1.5 w-full">
+      <div className="min-w-0 space-y-1.5">
         <div className="flex items-center gap-2 flex-wrap min-w-0">
           <span className="text-xs font-bold text-muted-foreground/40 tabular-nums shrink-0">
             #{(index + 1).toString().padStart(2, "0")}
@@ -68,19 +68,19 @@ function CourseRow({ item, index }: { item: TimetableCourse; index: number }) {
             {typeStyle.label}
           </span>
           {item.category && (
-            <span className="text-xs font-medium text-muted-foreground/70 bg-muted/40 border border-border/20 px-2.5 py-0.5 rounded-full leading-none shrink-0 truncate max-w-[180px] sm:max-w-[240px]" title={catStyle.label}>
+            <span className="text-xs font-medium text-muted-foreground/70 bg-muted/40 border border-border/20 px-2.5 py-0.5 rounded-full leading-none shrink-0 truncate max-w-[240px]" title={catStyle.label}>
               {catStyle.label}
             </span>
           )}
         </div>
         
-        <h3 className="text-sm sm:text-base font-bold text-foreground leading-snug break-words md:truncate">
+        <h3 className="text-base font-bold text-foreground leading-snug truncate">
           {item.title}
         </h3>
       </div>
 
       {/* Middle: Instructor & Venue */}
-      <div className="space-y-1 min-w-0 w-full md:w-auto flex flex-wrap md:flex-col items-center md:items-start justify-between md:justify-start gap-2 border-t border-border/5 md:border-t-0 pt-2 md:pt-0">
+      <div className="space-y-1 min-w-0">
         {item.faculty?.name ? (
           <div className="flex items-center gap-1.5 min-w-0">
             <User className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0" />
@@ -105,8 +105,8 @@ function CourseRow({ item, index }: { item: TimetableCourse; index: number }) {
       </div>
 
       {/* Right: Credits */}
-      <div className="text-left md:text-right space-y-0.5 w-full md:w-auto flex flex-row md:flex-col items-center md:items-end justify-between md:justify-end gap-2 border-t border-border/5 md:border-t-0 pt-2 md:pt-0">
-        <div className="flex items-baseline md:justify-end gap-1">
+      <div className="text-right space-y-0.5">
+        <div className="flex items-baseline justify-end gap-1">
           <span className="text-xl font-black text-foreground tabular-nums leading-none">
             {item.credits?.total ?? 0}
           </span>
@@ -121,20 +121,101 @@ function CourseRow({ item, index }: { item: TimetableCourse; index: number }) {
   );
 }
 
+// ─── Mobile Course Card Component ─────────────────────────────────────────────
+
+function MobileCourseCard({ item, index }: { item: TimetableCourse; index: number }) {
+  const typeStyle = getCourseTypeStyle(item.courseType);
+  const catStyle = getCategoryStyle(item.category);
+
+  return (
+    <div className="py-4 border-b border-border/20 space-y-3 block md:hidden">
+      {/* Top row: Code, Slot, Type, Category */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs font-bold text-muted-foreground/40 tabular-nums shrink-0">
+          #{(index + 1).toString().padStart(2, "0")}
+        </span>
+        <span className="text-xs font-black tracking-wider text-primary bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-full leading-none shrink-0">
+          {item.code}
+        </span>
+        {item.slot && (
+          <span className="font-mono text-xs font-bold text-muted-foreground/80 bg-muted/50 border border-border/20 px-2.5 py-0.5 rounded-full leading-none shrink-0">
+            Slot: {item.slot}
+          </span>
+        )}
+        <span className="text-xs font-semibold text-muted-foreground shrink-0">
+          {typeStyle.label}
+        </span>
+        {item.category && (
+          <span className="text-xs font-medium text-muted-foreground/70 bg-muted/40 border border-border/20 px-2.5 py-0.5 rounded-full leading-none shrink-0 truncate max-w-[200px]" title={catStyle.label}>
+            {catStyle.label}
+          </span>
+        )}
+      </div>
+
+      {/* Course Title */}
+      <h3 className="text-base font-bold text-foreground leading-snug">
+        {item.title}
+      </h3>
+
+      {/* Separator Divider */}
+      <div className="h-px w-full bg-border/20" />
+
+      {/* Bottom info: Faculty/Venue on left, Credits on right */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="space-y-1 min-w-0 flex-1">
+          {item.faculty?.name ? (
+            <div className="flex items-center gap-1.5 min-w-0">
+              <User className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0" />
+              <span className="text-xs font-semibold text-foreground truncate">
+                {item.faculty.name}
+              </span>
+            </div>
+          ) : (
+            <span className="text-xs text-muted-foreground/40">—</span>
+          )}
+          {item.venue && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60 min-w-0">
+              <MapPin className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0" />
+              <span className="font-medium truncate">{item.venue}</span>
+              {item.faculty?.school && (
+                <span className="text-[11px] text-muted-foreground/40 font-semibold uppercase">
+                  · {item.faculty.school}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="text-right shrink-0 space-y-0.5">
+          <div className="flex items-baseline justify-end gap-1">
+            <span className="text-lg font-black text-foreground tabular-nums leading-none">
+              {item.credits?.total ?? 0}
+            </span>
+            <span className="text-xs text-muted-foreground/50 font-medium">Credits</span>
+          </div>
+          <p className="font-mono text-[11px] text-muted-foreground/50 leading-none tabular-nums">
+            L-T-P-J: {item.credits?.lecture ?? 0}-{item.credits?.tutorial ?? 0}-{item.credits?.practical ?? 0}-{item.credits?.project ?? 0}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 function CoursesSkeleton() {
   return (
     <div className="w-full space-y-6">
-      <div className="flex justify-between pb-4 border-b border-border/10">
+      <div className="flex justify-between pb-4 border-b border-border/20">
         <div className="space-y-2">
           <div className="animate-pulse rounded bg-muted/60 h-7 w-48" />
           <div className="animate-pulse rounded bg-muted/60 h-3 w-64" />
         </div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 border-y border-border/10 py-5">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 border-y border-border/20 py-5">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="flex items-center justify-start pr-4 border-r border-border/10 last:border-r-0 space-y-1.5">
+          <div key={i} className="flex items-center justify-start pr-4 border-r border-border/20 last:border-r-0 space-y-1.5">
             <div className="animate-pulse rounded bg-muted/60 h-3 w-16" />
             <div className="animate-pulse rounded bg-muted/60 h-6 w-12" />
           </div>
@@ -145,7 +226,7 @@ function CoursesSkeleton() {
         <div className="animate-pulse rounded-md bg-muted/60 h-10" />
         <div className="animate-pulse rounded-md bg-muted/60 h-10" />
       </div>
-      <div className="divide-y divide-border/10 animate-pulse">
+      <div className="divide-y divide-border/20 animate-pulse">
         {[...Array(8)].map((_, i) => (
           <div key={i} className="py-4 flex flex-col md:grid md:grid-cols-[1fr_280px_120px] gap-4">
             <div className="space-y-2">
@@ -297,7 +378,7 @@ export default function CoursesPage() {
     <div className="w-full space-y-6 select-none">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <header className="pb-4 border-b border-border/10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+      <header className="pb-4 border-b border-border/20 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
         <div className="space-y-1">
           <h1 className="text-2xl font-medium tracking-tight text-foreground flex items-center gap-2">
             <Layers className="w-6 h-6 text-primary shrink-0" />
@@ -313,7 +394,7 @@ export default function CoursesPage() {
       </header>
 
       {/* ── Top Stats Grid ──────────────────────────────────────────────────── */}
-      <div className="w-full grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 border-y border-border/10 py-5">
+      <div className="w-full grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 border-y border-border/20 py-5">
         {[
           { label: "Total Courses", value: courseStats.total, sub: "" },
           { label: "Total Credits", value: courseStats.totalCredits, sub: "Cr" },
@@ -324,7 +405,7 @@ export default function CoursesPage() {
         ].map((stat, idx) => (
           <div
             key={stat.label}
-            className={`flex items-center justify-start py-2.5 px-3 border-border/10 ${
+            className={`flex items-center justify-start py-2.5 px-3 border-border/20 ${
               idx % 2 === 0 ? "border-r md:border-r" : "md:border-r"
             } ${idx === 5 ? "md:border-r-0 lg:border-r-0" : ""} ${
               idx < 4 ? "border-b md:border-b-0" : ""
@@ -390,7 +471,7 @@ export default function CoursesPage() {
 
       {/* ── Registered Courses List ─────────────────────────────────────────── */}
       {filteredCourses.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3 text-center border-b border-border/10">
+        <div className="flex flex-col items-center justify-center py-20 gap-3 text-center border-b border-border/20">
           <FileText className="w-8 h-8 text-muted-foreground/20" />
           <p className="text-sm font-bold text-foreground">No registered courses found</p>
           <p className="text-xs text-muted-foreground">Try modifying your filters or search terms.</p>
@@ -398,7 +479,7 @@ export default function CoursesPage() {
       ) : (
         <div className="flex flex-col">
           {/* Table Header on Desktop */}
-          <div className="hidden md:grid grid-cols-[1fr_280px_120px] items-center gap-6 pb-2.5 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest border-b border-border/10">
+          <div className="hidden md:grid grid-cols-[1fr_280px_120px] items-center gap-6 pb-2.5 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest border-b border-border/20">
             <div>Course Information</div>
             <div>Instructor & Venue</div>
             <div className="text-right">Credits</div>
@@ -407,7 +488,10 @@ export default function CoursesPage() {
           {/* List Rows */}
           <div className="flex flex-col">
             {filteredCourses.map((item, idx) => (
-              <CourseRow key={`${item.code}-${idx}`} item={item} index={idx} />
+              <div key={`${item.code}-${idx}`}>
+                <DesktopCourseRow item={item} index={idx} />
+                <MobileCourseCard item={item} index={idx} />
+              </div>
             ))}
           </div>
         </div>
@@ -415,7 +499,7 @@ export default function CoursesPage() {
 
       {/* ── Footer Summary ──────────────────────────────────────────────────── */}
       {courses.length > 0 && (
-        <footer className="pt-4 border-t border-border/10 mt-6">
+        <footer className="pt-4 border-t border-border/20 mt-6">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
