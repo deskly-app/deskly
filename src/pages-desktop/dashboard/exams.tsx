@@ -753,7 +753,7 @@ export default function ExamSchedulePage() {
                           {/* Right Column: Seat & Export details */}
                           <div className="shrink-0 flex items-center gap-3">
                             {isScheduled && <SingleExamExportModal entry={item} />}
-                            <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-primary/10 text-primary border border-primary/15 leading-none">
+                            <span className="text-xs font-semibold text-muted-foreground/80 leading-none">
                               {displaySeatNo}
                             </span>
                           </div>

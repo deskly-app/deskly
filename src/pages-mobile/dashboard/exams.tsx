@@ -475,9 +475,9 @@ export default function ExamSchedulePage() {
                     </div>
                   </div>
 
-                  {/* Right: Seat Badge & Chevron */}
+                  {/* Right: Seat & Chevron */}
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/15 leading-none">
+                    <span className="text-xs font-semibold text-muted-foreground/80 leading-none">
                       {displaySeatNo}
                     </span>
                     <ChevronRight className="w-4 h-4 text-muted-foreground/40 shrink-0" />
