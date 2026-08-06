@@ -458,7 +458,7 @@ export default function ExamSchedulePage() {
                           </span>
                         )}
                         {!isScheduled && (
-                          <span className="text-[10px] font-semibold text-amber-500/90 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full leading-none">
+                          <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 border border-border/20 px-1.5 py-0.5 rounded-full leading-none">
                             Schedule Pending
                           </span>
                         )}
@@ -532,12 +532,20 @@ export default function ExamSchedulePage() {
 
             {/* Drawer Body details */}
             {selectedExam && (() => {
+              const seatText = selectedExam.seatNo && selectedExam.seatNo !== "-" ? `Seat ${selectedExam.seatNo}` : "Seat TBA";
+              const timingText = selectedExam.examTime && selectedExam.examTime !== "-" 
+                ? `${selectedExam.examTime} (Reporting: ${selectedExam.reportingTime && selectedExam.reportingTime !== "-" ? selectedExam.reportingTime : "30 mins before schedule"})`
+                : "Schedule Pending";
+              const venueText = selectedExam.venue && selectedExam.venue !== "-"
+                ? (selectedExam.seatLocation && selectedExam.seatLocation !== "-" ? `${selectedExam.venue} (Location: ${selectedExam.seatLocation})` : selectedExam.venue)
+                : "Venue TBA";
+
               const detailsList = [
-                { icon: Hash,          label: "Class ID",       value: selectedExam.classId },
-                { icon: LayoutGrid,    label: "Slot",           value: selectedExam.slot },
-                { icon: Award,         label: "Seat Number",    value: `Seat ${selectedExam.seatNo}` },
-                { icon: Clock,         label: "Exam Timing",    value: `${selectedExam.examTime} (Reporting: ${selectedExam.reportingTime})` },
-                { icon: MapPin,        label: "Venue / Room",   value: selectedExam.seatLocation !== "-" ? `${selectedExam.venue} (Location: ${selectedExam.seatLocation})` : selectedExam.venue },
+                { icon: Hash,          label: "Class ID",       value: selectedExam.classId || "N/A" },
+                { icon: LayoutGrid,    label: "Slot",           value: selectedExam.slot || "N/A" },
+                { icon: Award,         label: "Seat Number",    value: seatText },
+                { icon: Clock,         label: "Exam Timing",    value: timingText },
+                { icon: MapPin,        label: "Venue / Room",   value: venueText },
               ];
               return (
                 <div className="space-y-6">

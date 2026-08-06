@@ -752,7 +752,7 @@ export default function ExamSchedulePage() {
                                   </span>
                                 )}
                                 {!isScheduled && (
-                                  <span className="text-[11px] font-semibold text-amber-500/90 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full leading-none">
+                                  <span className="text-[11px] font-medium text-muted-foreground bg-muted/50 border border-border/20 px-2 py-0.5 rounded-full leading-none">
                                     Schedule Not Announced
                                   </span>
                                 )}
