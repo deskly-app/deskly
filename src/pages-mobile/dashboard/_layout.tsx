@@ -66,7 +66,7 @@ export default function MobileDashboardLayout() {
     { label: "Marks", path: "/dashboard/marks", icon: TrendingUp },
     { label: "Grades", path: "/dashboard/grades", icon: GraduationCap },
     { label: "Academic Calendar", path: "/dashboard/academic-calendar", icon: Calendar },
-    { label: "Payments", path: "/dashboard/payment-receipts", icon: Receipt },
+    { label: "Payments", path: "/dashboard/payment-receipts" as Path, icon: Receipt },
     { label: "HOD & Dean", path: "/dashboard/hod-dean", icon: Briefcase },
     { label: "Contact", path: "/dashboard/contact", icon: Phone },
     { label: "Settings", path: "/dashboard/settings", icon: Settings },
