@@ -27,7 +27,7 @@ Fixes #(issue_number)
 ## Checklist
 
 - [ ] My code follows Deskly's design system & global Shadcn color rules.
-- [ ] I have run `npx tsc --noEmit` and confirmed 0 compilation errors.
+- [ ] I have run `pnpm tsc --noEmit` and confirmed 0 compilation errors.
 - [ ] I have tested offline caching / 15s timeout fallbacks if API endpoints were touched.
 - [ ] No hardcoded hex colors or intrusive animations were added.
 - [ ] I have updated relevant documentation if needed.
