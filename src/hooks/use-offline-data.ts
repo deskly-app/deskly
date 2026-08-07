@@ -55,18 +55,36 @@ export function useOfflineData<T>({
   transform,
   isEmpty,
 }: UseOfflineDataOptions<T>): UseOfflineDataResult<T> {
-  const hasData = (value: T | null): boolean => {
+  const fetcherRef = useRef(fetcher);
+  fetcherRef.current = fetcher;
+
+  const transformRef = useRef(transform);
+  transformRef.current = transform;
+
+  const isEmptyRef = useRef(isEmpty);
+  isEmptyRef.current = isEmpty;
+
+  const hasData = useCallback((value: T | null): boolean => {
     if (value === null || value === undefined) return false;
-    if (isEmpty) return !isEmpty(value);
+    if (isEmptyRef.current) return !isEmptyRef.current(value);
     if (Array.isArray(value)) return value.length > 0;
     if (typeof value === "object") return Object.keys(value as object).length > 0;
     return !!value;
-  };
+  }, []);
 
   const [data, setData] = useState<T | null>(() => readCache<T>(cacheKey));
   const [loading, setLoading] = useState<boolean>(() => !hasData(readCache<T>(cacheKey)));
   const [error, setError] = useState<string | null>(null);
   const [isStale, setIsStale] = useState(false);
+
+  // Sync cache state when cacheKey changes
+  useEffect(() => {
+    const cached = readCache<T>(cacheKey);
+    setData(cached);
+    setLoading(!hasData(cached));
+    setError(null);
+    setIsStale(false);
+  }, [cacheKey, hasData]);
 
   // Use ref to avoid stale closure issues in fetch
   const dataRef = useRef(data);
@@ -82,10 +100,10 @@ export function useOfflineData<T>({
     setLoading(!hasCache);
 
     try {
-      const res = await fetchWithTimeout(fetcher(), timeout);
+      const res = await fetchWithTimeout(fetcherRef.current(), timeout);
 
       if (res?.success && res.data !== undefined && res.data !== null) {
-        const processed = transform ? transform(res.data) : res.data;
+        const processed = transformRef.current ? transformRef.current(res.data) : res.data;
         setData(processed);
         writeCache(cacheKey, processed);
         setIsStale(false);
@@ -109,13 +127,13 @@ export function useOfflineData<T>({
     } finally {
       setLoading(false);
     }
-  }, [enabled, cacheKey, timeout]);
+  }, [enabled, cacheKey, timeout, hasData]);
 
   useEffect(() => {
     if (enabled) {
       fetchData();
     }
-  }, [enabled]);
+  }, [enabled, fetchData]);
 
   const retry = useCallback(() => {
     fetchData();
