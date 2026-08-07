@@ -3,11 +3,10 @@
   "private": true,
   "version": "6.1.0",
   "type": "module",
-  "packageManager": "pnpm@11.5.1",
   "engines": {
     "npm": "please-use-pnpm",
     "yarn": "please-use-pnpm",
-    "pnpm": ">=9"
+    "pnpm": ">=8"
   },
   "scripts": {
     "dev": "vite",
