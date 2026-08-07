@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -163,7 +163,7 @@ export default function ExamSchedulePage() {
   const [selectedExam, setSelectedExam] = useState<ExamScheduleEntry | null>(null);
 
   // Update selected tab if groups change and current tab is not in new groups
-  useMemo(() => {
+  useEffect(() => {
     if (groups.length > 0) {
       const tabNames = groups.map(g => g.examType);
       if (!selectedTab || !tabNames.includes(selectedTab)) {

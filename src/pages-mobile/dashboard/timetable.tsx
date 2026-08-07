@@ -399,6 +399,7 @@ export default function TimetablePage() {
     cacheKey: "deskly::cache::timetable",
     fetcher: () => invoke<ApiResult<WeeklySchedule>>("timetable_get_weekly", { semesterSubId: null }),
     enabled: isLoggedIn && !authLoading,
+    isEmpty: (val) => Object.values(val).every((arr) => Array.isArray(arr) && arr.length === 0),
   });
 
   const {
