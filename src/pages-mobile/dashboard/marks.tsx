@@ -7,7 +7,8 @@ import { Target, BookOpen } from "lucide-react";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { OfflineDisplay } from "@/components/offline-display";
 import { ErrorDisplay } from "@/components/error-display";
-import { isNetworkError, fetchWithTimeout } from "@/lib/utils";
+import { isNetworkError } from "@/lib/utils";
+import { useOfflineData } from "@/hooks/use-offline-data";
 
 function Sk({ className = "" }: { className?: string }) {
   return <div className={`animate-pulse rounded-lg bg-muted/65 ${className}`} />;
@@ -51,18 +52,13 @@ export default function MarksPage() {
   const isOnline = useOnlineStatus();
   const location = useLocation();
 
-  const [data, setData] = useState<StudentMarkEntry[]>(() => {
-    try {
-      const cached = localStorage.getItem("deskly::cache::marks");
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-    return [];
+  const { data: rawData, loading, error, retry: load } = useOfflineData<StudentMarkEntry[]>({
+    cacheKey: "deskly::cache::marks",
+    fetcher: getMarks,
+    enabled: isLoggedIn && !authLoading,
   });
-  const [loading, setLoading] = useState(data.length === 0);
-  const [error, setError] = useState<string | null>(null);
+  const data = rawData || [];
+  
   const [selectedCourseCode, setSelectedCourseCode] = useState<string>(() => data[0]?.courseCode ?? "");
   const [toggledAssessments, setToggledAssessments] = useState<Record<string, boolean>>({});
 
@@ -74,38 +70,10 @@ export default function MarksPage() {
       if (match) {
         setSelectedCourseCode(match.courseCode);
       }
+    } else if (data.length > 0 && !selectedCourseCode) {
+      setSelectedCourseCode(data[0].courseCode);
     }
-  }, [data, location.state]);
-
-  async function load() {
-    try {
-      if (!isLoggedIn && !authLoading) return;
-      setError(null);
-      if (authLoading) return;
-      const hasCache = data.length > 0;
-      setLoading(!hasCache);
-      const res = await fetchWithTimeout(getMarks(), 15000);
-      if (res.success && res.data) {
-        setData(res.data);
-        localStorage.setItem("deskly::cache::marks", JSON.stringify(res.data));
-        if (res.data.length > 0) setSelectedCourseCode(res.data[0].courseCode);
-      } else {
-        if (!hasCache) {
-          setError(res.error ?? "Failed to fetch marks view.");
-        }
-      }
-    } catch (e) {
-      if (data.length === 0) {
-        setError(e instanceof Error ? e.message : String(e));
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (isLoggedIn) load();
-  }, [isLoggedIn, authLoading]);
+  }, [data, location.state, selectedCourseCode]);
 
   const filteredCourses = useMemo(() => data, [data]);
 
@@ -117,15 +85,15 @@ export default function MarksPage() {
 
   const shell = (children: React.ReactNode) => <>{children}</>;
 
-  const showOffline = data.length === 0 && (isOnline === false || isNetworkError(error, isOnline));
+  const showOffline = !rawData && !loading && (isOnline === false || isNetworkError(error, isOnline));
 
-  if (showOffline && !loading) {
+  if (showOffline) {
     return shell(<OfflineDisplay onRetry={load} />);
   }
 
-  if (authLoading || (loading && data.length === 0)) return shell(<MarksSkeleton />);
+  if (authLoading || (loading && !rawData)) return shell(<MarksSkeleton />);
 
-  if (error && data.length === 0) {
+  if (error && !rawData) {
     return shell(
       <div className="flex h-full items-center justify-center font-saira">
         <ErrorDisplay message={error} onRetry={load} />

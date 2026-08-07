@@ -13,7 +13,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { OfflineDisplay } from "@/components/offline-display";
-import { isNetworkError, fetchWithTimeout } from "@/lib/utils";
+import { isNetworkError } from "@/lib/utils";
+import { useOfflineData } from "@/hooks/use-offline-data";
 import dashboardImg from "@/assets/dashboard.png";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -317,114 +318,79 @@ export default function MobileDashboardHome() {
   const { isLoggedIn, loading: authLoading } = useAuth();
   const isOnline = useOnlineStatus();
 
-  const cachedDashboard = useMemo(() => {
+  type DashboardData = {
+    cgpaData: CgpaData | null;
+    feedbackData: FeedbackStatus[] | null;
+    profile: ProfileData | null;
+    gpaTrend: GpaTrendPoint[];
+  };
+
+  const fetchDashboardData = async (): Promise<{ success: boolean; data?: DashboardData; error?: string }> => {
     try {
-      const cached = localStorage.getItem("deskly::cache::dashboard");
-      return cached ? JSON.parse(cached) : null;
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const [profile, setProfile] = useState<ProfileData | null>(cachedDashboard?.profile ?? null);
-  const [cgpaData, setCgpaData] = useState<CgpaData | null>(cachedDashboard?.cgpaData ?? null);
-  const [feedbackData, setFeedbackData] = useState<FeedbackStatus[] | null>(cachedDashboard?.feedbackData ?? null);
-  const [gpaTrend, setGpaTrend] = useState<GpaTrendPoint[]>(cachedDashboard?.gpaTrend ?? []);
-  const [loading, setLoading] = useState(!cachedDashboard?.cgpaData && !cachedDashboard?.feedbackData);
-  const [error, setError] = useState<string | null>(null);
-
-  async function loadData() {
-    if (authLoading || !isLoggedIn) return;
-    setError(null);
-
-    const hasCache = !!(cgpaData || feedbackData || profile);
-
-    try {
-      const [cgpaRes, feedbackRes, profileRes] = await Promise.all([
-        fetchWithTimeout(getCgpaPage(), 15000),
-        fetchWithTimeout(getFeedbackStatus(), 15000),
-        fetchWithTimeout(getStudentProfile().catch(() => null), 15000),
+      const [cgpaRes, feedbackRes, profileRes, gradeRes] = await Promise.all([
+        getCgpaPage(),
+        getFeedbackStatus(),
+        getStudentProfile().catch(() => null),
+        getStudentGradeView().catch(() => null),
       ]);
 
-      let updatedCgpa = cgpaData;
-      let updatedFeedback = feedbackData;
-      let updatedProfile = profile;
-      let updatedGpaTrend = gpaTrend;
-
-      if (cgpaRes.success && cgpaRes.cgpaData) {
-        setCgpaData(cgpaRes.cgpaData);
-        updatedCgpa = cgpaRes.cgpaData;
-      } else if (cgpaRes.error && !hasCache) {
-        setError(cgpaRes.error);
-      }
-
-      if (feedbackRes.success && feedbackRes.data) {
-        setFeedbackData(feedbackRes.data);
-        updatedFeedback = feedbackRes.data;
-      } else if (feedbackRes.error && !hasCache) {
-        setError(feedbackRes.error);
-      }
-
-      if (profileRes?.success && profileRes.data) {
-        setProfile(profileRes.data);
-        updatedProfile = profileRes.data;
-      }
-
-      // Fetch GPA trend in parallel for all semesters
-      try {
-        const initialGradeRes = await fetchWithTimeout(getStudentGradeView().catch(() => null), 15000);
-        if (initialGradeRes?.success && initialGradeRes.data) {
-          const semesters = initialGradeRes.data.semesters || [];
-          if (semesters.length > 0) {
-            const semResults = await Promise.all(
-              semesters.map(async (sem) => {
-                if (sem.id === initialGradeRes.data?.semesterSubId) {
-                  return { id: sem.id, name: sem.name, gpa: initialGradeRes.data.gpa ?? null };
-                }
-                const res = await fetchWithTimeout(getStudentGradeView(sem.id).catch(() => null), 15000);
-                return {
-                  id: sem.id,
-                  name: sem.name,
-                  gpa: res?.success && res.data?.gpa !== undefined ? res.data.gpa : null,
-                };
-              })
-            );
-
-            const validPoints = semResults
-              .filter((r): r is { id: string; name: string; gpa: number } => r.gpa !== null && r.gpa !== undefined)
-              .reverse();
-
-            if (validPoints.length > 0) {
-              setGpaTrend(validPoints);
-              updatedGpaTrend = validPoints;
-            }
-          }
+      let gpaTrend: GpaTrendPoint[] = [];
+      if (gradeRes?.success && gradeRes.data) {
+        const semesters = gradeRes.data.semesters || [];
+        if (semesters.length > 0) {
+          const semResults = await Promise.all(
+            semesters.map(async (sem) => {
+              if (sem.id === gradeRes.data?.semesterSubId) {
+                return { id: sem.id, name: sem.name, gpa: gradeRes.data.gpa ?? null };
+              }
+              const res = await getStudentGradeView(sem.id).catch(() => null);
+              return {
+                id: sem.id,
+                name: sem.name,
+                gpa: res?.success && res.data?.gpa !== undefined ? res.data.gpa : null,
+              };
+            })
+          );
+          gpaTrend = semResults
+            .filter((r): r is { id: string; name: string; gpa: number } => r.gpa !== null && r.gpa !== undefined)
+            .reverse();
         }
-      } catch (e) {
-        console.error("Failed to fetch GPA trend points", e);
       }
 
-      localStorage.setItem(
-        "deskly::cache::dashboard",
-        JSON.stringify({
-          cgpaData: updatedCgpa,
-          feedbackData: updatedFeedback,
-          profile: updatedProfile,
-          gpaTrend: updatedGpaTrend,
-        })
-      );
+      // Check if critical fetches failed
+      if (!cgpaRes.success && !feedbackRes.success) {
+        return { success: false, error: cgpaRes.error || feedbackRes.error };
+      }
+
+      return {
+        success: true,
+        data: {
+          cgpaData: cgpaRes.success ? cgpaRes.cgpaData || null : null,
+          feedbackData: feedbackRes.success ? feedbackRes.data || null : null,
+          profile: profileRes?.success ? profileRes.data || null : null,
+          gpaTrend,
+        }
+      };
     } catch (e) {
-      if (!hasCache) {
-        setError(e instanceof Error ? e.message : String(e));
-      }
-    } finally {
-      setLoading(false);
+      return { success: false, error: String(e) };
     }
-  }
+  };
 
-  useEffect(() => {
-    if (isLoggedIn) loadData();
-  }, [isLoggedIn, authLoading]);
+  const {
+    data,
+    loading,
+    error,
+    retry: loadData,
+  } = useOfflineData<DashboardData>({
+    cacheKey: "deskly::cache::dashboard",
+    fetcher: fetchDashboardData,
+    enabled: isLoggedIn && !authLoading,
+  });
+
+  const profile = data?.profile ?? null;
+  const cgpaData = data?.cgpaData ?? null;
+  const feedbackData = data?.feedbackData ?? null;
+  const gpaTrend = data?.gpaTrend ?? [];
 
   const studentName = formatStudentName(profile?.student?.name);
 

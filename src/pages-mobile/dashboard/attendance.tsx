@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getCurrentAttendance, AttendanceRecord } from "@/lib/attendance";
-import { isNetworkError, fetchWithTimeout } from "@/lib/utils";
+import { isNetworkError } from "@/lib/utils";
+import { useOfflineData } from "@/hooks/use-offline-data";
 import { ErrorDisplay } from "@/components/error-display";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { OfflineDisplay } from "@/components/offline-display";
@@ -381,50 +382,15 @@ export default function AttendancePage() {
   const isDetailRoute = useMatch("/dashboard/attendance/:classId");
   const isOnline = useOnlineStatus();
 
-  const [attendance, setAttendance] = useState<AttendanceRecord[]>(() => {
-    try {
-      const cached = localStorage.getItem("deskly::cache::attendance");
-      if (cached) {
-        const parsed = JSON.parse(cached) as AttendanceRecord[];
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-    return [];
+  const { data: rawData, loading, error, retry: load } = useOfflineData<AttendanceRecord[]>({
+    cacheKey: "deskly::cache::attendance",
+    fetcher: getCurrentAttendance,
+    enabled: isLoggedIn && !authLoading,
   });
-  const [loading, setLoading] = useState(attendance.length === 0);
-  const [error, setError] = useState<string | null>(null);
+  const attendance = rawData || [];
+
   const [selected, setSelected] = useState<AttendanceRecord | null>(null);
   const [filterType, setFilterType] = useState("all");
-
-  async function load() {
-    if (authLoading || !isLoggedIn) return;
-    setError(null);
-    const hasCache = attendance.length > 0;
-    setLoading(!hasCache);
-    try {
-      const res = await fetchWithTimeout(getCurrentAttendance(), 15000);
-      if (res.success && res.data) {
-        setAttendance(res.data);
-        const sem = res.semesterId ?? "";
-        localStorage.setItem("deskly::cache::attendance", JSON.stringify(res.data));
-        localStorage.setItem("deskly::cache::attendance_semester", sem);
-      } else {
-        if (!hasCache) {
-          setError(res.error ?? "Failed to fetch attendance.");
-        }
-      }
-    } catch (e) {
-      if (!hasCache) {
-        setError(e instanceof Error ? e.message : String(e));
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (isLoggedIn) load();
-  }, [isLoggedIn, authLoading]);
 
   const stats = useMemo(() => {
     let totalAttended = 0;
@@ -458,17 +424,17 @@ export default function AttendancePage() {
     return <Outlet />;
   }
 
-  const showOffline = attendance.length === 0 && (isOnline === false || isNetworkError(error, isOnline));
+  const showOffline = !rawData && !loading && (isOnline === false || isNetworkError(error, isOnline));
 
   if (showOffline) {
     return <OfflineDisplay onRetry={load} />;
   }
 
-  if (authLoading || (loading && attendance.length === 0)) {
+  if (authLoading || (loading && !rawData)) {
     return <AttendanceSkeleton />;
   }
 
-  if (error && attendance.length === 0) {
+  if (error && !rawData) {
     return (
       <div className="flex h-full items-center justify-center font-saira">
         <ErrorDisplay message={error} onRetry={load} />

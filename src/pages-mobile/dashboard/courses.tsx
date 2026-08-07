@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getTimetableCourses, TimetableCourse } from "@/lib/features";
 import { Separator } from "@/components/ui/separator";
@@ -8,7 +8,8 @@ import { ErrorDisplay } from "@/components/error-display";
 import { DrawerSelect } from "@/components/ui/drawer-select";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { OfflineDisplay } from "@/components/offline-display";
-import { isNetworkError, fetchWithTimeout } from "@/lib/utils";
+import { isNetworkError } from "@/lib/utils";
+import { useOfflineData } from "@/hooks/use-offline-data";
 import courseImg from "@/assets/course.png";
 import {
   Layers,
@@ -264,53 +265,18 @@ export default function CoursesPage() {
   const { isLoggedIn, loading: authLoading } = useAuth();
   const isOnline = useOnlineStatus();
 
-  const [courses, setCourses] = useState<TimetableCourse[]>(() => {
-    try {
-      const cached = localStorage.getItem("deskly::cache::courses");
-      if (cached) {
-        const parsed = JSON.parse(cached) as TimetableCourse[];
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-    return [];
+  const { data: rawData, loading, error, retry: load } = useOfflineData<TimetableCourse[]>({
+    cacheKey: "deskly::cache::courses",
+    fetcher: getTimetableCourses,
+    enabled: isLoggedIn && !authLoading,
   });
-  const [loading, setLoading] = useState(courses.length === 0);
-  const [error, setError] = useState<string | null>(null);
+  const courses = rawData || [];
 
   const [selectedCourse, setSelectedCourse] = useState<TimetableCourse | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const [selectedTypeFilter, setSelectedTypeFilter] = useState("ALL");
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("ALL");
-
-  async function load() {
-    try {
-      if (!isLoggedIn && !authLoading) return;
-      setError(null);
-      if (authLoading) return;
-      const hasCache = courses.length > 0;
-      setLoading(!hasCache);
-      const res = await fetchWithTimeout(getTimetableCourses(), 15000);
-      if (res.success && res.data) {
-        setCourses(res.data);
-        localStorage.setItem("deskly::cache::courses", JSON.stringify(res.data));
-      } else {
-        if (!hasCache) {
-          setError(res.error ?? "Failed to fetch registered courses.");
-        }
-      }
-    } catch (e) {
-      if (courses.length === 0) {
-        setError(e instanceof Error ? e.message : String(e));
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (isLoggedIn) load();
-  }, [isLoggedIn, authLoading]);
 
   const filterOptions = useMemo(() => {
     const types = new Set<string>();
@@ -354,15 +320,15 @@ export default function CoursesPage() {
 
   const shell = (children: React.ReactNode) => <>{children}</>;
 
-  const showOffline = courses.length === 0 && (isOnline === false || isNetworkError(error, isOnline));
+  const showOffline = !rawData && !loading && (isOnline === false || isNetworkError(error, isOnline));
 
-  if (showOffline && !loading) {
+  if (showOffline) {
     return shell(<OfflineDisplay onRetry={load} />);
   }
 
-  if (authLoading || (loading && courses.length === 0)) return shell(<CoursesSkeleton />);
+  if (authLoading || (loading && !rawData)) return shell(<CoursesSkeleton />);
 
-  if (error && courses.length === 0) {
+  if (error && !rawData) {
     return shell(
       <div className="flex h-full items-center justify-center font-saira">
         <ErrorDisplay message={error} onRetry={load} />

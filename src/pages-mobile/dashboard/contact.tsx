@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getContactInfo, ContactDetail } from "@/lib/features";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { isNetworkError, fetchWithTimeout } from "@/lib/utils";
+import { isNetworkError } from "@/lib/utils";
+import { useOfflineData } from "@/hooks/use-offline-data";
 import { ErrorDisplay } from "@/components/error-display";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { OfflineDisplay } from "@/components/offline-display";
@@ -106,44 +107,13 @@ function ContactCard({ contact }: { contact: ContactDetail }) {
 export default function ContactPage() {
   const { loading: authLoading } = useAuth();
   const isOnline = useOnlineStatus();
-  const [contacts, setContacts] = useState<ContactDetail[] | null>(() => {
-    try {
-      const cached = localStorage.getItem("deskly::cache::contact");
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-    return null;
+  const { data: rawData, loading, error, retry: fetchContacts } = useOfflineData<ContactDetail[]>({
+    cacheKey: "deskly::cache::contact",
+    fetcher: getContactInfo,
   });
-  const [loading, setLoading] = useState(!contacts);
-  const [error, setError] = useState<string | null>(null);
+  const contacts = rawData || null;
+
   const [query, setQuery] = useState("");
-
-  const fetchContacts = async () => {
-    const hasCache = !!(contacts && contacts.length > 0);
-    setLoading(!hasCache);
-    setError(null);
-    try {
-      const res = await fetchWithTimeout(getContactInfo(), 15000);
-      if (res.success && res.data) {
-        setContacts(res.data);
-        localStorage.setItem("deskly::cache::contact", JSON.stringify(res.data));
-      } else {
-        if (!hasCache) {
-          setError(res.error ?? "Failed to load contact information.");
-        }
-      }
-    } catch (e) {
-      if (!hasCache) {
-        setError(e instanceof Error ? e.message : String(e));
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchContacts(); }, []);
 
   const filtered = useMemo(() => {
     if (!contacts) return [];
@@ -158,11 +128,11 @@ export default function ContactPage() {
   }, [contacts, query]);
 
   const shell = (children: React.ReactNode) => <>{children}</>;
-  const showOffline = !contacts && (isOnline === false || isNetworkError(error, isOnline));
+  const showOffline = !rawData && !loading && (isOnline === false || isNetworkError(error, isOnline));
 
-  if (showOffline && !loading) return shell(<OfflineDisplay onRetry={fetchContacts} />);
-  if (authLoading || (loading && !contacts)) return shell(<ContactSkeleton />);
-  if (error && !contacts) {
+  if (showOffline) return shell(<OfflineDisplay onRetry={fetchContacts} />);
+  if (authLoading || (loading && !rawData)) return shell(<ContactSkeleton />);
+  if (error && !rawData) {
     return shell(
       <div className="flex h-full items-center justify-center font-saira">
         <ErrorDisplay title="Contacts Unavailable" message={error} onRetry={fetchContacts} />
