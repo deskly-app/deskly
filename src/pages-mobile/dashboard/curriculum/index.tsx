@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "@/router";
 import { getCurriculumCategories, CurriculumCategory } from "@/lib/features";
@@ -8,7 +7,8 @@ import { ScrollText, ChevronRight } from "lucide-react";
 import curriculumImg from "@/assets/curriculum.png";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { OfflineDisplay } from "@/components/offline-display";
-import { isNetworkError, fetchWithTimeout } from "@/lib/utils";
+import { isNetworkError } from "@/lib/utils";
+import { useOfflineData } from "@/hooks/use-offline-data";
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
@@ -45,47 +45,18 @@ export default function CurriculumIndexPage() {
   const { isLoggedIn, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
-  const [categories, setCategories] = useState<CurriculumCategory[]>(() => {
-    try {
-      const cached = localStorage.getItem("deskly::cache::curriculum::categories");
-      if (cached) {
-        const parsed = JSON.parse(cached) as CurriculumCategory[];
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-    return [];
+  const {
+    data,
+    loading,
+    error,
+    retry: load,
+  } = useOfflineData<CurriculumCategory[]>({
+    cacheKey: "deskly::cache::curriculum::categories",
+    fetcher: getCurriculumCategories,
+    enabled: isLoggedIn && !authLoading,
   });
-  const [loading, setLoading] = useState(categories.length === 0);
-  const [error, setError] = useState<string | null>(null);
 
-  async function load() {
-    try {
-      if (!isLoggedIn && !authLoading) return;
-      setError(null);
-      if (authLoading) return;
-      const hasCache = categories.length > 0;
-      setLoading(!hasCache);
-      const res = await fetchWithTimeout(getCurriculumCategories(), 15000);
-      if (res.success && res.data) {
-        setCategories(res.data);
-        localStorage.setItem("deskly::cache::curriculum::categories", JSON.stringify(res.data));
-      } else {
-        if (!hasCache) {
-          setError(res.error ?? "Failed to fetch curriculum categories.");
-        }
-      }
-    } catch (e) {
-      if (categories.length === 0) {
-        setError(e instanceof Error ? e.message : String(e));
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (isLoggedIn) load();
-  }, [isLoggedIn, authLoading]);
+  const categories = data || [];
 
   const isOnline = useOnlineStatus();
   const shell = (children: React.ReactNode) => <>{children}</>;

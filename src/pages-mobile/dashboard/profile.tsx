@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import React from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getStudentProfile, ProfileData } from "@/lib/features";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { OfflineDisplay } from "@/components/offline-display";
-import { isNetworkError, fetchWithTimeout } from "@/lib/utils";
+import { isNetworkError } from "@/lib/utils";
+import { useOfflineData } from "@/hooks/use-offline-data";
 import { ErrorDisplay } from "@/components/error-display";
 import profileImg from "@/assets/profile.png";
 import {
@@ -77,46 +78,12 @@ function ProfileRow({
 export default function StudentProfilePage() {
   const { loading: authLoading } = useAuth();
   const isOnline = useOnlineStatus();
-  const [profile, setProfile] = useState<ProfileData | null>(() => {
-    const cached = localStorage.getItem("deskly::cache::profile");
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (parsed && parsed.student && parsed.student.name) return parsed;
-      } catch (e) {
-        console.error("Failed to parse cached profile", e);
-      }
-    }
-    return null;
+  const { data: profile, loading, error, retry: fetchProfile } = useOfflineData<ProfileData>({
+    cacheKey: "deskly::cache::profile",
+    fetcher: getStudentProfile,
+    enabled: isOnline,
+    isEmpty: (val) => !val || !val.student || !val.student.name,
   });
-  const [loading, setLoading] = useState(!profile);
-  const [error, setError] = useState<string | null>(null);
-
-  async function fetchProfile() {
-    const hasCache = !!profile;
-    setLoading(!hasCache);
-    try {
-      const res = await fetchWithTimeout(getStudentProfile(), 15000);
-      if (res.success && res.data) {
-        setProfile(res.data);
-        localStorage.setItem("deskly::cache::profile", JSON.stringify(res.data));
-      } else {
-        if (!hasCache) {
-          setError(res.error ?? "Failed to fetch student profile.");
-        }
-      }
-    } catch (err) {
-      if (!hasCache) {
-        setError(err instanceof Error ? err.message : String(err));
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (isOnline) fetchProfile();
-  }, [isOnline]);
 
   const shell = (children: React.ReactNode) => <>{children}</>;
   const showOffline = !profile && (isOnline === false || isNetworkError(error, isOnline));

@@ -11,7 +11,8 @@ import { ErrorDisplay } from "@/components/error-display";
 import { DrawerSelect } from "@/components/ui/drawer-select";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { OfflineDisplay } from "@/components/offline-display";
-import { isNetworkError, fetchWithTimeout } from "@/lib/utils";
+import { isNetworkError } from "@/lib/utils";
+import { useOfflineData } from "@/hooks/use-offline-data";
 import { Info } from "lucide-react";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import calendarImg from "@/assets/calender.png";
@@ -92,6 +93,18 @@ type CalendarCell = {
 export default function AcademicCalendarPage() {
   const { loading: authLoading } = useAuth();
   const isOnline = useOnlineStatus();
+  const {
+    data: optionsData,
+    loading: optionsLoading,
+    error: optionsError,
+    retry: fetchOptions,
+  } = useOfflineData<CalendarMonthOption[]>({
+    cacheKey: "deskly::cache::calendar_options",
+    fetcher: getAcademicCalendarOptions,
+  });
+
+  const options = optionsData || null;
+
   const initialOptions = useMemo(() => {
     try {
       const cachedOptions = localStorage.getItem("deskly::cache::calendar_options");
@@ -103,93 +116,29 @@ export default function AcademicCalendarPage() {
     return null;
   }, []);
 
-  const [options, setOptions] = useState<CalendarMonthOption[] | null>(initialOptions);
   const [selectedOption, setSelectedOption] = useState<CalendarMonthOption | null>(initialOptions?.[0] ?? null);
-  const [schedule, setSchedule] = useState<MonthlySchedule | null>(null);
-  const [loading, setLoading] = useState(!initialOptions);
-  const [error, setError] = useState<string | null>(null);
   const [selectedCell, setSelectedCell] = useState<CalendarCell | null>(null);
 
-  // Load monthly view from cache first when selectedOption changes
+  // Sync selectedOption with options if it is null
   useEffect(() => {
-    if (selectedOption) {
-      const cachedView = localStorage.getItem(`deskly::cache::calendar_view_${selectedOption.dateValue}`);
-      if (cachedView) {
-        try {
-          const parsed = JSON.parse(cachedView);
-          if (parsed && parsed.days && parsed.days.length > 0) {
-            setSchedule(parsed);
-            setLoading(false);
-            return;
-          }
-        } catch (e) {
-          console.error("Failed to parse cached calendar view", e);
-        }
-      }
-      setSchedule(null);
-      setLoading(true);
+    if (!selectedOption && options && options.length > 0) {
+      setSelectedOption(options[0]);
     }
-  }, [selectedOption]);
+  }, [options, selectedOption]);
 
-  const fetchOptions = async () => {
-    const hasCache = !!(options && options.length > 0);
-    setLoading(!hasCache);
-    setError(null);
-    try {
-      const res = await fetchWithTimeout(getAcademicCalendarOptions(), 15000);
-      if (res.success && res.data && res.data.length > 0) {
-        setOptions(res.data);
-        localStorage.setItem("deskly::cache::calendar_options", JSON.stringify(res.data));
-        if (!selectedOption) {
-          setSelectedOption(res.data[0]);
-        }
-      } else {
-        if (!hasCache) {
-          setError(res.error ?? "No academic calendar semesters found.");
-        }
-        setLoading(false);
-      }
-    } catch (e) {
-      if (!hasCache) {
-        setError(e instanceof Error ? e.message : String(e));
-      }
-      setLoading(false);
-    }
-  };
+  const {
+    data: viewData,
+    loading: viewLoading,
+    error: viewError,
+  } = useOfflineData<MonthlySchedule>({
+    cacheKey: selectedOption ? `deskly::cache::calendar_view_${selectedOption.dateValue}` : "",
+    fetcher: () => getAcademicCalendarView(selectedOption!.dateValue),
+    enabled: !!selectedOption,
+  });
 
-  const fetchView = async (dateVal: string) => {
-    const hasCache = !!(schedule && schedule.days && schedule.days.length > 0);
-    setLoading(!hasCache);
-    setError(null);
-    try {
-      const res = await fetchWithTimeout(getAcademicCalendarView(dateVal), 15000);
-      if (res.success && res.data) {
-        setSchedule(res.data);
-        localStorage.setItem(`deskly::cache::calendar_view_${dateVal}`, JSON.stringify(res.data));
-        setSelectedCell(null);
-      } else {
-        if (!hasCache) {
-          setError(res.error ?? "Failed to load academic calendar view.");
-        }
-      }
-    } catch (e) {
-      if (!hasCache) {
-        setError(e instanceof Error ? e.message : String(e));
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchOptions();
-  }, []);
-
-  useEffect(() => {
-    if (selectedOption) {
-      fetchView(selectedOption.dateValue);
-    }
-  }, [selectedOption]);
+  const schedule = viewData || null;
+  const loading = optionsLoading || viewLoading;
+  const error = optionsError || viewError;
 
   // Calendar Math
   const calendarCells = useMemo(() => {

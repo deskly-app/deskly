@@ -12,7 +12,8 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { OfflineDisplay } from "@/components/offline-display";
-import { isNetworkError, fetchWithTimeout } from "@/lib/utils";
+import { isNetworkError } from "@/lib/utils";
+import { useOfflineData } from "@/hooks/use-offline-data";
 import { DrawerSelect } from "@/components/ui/drawer-select";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import gradeHistoryImg from "@/assets/grade-history.png";
@@ -249,99 +250,51 @@ export default function GradesPage() {
   const [activeTab, setActiveTab] = useState<"semester" | "history">("semester");
 
   // Semesters list state
-  const [semesters, setSemesters] = useState<SemesterOption[]>([]);
   const [selectedSemId, setSelectedSemId] = useState<string>("");
 
   // Semester Grade View State
-  const initialSemGrade = useMemo(() => {
-    try {
-      const cached = localStorage.getItem("deskly::cache::sem_grades");
-      return cached ? JSON.parse(cached) : null;
-    } catch { return null; }
-  }, []);
+  const {
+    data: semGradeData,
+    loading: semLoading,
+    error: semErrorRaw,
+    retry: loadSemesterGrade
+  } = useOfflineData<SemesterGradeViewData>({
+    cacheKey: "deskly::cache::sem_grades",
+    fetcher: () => getStudentGradeView(selectedSemId || undefined),
+    enabled: isLoggedIn && !authLoading,
+  });
 
-  const [semGradeData, setSemGradeData] = useState<SemesterGradeViewData | null>(initialSemGrade);
-  const [semLoading, setSemLoading] = useState(!initialSemGrade);
-  const [semError, setSemError] = useState<string | null>(null);
   const [selectedSemGrade, setSelectedSemGrade] = useState<SemesterGradeEntry | null>(null);
 
-  // Grade History State
-  const initialHistory = useMemo(() => {
-    try {
-      const cached = localStorage.getItem("deskly::cache::grade_history");
-      return cached ? JSON.parse(cached) : null;
-    } catch { return null; }
-  }, []);
+  // Semesters list state
+  const [semesters, setSemesters] = useState<SemesterOption[]>([]);
+  useEffect(() => {
+    if (semGradeData?.semesters && semGradeData.semesters.length > 0) {
+      setSemesters(semGradeData.semesters);
+    }
+    if (semGradeData?.semesterSubId && !selectedSemId) {
+      setSelectedSemId(semGradeData.semesterSubId);
+    }
+  }, [semGradeData, selectedSemId]);
 
-  const [historyData, setHistoryData] = useState<StudentHistoryData | null>(initialHistory);
-  const [historyLoading, setHistoryLoading] = useState(!initialHistory);
-  const [historyError, setHistoryError] = useState<string | null>(null);
+  const semError = semErrorRaw;
+
+  // Grade History State
+  const {
+    data: historyData,
+    loading: historyLoading,
+    error: historyError,
+    retry: loadHistory
+  } = useOfflineData<StudentHistoryData>({
+    cacheKey: "deskly::cache::grade_history",
+    fetcher: () => getGradesHistory(),
+    enabled: isLoggedIn && !authLoading,
+  });
+
   const [selectedHistoryGrade, setSelectedHistoryGrade] = useState<StudentHistoryData["grades"][number] | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGradeFilter, setSelectedGradeFilter] = useState("ALL");
-
-  // Load Semester Grade View
-  async function loadSemesterGrade(semId?: string) {
-    const hasCache = !!(semGradeData && semGradeData.grades && semGradeData.grades.length > 0);
-    setSemLoading(!hasCache);
-    setSemError(null);
-    try {
-      const targetSem = semId !== undefined ? semId : selectedSemId;
-      const res = await fetchWithTimeout(getStudentGradeView(targetSem || undefined), 15000);
-      if (res.success && res.data) {
-        setSemGradeData(res.data);
-        localStorage.setItem("deskly::cache::sem_grades", JSON.stringify(res.data));
-        if (res.data.semesters && res.data.semesters.length > 0) {
-          setSemesters(res.data.semesters);
-        }
-        if (res.data.semesterSubId) {
-          setSelectedSemId(res.data.semesterSubId);
-        }
-      } else {
-        if (!hasCache) {
-          setSemError(res.error ?? "Failed to fetch semester grades.");
-        }
-      }
-    } catch (e) {
-      if (!hasCache) {
-        setSemError(e instanceof Error ? e.message : String(e));
-      }
-    } finally {
-      setSemLoading(false);
-    }
-  }
-
-  // Load Grade History
-  async function loadHistory() {
-    const hasCache = !!(historyData && historyData.grades && historyData.grades.length > 0);
-    setHistoryLoading(!hasCache);
-    setHistoryError(null);
-    try {
-      const res = await fetchWithTimeout(getGradesHistory(), 15000);
-      if (res.success && res.data) {
-        setHistoryData(res.data);
-        localStorage.setItem("deskly::cache::grade_history", JSON.stringify(res.data));
-      } else {
-        if (!hasCache) {
-          setHistoryError(res.error ?? "Failed to fetch grade history.");
-        }
-      }
-    } catch (e) {
-      if (!hasCache) {
-        setHistoryError(e instanceof Error ? e.message : String(e));
-      }
-    } finally {
-      setHistoryLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (isLoggedIn) {
-      loadSemesterGrade();
-      loadHistory();
-    }
-  }, [isLoggedIn]);
 
   // Grade History Metrics
   const totalSubjects = useMemo(() => historyData?.grades?.length ?? 0, [historyData]);

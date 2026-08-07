@@ -1,11 +1,12 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { invoke } from "@tauri-apps/api/core";
 
 import { ErrorDisplay } from "@/components/error-display";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { OfflineDisplay } from "@/components/offline-display";
-import { isNetworkError, fetchWithTimeout } from "@/lib/utils";
+import { isNetworkError } from "@/lib/utils";
+import { useOfflineData } from "@/hooks/use-offline-data";
 import { Separator } from "@/components/ui/separator";
 import {
   Clock,
@@ -49,6 +50,7 @@ interface ExamScheduleResponse {
   success: boolean;
   data?: ExamScheduleGroup[];
   error?: string;
+  [key: string]: unknown;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -144,75 +146,31 @@ export default function ExamSchedulePage() {
   const { isLoggedIn, loading: authLoading } = useAuth();
   const isOnline = useOnlineStatus();
 
-  const initialExams = useMemo(() => {
-    try {
-      const cached = localStorage.getItem("deskly::cache::exams");
-      if (cached) {
-        const parsed = JSON.parse(cached) as ExamScheduleGroup[];
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-    return [];
-  }, []);
+  const {
+    data: groupsData,
+    loading,
+    error,
+    retry: load,
+  } = useOfflineData<ExamScheduleGroup[]>({
+    cacheKey: "deskly::cache::exams",
+    fetcher: () => invoke<ExamScheduleResponse>("exam_schedule_get", { semesterSubId: null }),
+    enabled: isLoggedIn && !authLoading,
+    transform: (data) => data,
+  });
 
-  const [groups, setGroups] = useState<ExamScheduleGroup[]>(initialExams);
-  const [selectedTab, setSelectedTab] = useState<string>(initialExams[0]?.examType ?? "");
-  const [loading, setLoading] = useState(initialExams.length === 0);
-  const [error, setError] = useState<string | null>(null);
+  const groups = groupsData || [];
+  const [selectedTab, setSelectedTab] = useState<string>(groups[0]?.examType ?? "");
   const [selectedExam, setSelectedExam] = useState<ExamScheduleEntry | null>(null);
 
-  // Load fresh from backend
-  async function load() {
-    try {
-      if (!isLoggedIn && !authLoading) return;
-      setError(null);
-      if (authLoading) return;
-
-      const hasCache = groups.length > 0;
-      setLoading(!hasCache);
-
-      const res = await fetchWithTimeout(invoke<ExamScheduleResponse>("exam_schedule_get", { semesterSubId: null }), 15000);
-      if (res.success && res.data) {
-        setGroups(res.data);
-        localStorage.setItem("deskly::cache::exams", JSON.stringify(res.data));
-        if (res.data.length > 0) {
-          const tabNames = res.data.map(g => g.examType);
-          if (!selectedTab || !tabNames.includes(selectedTab)) {
-            setSelectedTab(res.data[0].examType);
-          }
-        } else {
-          setGroups([]);
-          localStorage.removeItem("deskly::cache::exams");
-        }
-      } else {
-        const errMsg = res.error ?? "Failed to fetch exam schedule.";
-        if (errMsg.includes("Could not find exam schedule table")) {
-          setGroups([]);
-          localStorage.removeItem("deskly::cache::exams");
-          setError("Could not find exam schedule table");
-        } else {
-          if (!hasCache) setError(errMsg);
-        }
-      }
-    } catch (e) {
-      const errMsg = e instanceof Error ? e.message : String(e);
-      if (errMsg.includes("Could not find exam schedule table")) {
-        setGroups([]);
-        localStorage.removeItem("deskly::cache::exams");
-        setError("Could not find exam schedule table");
-      } else {
-        if (groups.length === 0) setError(errMsg);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
+  // Update selected tab if groups change and current tab is not in new groups
   useEffect(() => {
-    if (isLoggedIn) {
-      load();
+    if (groups.length > 0) {
+      const tabNames = groups.map(g => g.examType);
+      if (!selectedTab || !tabNames.includes(selectedTab)) {
+        setSelectedTab(groups[0].examType);
+      }
     }
-  }, [isLoggedIn, authLoading]);
+  }, [groups, selectedTab]);
 
   // Select active schedules matching the current tab selection
   const activeSchedules = useMemo(() => {

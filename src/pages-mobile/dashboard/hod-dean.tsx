@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import React from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getHodDeanDetails, HodDeanDetail } from "@/lib/features";
-import { isNetworkError, fetchWithTimeout } from "@/lib/utils";
+import { isNetworkError } from "@/lib/utils";
+import { useOfflineData } from "@/hooks/use-offline-data";
 import { ErrorDisplay } from "@/components/error-display";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { OfflineDisplay } from "@/components/offline-display";
@@ -67,51 +68,18 @@ function ProfileRow({
 export default function HodDeanDetailsPage() {
   const { loading: authLoading } = useAuth();
   const isOnline = useOnlineStatus();
-  const [details, setDetails] = useState<HodDeanDetail[] | null>(() => {
-    try {
-      const cached = localStorage.getItem("deskly::cache::hod_dean");
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-    return null;
+  const { data: rawData, loading, error, retry: fetchDetails } = useOfflineData<HodDeanDetail[]>({
+    cacheKey: "deskly::cache::hod_dean",
+    fetcher: getHodDeanDetails,
   });
-  const [loading, setLoading] = useState(!details);
-  const [error, setError] = useState<string | null>(null);
-
-  async function fetchDetails() {
-    try {
-      const hasCache = !!(details && details.length > 0);
-      setLoading(!hasCache);
-      const res = await fetchWithTimeout(getHodDeanDetails(), 15000);
-      if (res.success && res.data) {
-        setDetails(res.data);
-        localStorage.setItem("deskly::cache::hod_dean", JSON.stringify(res.data));
-      } else {
-        if (!hasCache) {
-          setError(res.error ?? "Failed to fetch HOD and Dean details.");
-        }
-      }
-    } catch (err) {
-      if (!details || details.length === 0) {
-        setError(err instanceof Error ? err.message : String(err));
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchDetails();
-  }, []);
+  const details = rawData || null;
 
   const shell = (children: React.ReactNode) => <>{children}</>;
-  const showOffline = !details && (isOnline === false || isNetworkError(error, isOnline));
+  const showOffline = !rawData && !loading && (isOnline === false || isNetworkError(error, isOnline));
 
-  if (showOffline && !loading) return shell(<OfflineDisplay onRetry={fetchDetails} />);
-  if (authLoading || (loading && !details)) return shell(<HodDeanSkeleton />);
-  if (error && !details) {
+  if (showOffline) return shell(<OfflineDisplay onRetry={fetchDetails} />);
+  if (authLoading || (loading && !rawData)) return shell(<HodDeanSkeleton />);
+  if (error && !rawData) {
     return shell(
       <div className="flex h-full items-center justify-center">
         <ErrorDisplay message={error} onRetry={fetchDetails} />
