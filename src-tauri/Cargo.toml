@@ -1,6 +1,6 @@
 [package]
 name = "deskly-tauri"
-version = "5.1.2"
+version = "6.1.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
