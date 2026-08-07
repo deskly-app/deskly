@@ -3,11 +3,6 @@
   "private": true,
   "version": "6.1.0",
   "type": "module",
-  "engines": {
-    "npm": "please-use-pnpm",
-    "yarn": "please-use-pnpm",
-    "pnpm": ">=8"
-  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
