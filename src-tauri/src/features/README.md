@@ -16,7 +16,7 @@ This module contains various general utilities and feature-specific components o
   - `hod_dean_details_get.rs`: Scrapes the school list to extract profiles, cabin locations, and emails.
   - `laundry_get_schedule.rs`: Reads hostel wash bookings.
   - `mess_get_menu.rs`: Fetches mess food menu calendars.
-  - `payment_receipts_get.rs` & `payment_receipt_download.rs`: Manages fee payment records and receipts.
+  - `payment_receipts_get.rs`: Manages fee payment records and receipts.
   - `mod.rs`: Exports commands submodules.
 - `mod.rs`: Exports types, parsers, and command submodules.
 
@@ -46,11 +46,9 @@ All commands are serialized with `camelCase` naming format for seamless JSON con
 - **Tauri Binding**: `contact_info_get`
 - **Return Type**: `ContactResponse`
 
-### 5. `payment_receipts_get` / `payment_receipt_download`
-- **Tauri Bindings**: `payment_receipts_get`, `payment_receipt_download`
-- **Parameters**:
-  - `payment_receipt_download`: `receipt_id: String`, `appl_no: String`, `reg_no: String`
-- **Return Types**: `ReceiptResponse`, `ReceiptDownloadResponse`
+### 5. `payment_receipts_get`
+- **Tauri Bindings**: `payment_receipts_get`
+- **Return Types**: `ReceiptResponse`
 
 ### 6. `curriculum_get` / `curriculum_get_category_view` / `curriculum_download_syllabus`
 - **Tauri Bindings**: `curriculum_get`, `curriculum_get_category_view`, `curriculum_download_syllabus`

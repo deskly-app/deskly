@@ -470,29 +470,6 @@ export async function downloadCurriculumSyllabus(
   }
 }
 
-export interface ReceiptDownloadData {
-  filename: string;
-  savePath: string;
-}
-
-export type ReceiptDownloadResponse = ApiResult<ReceiptDownloadData>;
-
-export async function downloadPaymentReceipt(
-  receitNo: string,
-  applno: string,
-): Promise<ReceiptDownloadResponse> {
-  try {
-    return await invoke<ReceiptDownloadResponse>("payment_receipt_download", {
-      receitNo,
-      applno,
-    });
-  } catch (err: unknown) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-    };
-  }
-}
 
 export interface HodDeanDetail {
   role: string;

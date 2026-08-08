@@ -9,7 +9,6 @@ pub mod curriculum_get_category_view;
 pub mod curriculum_download_syllabus;
 pub mod exam_schedule_get;
 pub mod hod_dean_details_get;
-pub mod payment_receipt_download;
 
 pub use academic_calendar_get::*;
 pub use academic_calendar_get_view::*;
@@ -22,4 +21,3 @@ pub use curriculum_get_category_view::*;
 pub use curriculum_download_syllabus::*;
 pub use exam_schedule_get::*;
 pub use hod_dean_details_get::*;
-pub use payment_receipt_download::*;

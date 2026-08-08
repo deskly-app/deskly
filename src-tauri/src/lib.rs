@@ -183,7 +183,6 @@ pub fn run() {
             features::laundry_get_schedule,
             features::contact_info_get,
             features::payment_receipts_get,
-            features::payment_receipt_download,
             features::curriculum_get,
             features::curriculum_get_category_view,
             features::curriculum_download_syllabus,
