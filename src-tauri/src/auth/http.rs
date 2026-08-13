@@ -5,11 +5,9 @@ use std::time::Duration;
 use super::constants::VTOP_BASE_URL;
 
 pub fn build_http_client() -> Result<reqwest::Client, String> {
-    reqwest::Client
-        ::builder()
+    let mut builder = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(10))
         .timeout(Duration::from_secs(30))
-        .danger_accept_invalid_certs(true)
         .redirect(reqwest::redirect::Policy::none())
         .user_agent(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
@@ -23,8 +21,14 @@ pub fn build_http_client() -> Result<reqwest::Client, String> {
                 )
             );
             headers
-        })
-        .build()
+        });
+
+    #[cfg(debug_assertions)]
+    {
+        builder = builder.danger_accept_invalid_certs(true);
+    }
+
+    builder.build()
         .map_err(|e| format!("failed to create http client: {e}"))
 }
 
