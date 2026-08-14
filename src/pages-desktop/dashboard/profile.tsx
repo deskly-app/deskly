@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getStudentProfile, ProfileData } from "@/lib/features";
+import { useOfflineData } from "@/hooks/use-offline-data";
 
 import { ErrorDisplay } from "@/components/error-display";
 import {
@@ -185,46 +185,15 @@ function ProfileSkeleton() {
 
 export default function StudentProfilePage() {
   const { loading: authLoading } = useAuth();
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Load from cache first
-  useEffect(() => {
-    const cached = localStorage.getItem("deskly::cache::profile");
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (parsed && parsed.student && parsed.student.name) {
-          setProfile(parsed);
-          setLoading(false);
-        }
-      } catch (e) {
-        console.error("Failed to parse cached profile", e);
-      }
-    }
-  }, []);
-
-  async function fetchProfile() {
-    setLoading(profile ? false : true);
-    try {
-      const res = await getStudentProfile();
-      if (res.success && res.data) {
-        setProfile(res.data);
-        localStorage.setItem("deskly::cache::profile", JSON.stringify(res.data));
-      } else {
-        setError(res.error ?? "Failed to fetch student profile details.");
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchProfile();
-  }, []);
+  const {
+    data: profile,
+    loading,
+    error,
+    retry: fetchProfile,
+  } = useOfflineData<ProfileData>({
+    cacheKey: "deskly::cache::profile",
+    fetcher: getStudentProfile,
+  });
 
   const shell = (children: React.ReactNode) => (
     <>{children}</>

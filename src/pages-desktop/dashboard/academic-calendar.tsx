@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import {
   getAcademicCalendarOptions,
@@ -6,6 +6,7 @@ import {
   CalendarMonthOption,
   MonthlySchedule,
 } from "@/lib/features";
+import { useOfflineData } from "@/hooks/use-offline-data";
 
 import { ErrorDisplay } from "@/components/error-display";
 import {
@@ -104,101 +105,47 @@ type CalendarCell = {
 
 export default function AcademicCalendarPage() {
   const { loading: authLoading } = useAuth();
-  const [options, setOptions] = useState<CalendarMonthOption[] | null>(null);
+  const {
+    data: optionsData,
+    loading: optionsLoading,
+    error: optionsError,
+    retry: fetchOptions,
+  } = useOfflineData<CalendarMonthOption[]>({
+    cacheKey: "deskly::cache::calendar_options",
+    fetcher: getAcademicCalendarOptions,
+  });
+
+  const options = optionsData;
   const [selectedOption, setSelectedOption] = useState<CalendarMonthOption | null>(null);
-  const [schedule, setSchedule] = useState<MonthlySchedule | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (optionsData && optionsData.length > 0 && !selectedOption) {
+      setSelectedOption(optionsData[0]);
+    }
+  }, [optionsData, selectedOption]);
+
+  const {
+    data: scheduleData,
+    loading: viewLoading,
+    error: viewError,
+    retry: retryView,
+  } = useOfflineData<MonthlySchedule>({
+    cacheKey: selectedOption ? `deskly::cache::calendar_view_${selectedOption.dateValue}` : "",
+    fetcher: () => getAcademicCalendarView(selectedOption!.dateValue),
+    enabled: !!selectedOption,
+  });
+
+  const schedule = scheduleData;
+  const loading = optionsLoading || viewLoading;
+  const error = optionsError || viewError;
 
   // Selected cell details in side panel
   const [selectedCell, setSelectedCell] = useState<CalendarCell | null>(null);
 
-  // Load options from cache first
-  useEffect(() => {
-    const cachedOptions = localStorage.getItem("deskly::cache::calendar_options");
-    if (cachedOptions) {
-      try {
-        const parsed = JSON.parse(cachedOptions);
-        if (parsed && parsed.length > 0) {
-          setOptions(parsed);
-          setSelectedOption(parsed[0]);
-        }
-      } catch (e) {
-        console.error("Failed to parse cached academic calendar options", e);
-      }
-    }
-  }, []);
-
-  // Load monthly view from cache first when selectedOption changes
-  useEffect(() => {
-    if (selectedOption) {
-      const cachedView = localStorage.getItem(`deskly::cache::calendar_view_${selectedOption.dateValue}`);
-      if (cachedView) {
-        try {
-          const parsed = JSON.parse(cachedView);
-          if (parsed && parsed.days && parsed.days.length > 0) {
-            setSchedule(parsed);
-            setLoading(false);
-            return;
-          }
-        } catch (e) {
-          console.error("Failed to parse cached calendar view", e);
-        }
-      }
-      setSchedule(null);
-      setLoading(true);
-    }
-  }, [selectedOption]);
-
-  const fetchOptions = async () => {
-    setLoading(options && options.length > 0 ? false : true);
-    setError(null);
-    try {
-      const res = await getAcademicCalendarOptions();
-      if (res.success && res.data && res.data.length > 0) {
-        setOptions(res.data);
-        localStorage.setItem("deskly::cache::calendar_options", JSON.stringify(res.data));
-        if (!selectedOption) {
-          setSelectedOption(res.data[0]);
-        }
-      } else {
-        setError(res.error ?? "No academic calendar semesters found.");
-        setLoading(false);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      setLoading(false);
-    }
-  };
-
-  const fetchView = async (dateVal: string) => {
-    setLoading(schedule ? false : true);
-    setError(null);
-    try {
-      const res = await getAcademicCalendarView(dateVal);
-      if (res.success && res.data) {
-        setSchedule(res.data);
-        localStorage.setItem(`deskly::cache::calendar_view_${dateVal}`, JSON.stringify(res.data));
-        setSelectedCell(null); // Reset day details view on month change
-      } else {
-        setError(res.error ?? "Failed to load academic calendar view.");
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchOptions();
-  }, []);
-
-  useEffect(() => {
-    if (selectedOption) {
-      fetchView(selectedOption.dateValue);
-    }
-  }, [selectedOption]);
+  const fetchView = useCallback((_dateVal?: string) => {
+    setSelectedCell(null);
+    retryView();
+  }, [retryView]);
 
   // Calendar Math: construct 35-42 grid cells based on loaded schedule and options
   const calendarCells = useMemo(() => {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { invoke } from "@tauri-apps/api/core";
+import { useOfflineData } from "@/hooks/use-offline-data";
 
 import { ErrorDisplay } from "@/components/error-display";
 import { motion } from "framer-motion";
@@ -183,9 +184,26 @@ function SidebarSkeleton() {
 export default function ExamSchedulePage() {
   const { isLoggedIn, loading: authLoading } = useAuth();
 
-  const [groups, setGroups] = useState<ExamScheduleGroup[]>([]);
+  const {
+    data: groupsRaw,
+    loading,
+    error,
+    retry: load,
+  } = useOfflineData<ExamScheduleGroup[]>({
+    cacheKey: "deskly::cache::exam_schedule",
+    fetcher: async () => {
+      const res = await invoke<ExamScheduleResponse>("exam_schedule_get", { semesterSubId: null });
+      return {
+        success: res.success,
+        data: res.data,
+        error: res.error,
+      };
+    },
+    enabled: isLoggedIn && !authLoading,
+  });
+
+  const groups = useMemo(() => groupsRaw || [], [groupsRaw]);
   const [selectedTab, setSelectedTab] = useState<string>("");
-  const [loading, setLoading] = useState(true);
 
   const handleDownloadGroupIcs = async () => {
     try {
@@ -199,83 +217,21 @@ export default function ExamSchedulePage() {
       console.error("Failed to save calendar file", e);
     }
   };
-  const [error, setError] = useState<string | null>(null);
+
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
 
-  // Load from Cache (SWR) first
+  // Auto-select first tab when groups load
   useEffect(() => {
-    const cached = localStorage.getItem("deskly::cache::exams");
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached) as ExamScheduleGroup[];
-        if (parsed.length > 0) {
-          setGroups(parsed);
-          setSelectedTab(parsed[0].examType);
-          setLoading(false);
-        }
-      } catch (e) {
-        console.error("Failed to parse cached exams", e);
-      }
+    if (groups.length > 0 && (!selectedTab || !groups.some(g => g.examType === selectedTab))) {
+      setSelectedTab(groups[0].examType);
     }
-  }, []);
+  }, [groups, selectedTab]);
 
   // Update Current Time every second for countdown
   useEffect(() => {
     const t = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
-
-  // Load fresh from backend
-  async function load() {
-    try {
-      if (!isLoggedIn && !authLoading) return;
-      setError(null);
-      if (authLoading) return;
-
-      setLoading(groups.length > 0 ? false : true);
-
-      const res = await invoke<ExamScheduleResponse>("exam_schedule_get", { semesterSubId: null });
-      if (res.success && res.data) {
-        setGroups(res.data);
-        localStorage.setItem("deskly::cache::exams", JSON.stringify(res.data));
-        if (res.data.length > 0) {
-          const tabNames = res.data.map(g => g.examType);
-          if (!selectedTab || !tabNames.includes(selectedTab)) {
-            setSelectedTab(res.data[0].examType);
-          }
-        } else {
-          setGroups([]);
-          localStorage.removeItem("deskly::cache::exams");
-        }
-      } else {
-        const errMsg = res.error ?? "Failed to fetch exam schedule.";
-        if (errMsg.includes("Could not find exam schedule table")) {
-          setGroups([]);
-          localStorage.removeItem("deskly::cache::exams");
-          setError("Could not find exam schedule table");
-        } else {
-          setError(errMsg);
-        }
-      }
-    } catch (e) {
-      const errMsg = e instanceof Error ? e.message : String(e);
-      if (errMsg.includes("Could not find exam schedule table")) {
-        setGroups([]);
-        localStorage.removeItem("deskly::cache::exams");
-        setError("Could not find exam schedule table");
-      } else {
-        setError(errMsg);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (isLoggedIn) {
-      load();
-    }
-  }, [isLoggedIn, authLoading]);
 
   // Select active schedules matching the current tab selection
   const activeSchedules = useMemo(() => {

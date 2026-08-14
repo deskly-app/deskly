@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { invoke } from "@tauri-apps/api/core";
+import { useOfflineData } from "@/hooks/use-offline-data";
 
 import { ErrorDisplay } from "@/components/error-display";
 import CalendarExportPopover from "@/components/calendar-export-popover";
@@ -174,81 +175,57 @@ export default function TimetablePage() {
     const mon = new Date(n.setDate(n.getDate() - d + (d === 0 ? -6 : 1)));
     mon.setHours(0,0,0,0); return mon;
   });
-  const [schedule, setSchedule]         = useState<WeeklySchedule>(EMPTY);
-  const [attendance, setAttendance]     = useState<AttendanceRecord[]>([]);
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState<string|null>(null);
+  const {
+    data: timetableRaw,
+    loading: timetableLoading,
+    error: timetableError,
+    retry: retryTimetable,
+  } = useOfflineData<WeeklySchedule>({
+    cacheKey: "deskly::cache::timetable",
+    fetcher: async () => {
+      const res = await invoke<ApiResult<WeeklySchedule>>("timetable_get_weekly", { semesterSubId: null });
+      return {
+        success: res.success,
+        data: res.data,
+        error: res.error,
+      };
+    },
+    enabled: isLoggedIn && !authLoading,
+    isEmpty: (val) => Object.values(val).every((arr) => arr.length === 0),
+  });
+  const schedule = timetableRaw || EMPTY;
+
+  const {
+    data: attendanceRaw,
+    loading: attendanceLoading,
+    retry: retryAttendance,
+  } = useOfflineData<AttendanceRecord[]>({
+    cacheKey: "deskly::cache::timetable_attendance",
+    fetcher: async () => {
+      const res = await invoke<AttendanceResponse>("attendance_get_current").catch(
+        () => ({ success: false } as AttendanceResponse)
+      );
+      return {
+        success: res.success,
+        data: res.data,
+        error: res.error,
+      };
+    },
+    enabled: isLoggedIn && !authLoading,
+  });
+  const attendance = attendanceRaw || [];
+
+  const loading = timetableLoading || attendanceLoading;
+  const error = timetableError;
   const [now, setNow]                   = useState(() => new Date());
+
+  const load = () => {
+    retryTimetable();
+    retryAttendance();
+  };
 
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 60_000); return () => clearInterval(t); }, []);
   useEffect(() => { if (!authLoading && !isLoggedIn) navigate("/"); }, [isLoggedIn, authLoading]);
-
-  // Load from Cache (SWR) first
-  useEffect(() => {
-    const cachedTt = localStorage.getItem("deskly::cache::timetable");
-    const cachedAtt = localStorage.getItem("deskly::cache::timetable_attendance");
-    if (cachedTt || cachedAtt) {
-      try {
-        let hasData = false;
-        if (cachedTt) {
-          const parsedTt = JSON.parse(cachedTt);
-          if (parsedTt && Object.values(parsedTt).some((arr: any) => Array.isArray(arr) && arr.length > 0)) {
-            setSchedule(parsedTt);
-            hasData = true;
-          }
-        }
-        if (cachedAtt) {
-          const parsedAtt = JSON.parse(cachedAtt);
-          if (parsedAtt && parsedAtt.length > 0) {
-            setAttendance(parsedAtt);
-            hasData = true;
-          }
-        }
-        if (hasData) {
-          setLoading(false);
-        }
-      } catch (e) {
-        console.error("Failed to parse cached timetable/attendance", e);
-      }
-    }
-  }, []);
-
-  async function load() {
-    try {
-      setError(null);
-      const isScheduleEmpty = Object.values(schedule).every(arr => arr.length === 0);
-      setLoading(isScheduleEmpty);
-
-      const [tt, att] = await Promise.all([
-        invoke<ApiResult<WeeklySchedule>>("timetable_get_weekly", { semesterSubId: null }),
-        invoke<AttendanceResponse>("attendance_get_current").catch(() => ({ success: false } as AttendanceResponse)),
-      ]);
-      
-      let updatedTt = schedule;
-      let updatedAtt = attendance;
-      
-      if (tt.success && tt.data) {
-        setSchedule(tt.data);
-        updatedTt = tt.data;
-      } else if (tt.error) {
-        setError(tt.error);
-      }
-      
-      if (att.success && att.data) {
-        setAttendance(att.data);
-        updatedAtt = att.data;
-      }
-      
-      // Save cache
-      localStorage.setItem("deskly::cache::timetable", JSON.stringify(updatedTt));
-      localStorage.setItem("deskly::cache::timetable_attendance", JSON.stringify(updatedAtt));
-    } catch (e) { 
-      setError(e instanceof Error ? e.message : String(e)); 
-    } finally { 
-      setLoading(false); 
-    }
-  }
-  useEffect(() => { if (isLoggedIn) load(); }, [isLoggedIn]);
 
   const DAY_KEYS: (keyof WeeklySchedule)[] = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
   const DAY_SHORT = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
