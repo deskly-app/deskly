@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { useParams, useNavigate } from "@/router";
 import { getAttendanceDetail, AttendanceDetailRecord, AttendanceRecord } from "@/lib/attendance";
-import { fetchWithTimeout, isNetworkError } from "@/lib/utils";
+import { isNetworkError } from "@/lib/utils";
 import { OfflineDisplay } from "@/components/offline-display";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { ErrorDisplay } from "@/components/error-display";
+import { useOfflineData } from "@/hooks/use-offline-data";
 import {
   ArrowLeft,
   User,
@@ -164,21 +165,6 @@ export default function AttendanceDetailPage() {
   const navigate = useNavigate();
   const isOnline = useOnlineStatus();
   const [record, setRecord] = useState<AttendanceRecord | undefined>(location.state?.record);
-  const [details, setDetails] = useState<AttendanceDetailRecord[]>(() => {
-    if (!classId) return [];
-    try {
-      const cacheKey = `deskly::cache::attendance_detail_${classId}`;
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-    return [];
-  });
-  const [loading, setLoading] = useState(details.length === 0);
-  const [isRetrying, setIsRetrying] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!record && classId) {
@@ -197,37 +183,19 @@ export default function AttendanceDetailPage() {
     }
   }, [classId, record]);
 
-  async function load(isManualRetry = false) {
-    if (!classId || !record) return;
-    if (isManualRetry && !isOnline) return;
+  const {
+    data: detailsRaw,
+    loading,
+    error,
+    retry: load,
+  } = useOfflineData<AttendanceDetailRecord[]>({
+    cacheKey: classId ? `deskly::cache::attendance_detail_${classId}` : "",
+    fetcher: () => getAttendanceDetail(classId!, record!.slot),
+    enabled: !!classId && !!record,
+  });
 
-    const hasCache = details.length > 0;
-    if (isManualRetry) {
-      setIsRetrying(true);
-    } else {
-      setLoading(!hasCache);
-    }
-
-    try {
-      const cacheKey = `deskly::cache::attendance_detail_${classId}`;
-      const res = await fetchWithTimeout(getAttendanceDetail(classId!, record!.slot), 15000);
-      if (res.success && res.data) {
-        setDetails(res.data);
-        localStorage.setItem(cacheKey, JSON.stringify(res.data));
-      } else {
-        if (!hasCache) setError(res.error ?? "Failed to load attendance details.");
-      }
-    } catch (e) {
-      if (!hasCache) setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-      setIsRetrying(false);
-    }
-  }
-
-  useEffect(() => {
-    load();
-  }, [classId, record]);
+  const details = useMemo(() => detailsRaw || [], [detailsRaw]);
+  const isRetrying = loading && details.length > 0;
 
   const isLab = record?.courseType.trim().toUpperCase().includes("LAB");
   const multiplier = isLab ? 2 : 1;
@@ -432,7 +400,7 @@ export default function AttendanceDetailPage() {
               <p className="text-sm font-bold text-foreground">Session logs unavailable offline</p>
               <p className="text-xs text-muted-foreground">Connect to the internet to load detailed session logs for this class.</p>
               <button
-                onClick={() => load(true)}
+                onClick={() => load()}
                 disabled={isRetrying || loading || !isOnline}
                 className="mt-1 min-w-[144px] h-9 px-4 py-2 rounded-md bg-primary/10 hover:bg-primary/15 text-primary text-xs font-bold transition-all border border-primary/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center text-center shrink-0"
               >

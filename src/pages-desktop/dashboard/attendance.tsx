@@ -1,11 +1,12 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getCurrentAttendance, AttendanceRecord } from "@/lib/attendance";
-import { isNetworkError, fetchWithTimeout } from "@/lib/utils";
+import { isNetworkError } from "@/lib/utils";
 import { ErrorDisplay } from "@/components/error-display";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { OfflineDisplay } from "@/components/offline-display";
 import { Outlet, useMatch, useNavigate } from "react-router-dom";
+import { useOfflineData } from "@/hooks/use-offline-data";
 import {
   UserCheck,
   CalendarDays,
@@ -247,49 +248,25 @@ export default function AttendancePage() {
   const isDetailRoute = useMatch("/dashboard/attendance/:classId");
   const isOnline = useOnlineStatus();
 
-  const [attendance, setAttendance] = useState<AttendanceRecord[]>(() => {
-    try {
-      const cached = localStorage.getItem("deskly::cache::attendance");
-      if (cached) {
-        const parsed = JSON.parse(cached) as AttendanceRecord[];
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  const {
+    data: attendanceRaw,
+    loading,
+    error,
+    retry,
+  } = useOfflineData<AttendanceRecord[]>({
+    cacheKey: "deskly::cache::attendance",
+    fetcher: async () => {
+      const res = await getCurrentAttendance();
+      if (res.success && res.semesterId) {
+        localStorage.setItem("deskly::cache::attendance_semester", res.semesterId);
       }
-    } catch {}
-    return [];
+      return res;
+    },
+    enabled: isLoggedIn && !authLoading,
   });
-  const [loading, setLoading] = useState(attendance.length === 0);
-  const [error, setError] = useState<string | null>(null);
+
+  const attendance = useMemo(() => attendanceRaw || [], [attendanceRaw]);
   const [filterType, setFilterType] = useState("all");
-
-  async function load() {
-    if (authLoading || !isLoggedIn) return;
-    setError(null);
-    const hasCache = attendance.length > 0;
-    setLoading(!hasCache);
-    try {
-      const res = await fetchWithTimeout(getCurrentAttendance(), 15000);
-      if (res.success && res.data) {
-        setAttendance(res.data);
-        const sem = res.semesterId ?? "";
-        localStorage.setItem("deskly::cache::attendance", JSON.stringify(res.data));
-        localStorage.setItem("deskly::cache::attendance_semester", sem);
-      } else {
-        if (!hasCache) {
-          setError(res.error ?? "Failed to fetch attendance.");
-        }
-      }
-    } catch (e) {
-      if (!hasCache) {
-        setError(e instanceof Error ? e.message : String(e));
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (isLoggedIn) load();
-  }, [isLoggedIn, authLoading]);
 
   const stats = useMemo(() => {
     let totalAttended = 0;
@@ -326,7 +303,7 @@ export default function AttendancePage() {
   const showOffline = attendance.length === 0 && (isOnline === false || isNetworkError(error, isOnline));
 
   if (showOffline) {
-    return <OfflineDisplay onRetry={load} />;
+    return <OfflineDisplay onRetry={retry} />;
   }
 
   if (authLoading || (loading && attendance.length === 0)) {
@@ -336,7 +313,7 @@ export default function AttendancePage() {
   if (error && attendance.length === 0) {
     return (
       <div className="flex h-full items-center justify-center font-saira">
-        <ErrorDisplay message={error} onRetry={load} />
+        <ErrorDisplay message={error} onRetry={retry} />
       </div>
     );
   }
@@ -349,7 +326,7 @@ export default function AttendancePage() {
       {error && !isNetworkError(error, isOnline) && (
         <div className="flex items-center justify-between gap-4 px-4 py-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg">
           <p className="text-xs font-semibold truncate">Sync failed — {error}</p>
-          <button onClick={load} className="text-xs font-bold uppercase tracking-wider shrink-0 border-0 bg-transparent text-destructive cursor-pointer">
+          <button onClick={retry} className="text-xs font-bold uppercase tracking-wider shrink-0 border-0 bg-transparent text-destructive cursor-pointer">
             Retry
           </button>
         </div>

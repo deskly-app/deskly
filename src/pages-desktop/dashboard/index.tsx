@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { invoke } from "@tauri-apps/api/core";
 import { Link } from "react-router-dom";
+import { useOfflineData } from "@/hooks/use-offline-data";
 
 import { ErrorDisplay } from "@/components/error-display";
 import { getStudentProfile, ProfileData } from "@/lib/features";
@@ -179,11 +180,45 @@ function DashboardSkeleton() {
 export default function DashboardHomePage() {
   const { isLoggedIn, loading: authLoading } = useAuth();
 
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [cgpaData, setCgpaData] = useState<CgpaData | null>(null);
-  const [feedbackData, setFeedbackData] = useState<FeedbackStatus[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: combinedData,
+    loading,
+    error,
+    retry: loadData,
+  } = useOfflineData<{
+    cgpaData: CgpaData | null;
+    feedbackData: FeedbackStatus[] | null;
+    profile: ProfileData | null;
+  }>({
+    cacheKey: "deskly::cache::dashboard",
+    fetcher: async () => {
+      const [cgpaRes, feedbackRes, profileRes] = await Promise.all([
+        getCgpaPage(),
+        getFeedbackStatus(),
+        getStudentProfile().catch(() => null),
+      ]);
+
+      const data = {
+        cgpaData: cgpaRes.success && cgpaRes.cgpaData ? cgpaRes.cgpaData : null,
+        feedbackData: feedbackRes.success && feedbackRes.data ? feedbackRes.data : null,
+        profile: profileRes && profileRes.success && profileRes.data ? profileRes.data : null,
+      };
+
+      if (!cgpaRes.success && cgpaRes.error) {
+        return { success: false, error: cgpaRes.error };
+      }
+      if (!feedbackRes.success && feedbackRes.error) {
+        return { success: false, error: feedbackRes.error };
+      }
+
+      return { success: true, data };
+    },
+    enabled: isLoggedIn && !authLoading,
+  });
+
+  const cgpaData = combinedData?.cgpaData || null;
+  const feedbackData = combinedData?.feedbackData || null;
+  const profile = combinedData?.profile || null;
 
   // Today's Date formatted nicely
   const formattedDate = useMemo(() => {
@@ -194,83 +229,6 @@ export default function DashboardHomePage() {
       year: "numeric",
     });
   }, []);
-
-  // Load from Cache (SWR) first
-  useEffect(() => {
-    const cached = localStorage.getItem("deskly::cache::dashboard");
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (parsed && (parsed.cgpaData || parsed.feedbackData || parsed.profile)) {
-          if (parsed.cgpaData) setCgpaData(parsed.cgpaData);
-          if (parsed.feedbackData) setFeedbackData(parsed.feedbackData);
-          if (parsed.profile) setProfile(parsed.profile);
-          setLoading(false);
-        }
-      } catch (e) {
-        console.error("Failed to parse cached dashboard data", e);
-      }
-    }
-  }, []);
-
-  async function loadData() {
-    try {
-      if (!isLoggedIn && !authLoading) return;
-      setError(null);
-      if (authLoading) return;
-
-      const [cgpaRes, feedbackRes, profileRes] = await Promise.all([
-        getCgpaPage(),
-        getFeedbackStatus(),
-        getStudentProfile().catch(() => null),
-      ]);
-
-      let updatedCgpa = cgpaData;
-      let updatedFeedback = feedbackData;
-      let updatedProfile = profile;
-
-      if (cgpaRes.success && cgpaRes.cgpaData) {
-        setCgpaData(cgpaRes.cgpaData);
-        updatedCgpa = cgpaRes.cgpaData;
-      } else if (cgpaRes.error) {
-        console.error("CGPA fetch error:", cgpaRes.error);
-        setError(cgpaRes.error);
-      }
-
-      if (feedbackRes.success && feedbackRes.data) {
-        setFeedbackData(feedbackRes.data);
-        updatedFeedback = feedbackRes.data;
-      } else if (feedbackRes.error) {
-        console.error("Feedback fetch error:", feedbackRes.error);
-        setError(feedbackRes.error);
-      }
-
-      if (profileRes && profileRes.success && profileRes.data) {
-        setProfile(profileRes.data);
-        updatedProfile = profileRes.data;
-      }
-
-      // Save to cache
-      localStorage.setItem(
-        "deskly::cache::dashboard",
-        JSON.stringify({
-          cgpaData: updatedCgpa,
-          feedbackData: updatedFeedback,
-          profile: updatedProfile,
-        })
-      );
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (isLoggedIn) {
-      loadData();
-    }
-  }, [isLoggedIn, authLoading]);
 
   function parseFeedbackText(text: string) {
     const normalized = text.toLowerCase();

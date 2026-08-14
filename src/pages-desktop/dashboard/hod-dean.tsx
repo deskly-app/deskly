@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getHodDeanDetails, HodDeanDetail } from "@/lib/features";
+import { useOfflineData } from "@/hooks/use-offline-data";
 
 import { ErrorDisplay } from "@/components/error-display";
 import {
@@ -137,46 +137,15 @@ function HodDeanSkeleton() {
 
 export default function HodDeanDetailsPage() {
   const { loading: authLoading } = useAuth();
-  const [details, setDetails] = useState<HodDeanDetail[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Load from cache first
-  useEffect(() => {
-    const cached = localStorage.getItem("deskly::cache::hod_dean");
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (parsed && parsed.length > 0) {
-          setDetails(parsed);
-          setLoading(false);
-        }
-      } catch (e) {
-        console.error("Failed to parse cached HOD/Dean details", e);
-      }
-    }
-  }, []);
-
-  async function fetchDetails() {
-    try {
-      setLoading(details && details.length > 0 ? false : true);
-      const res = await getHodDeanDetails();
-      if (res.success && res.data) {
-        setDetails(res.data);
-        localStorage.setItem("deskly::cache::hod_dean", JSON.stringify(res.data));
-      } else {
-        setError(res.error ?? "Failed to fetch HOD and Dean details.");
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchDetails();
-  }, []);
+  const {
+    data: details,
+    loading,
+    error,
+    retry: fetchDetails,
+  } = useOfflineData<HodDeanDetail[]>({
+    cacheKey: "deskly::cache::hod_dean_details",
+    fetcher: getHodDeanDetails,
+  });
 
   const shell = (children: React.ReactNode) => (
     <>{children}</>

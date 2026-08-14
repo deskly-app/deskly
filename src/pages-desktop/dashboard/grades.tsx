@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getGradesHistory, StudentHistoryData } from "@/lib/features";
+import { useOfflineData } from "@/hooks/use-offline-data";
 
 import { ErrorDisplay } from "@/components/error-display";
 import { Input } from "@/components/ui/input";
@@ -147,57 +148,19 @@ function GradesSkeleton() {
 export default function GradesPage() {
   const { isLoggedIn, loading: authLoading } = useAuth();
 
-  const [data, setData] = useState<StudentHistoryData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data,
+    loading,
+    error,
+    retry: load,
+  } = useOfflineData<StudentHistoryData>({
+    cacheKey: "deskly::cache::grades",
+    fetcher: getGradesHistory,
+    enabled: isLoggedIn && !authLoading,
+  });
   
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGradeFilter, setSelectedGradeFilter] = useState("ALL");
-
-  // Load from Cache (SWR) first
-  useEffect(() => {
-    const cached = localStorage.getItem("deskly::cache::grades");
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached) as StudentHistoryData;
-        if (parsed && parsed.grades && parsed.grades.length > 0) {
-          setData(parsed);
-          setLoading(false);
-        }
-      } catch (e) {
-        console.error("Failed to parse cached grades", e);
-      }
-    }
-  }, []);
-
-  // Fetch fresh grades data
-  async function load() {
-    try {
-      if (!isLoggedIn && !authLoading) return;
-      setError(null);
-      if (authLoading) return;
-
-      setLoading(data && data.grades && data.grades.length > 0 ? false : true);
-
-      const res = await getGradesHistory();
-      if (res.success && res.data) {
-        setData(res.data);
-        localStorage.setItem("deskly::cache::grades", JSON.stringify(res.data));
-      } else {
-        setError(res.error ?? "Failed to fetch grade history.");
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (isLoggedIn) {
-      load();
-    }
-  }, [isLoggedIn, authLoading]);
 
   // Derived values
   const totalSubjects = useMemo(() => data?.grades?.length ?? 0, [data]);
