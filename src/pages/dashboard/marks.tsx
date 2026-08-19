@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { getMarks, StudentMarkEntry } from "@/lib/features";
+import { StudentMarkEntry } from "@/lib/features";
+import { invoke } from "@tauri-apps/api/core";
+import { useOfflineData } from "@/hooks/use-offline-data";
 
 import { ErrorDisplay } from "@/components/error-display";
 import { Input } from "@/components/ui/input";
@@ -78,61 +80,32 @@ function MarksSkeleton() {
 export default function MarksPage() {
   const { isLoggedIn, loading: authLoading } = useAuth();
 
-  const [data, setData] = useState<StudentMarkEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: dataRaw,
+    loading,
+    error,
+    retry: load,
+  } = useOfflineData<StudentMarkEntry[]>({
+    cacheKey: "deskly::cache::marks",
+    fetcher: async () => {
+      return await invoke<{ success: boolean; data?: StudentMarkEntry[]; error?: string }>(
+        "marks_get_student_mark_view",
+        { semesterSubId: null }
+      );
+    },
+    enabled: isLoggedIn && !authLoading,
+  });
+
+  const data = useMemo(() => dataRaw || [], [dataRaw]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCourseCode, setSelectedCourseCode] = useState<string>("");
 
-  // Load from Cache (SWR) first
+  // Auto-select first course when data loads
   useEffect(() => {
-    const cached = localStorage.getItem("deskly::cache::marks");
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (parsed && parsed.length > 0) {
-          setData(parsed);
-          setLoading(false);
-          setSelectedCourseCode(parsed[0].courseCode);
-        }
-      } catch (e) {
-        console.error("Failed to parse cached marks", e);
-      }
+    if (data.length > 0 && !selectedCourseCode) {
+      setSelectedCourseCode(data[0].courseCode);
     }
-  }, []);
-
-  // Fetch fresh marks data
-  async function load() {
-    try {
-      if (!isLoggedIn && !authLoading) return;
-      setError(null);
-      if (authLoading) return;
-
-      setLoading(data.length > 0 ? false : true);
-
-      const res = await getMarks();
-      if (res.success && res.data) {
-        setData(res.data);
-        localStorage.setItem("deskly::cache::marks", JSON.stringify(res.data));
-
-        if (res.data.length > 0) {
-          setSelectedCourseCode(res.data[0].courseCode);
-        }
-      } else {
-        setError(res.error ?? "Failed to fetch marks view.");
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (isLoggedIn) {
-      load();
-    }
-  }, [isLoggedIn, authLoading]);
+  }, [data, selectedCourseCode]);
 
   // Derived values
   const filteredCourses = useMemo(() => {

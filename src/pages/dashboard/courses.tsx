@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getTimetableCourses, TimetableCourse } from "@/lib/features";
+import { useOfflineData } from "@/hooks/use-offline-data";
 
 import { ErrorDisplay } from "@/components/error-display";
 import {
@@ -246,57 +247,22 @@ function CoursesSkeleton() {
 
 export default function CoursesPage() {
   const { isLoggedIn, loading: authLoading } = useAuth();
+  const {
+    data: coursesRaw,
+    loading,
+    error,
+    retry: load,
+  } = useOfflineData<TimetableCourse[]>({
+    cacheKey: "deskly::cache::courses",
+    fetcher: getTimetableCourses,
+    enabled: isLoggedIn && !authLoading,
+  });
 
-  const [courses, setCourses] = useState<TimetableCourse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const courses = useMemo(() => coursesRaw || [], [coursesRaw]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTypeFilter, setSelectedTypeFilter] = useState("ALL");
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("ALL");
-
-  useEffect(() => {
-    const cached = localStorage.getItem("deskly::cache::courses");
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached) as TimetableCourse[];
-        if (parsed.length > 0) {
-          setCourses(parsed);
-          setLoading(false);
-        }
-      } catch (e) {
-        console.error("Failed to parse cached courses", e);
-      }
-    }
-  }, []);
-
-  async function load() {
-    try {
-      if (!isLoggedIn && !authLoading) return;
-      setError(null);
-      if (authLoading) return;
-
-      setLoading(courses.length > 0 ? false : true);
-
-      const res = await getTimetableCourses();
-      if (res.success && res.data) {
-        setCourses(res.data);
-        localStorage.setItem("deskly::cache::courses", JSON.stringify(res.data));
-      } else {
-        setError(res.error ?? "Failed to fetch registered courses.");
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (isLoggedIn) {
-      load();
-    }
-  }, [isLoggedIn, authLoading]);
 
   const filterOptions = useMemo(() => {
     const types = new Set<string>();

@@ -1,27 +1,19 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate, Link } from "@/router";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  User,
-  Lock,
-  Headphones,
-  Eye,
-  EyeOff,
-  Scale,
-  AlertCircle,
-  ArrowRight,
-  Loader2,
-} from "lucide-react";
+import { User, LogIn, HelpCircle, Eye, EyeOff, Scale, Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
+import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import loginImg from "@/assets/login_image.png";
 
-export default function MobileHome() {
+export default function Home() {
   const navigate = useNavigate();
   const { authState, loading, error, login, initialized } = useAuth();
   const [regNo, setRegNo] = useState("");
   const [password, setPassword] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [version, setVersion] = useState("");
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   useEffect(() => {
@@ -43,6 +35,18 @@ export default function MobileHome() {
     }
   }, [authState, navigate]);
 
+  useEffect(() => {
+    async function loadVersion() {
+      try {
+        const ver = await getVersion();
+        setVersion(ver);
+      } catch (err) {
+        console.warn("Failed to get app version:", err);
+      }
+    }
+    loadVersion();
+  }, []);
+
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitError(null);
@@ -54,6 +58,7 @@ export default function MobileHome() {
 
     try {
       await login(regNo, password);
+      navigate("/dashboard");
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       const lowerErr = errMsg.toLowerCase();
@@ -74,153 +79,170 @@ export default function MobileHome() {
     }
   };
 
+  const smoothTransition = {
+    duration: 0.8,
+    ease: [0.16, 1, 0.3, 1] as [number, number, number, number]
+  };
+
   if (!initialized || authState?.loggedIn) {
     return (
-      <main className="h-full w-full bg-background" />
+      <main className="h-full min-h-0 flex items-center justify-center bg-background text-foreground antialiased" />
     );
   }
 
   return (
-    <main className="h-full w-full flex flex-col text-foreground antialiased overflow-y-auto no-scrollbar relative bg-background">
+    <main className="h-full min-h-0 overflow-y-auto no-scrollbar relative bg-background text-foreground antialiased selection:bg-primary/20">
+      {/* Industrial Watermark - Subtle branding */}
+      <div className="hidden sm:block absolute top-24 right-24 text-[14rem] font-black text-foreground opacity-[0.015] pointer-events-none select-none leading-none tracking-tighter uppercase">
+        DESKLY
+      </div>
 
-      {/* ── Main content ── */}
-      <div className="relative z-10 flex-1 flex flex-col justify-start px-7 pt-12 pb-6 gap-12">
-
-        {/* Top visual group */}
-        <div className="flex flex-col gap-6">
-          {/* Illustration */}
-          <div className="w-full flex items-center justify-center select-none pt-4">
-            <img
-              src={loginImg}
-              className="w-full max-w-[320px] aspect-[4/3] object-contain"
-              style={{
-                maskImage: "linear-gradient(to bottom, #fff 35%, rgba(255,255,255,0.9) 55%, rgba(255,255,255,0.5) 75%, rgba(255,255,255,0.15) 90%, transparent 100%)",
-                WebkitMaskImage: "linear-gradient(to bottom, #fff 35%, rgba(255,255,255,0.9) 55%, rgba(255,255,255,0.5) 75%, rgba(255,255,255,0.15) 90%, transparent 100%)"
-              }}
-              alt="Login Illustration"
-            />
+      <div className="min-h-full w-full flex items-center justify-center p-6 sm:p-16">
+        <motion.section
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={smoothTransition}
+          className="w-full max-w-[400px] flex flex-col gap-16 py-10"
+        >
+          {/* Logo & Header */}
+          <div className="space-y-8 flex flex-col items-center sm:items-start text-center sm:text-left">
+            <img src="/logo.png" className="w-12 h-12 sm:w-14 sm:h-14 object-contain" alt="Deskly Logo" />
+            <div className="space-y-3">
+              <h1 className="text-4xl sm:text-5xl font-light tracking-tight text-foreground leading-none">
+                Sign In
+              </h1>
+              <p className="text-sm text-muted-foreground/60 leading-relaxed max-w-[320px]">
+                Sync your student dashboard with your official VTOP credentials.
+              </p>
+            </div>
           </div>
 
-          {/* Welcome Text */}
-          <div className="flex flex-col items-center gap-2 text-center">
-            <h1 className="text-[28px] font-bold tracking-tight text-foreground leading-tight">
-              Welcome Back
-            </h1>
-            <p className="text-sm text-muted-foreground leading-relaxed max-w-[280px] mx-auto">
-              Sign in to sync your student dashboard with your VTOP account.
-            </p>
-          </div>
-        </div>
+          <form className="space-y-12" onSubmit={onSubmit}>
+            <div className="space-y-8">
+              
+              {/* Registration Number Field */}
+              <div className="group space-y-3">
+                <label
+                  htmlFor="reg-no"
+                  className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground/50 ml-0.5"
+                >
+                  Registration Number
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    id="reg-no"
+                    value={regNo}
+                    onChange={(e) => setRegNo(e.target.value)}
+                    disabled={loading || isOffline}
+                    className="block w-full h-12 pl-0 pr-12 bg-transparent border-b border-border/70 focus:border-primary focus:outline-none text-base font-normal text-foreground placeholder:text-muted-foreground/25 transition-colors rounded-none disabled:opacity-50 disabled:cursor-not-allowed"
+                    placeholder="Username"
+                    required
+                  />
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/30 transition-colors pointer-events-none group-focus-within:text-primary/70">
+                    <User className="w-4.5 h-4.5" />
+                  </div>
+                </div>
+              </div>
 
-        {/* Form */}
-        <form className="flex flex-col gap-8 animate-fade-in" onSubmit={onSubmit}>
-
-          {/* Fields */}
-          <div className="flex flex-col gap-10">
-
-            {/* Registration Number */}
-            <div className="relative flex items-center border-b border-border/50 focus-within:border-foreground transition-colors duration-200 pb-2.5">
-              <User className="w-[18px] h-[18px] text-muted-foreground/50 shrink-0 mr-3" />
-              <input
-                type="text"
-                id="reg-no"
-                value={regNo}
-                onChange={(e) => setRegNo(e.target.value)}
-                disabled={loading || isOffline}
-                className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground/35 font-normal disabled:opacity-50"
-                placeholder="Username"
-                required
-                autoComplete="username"
-                autoCapitalize="characters"
-              />
+              {/* Password Field */}
+              <div className="group space-y-3">
+                <label
+                  htmlFor="password"
+                  className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground/50 ml-0.5"
+                >
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    id="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading || isOffline}
+                    className="block w-full h-12 pl-0 pr-12 bg-transparent border-b border-border/70 focus:border-primary focus:outline-none text-base font-normal text-foreground placeholder:text-muted-foreground/25 transition-colors rounded-none disabled:opacity-50 disabled:cursor-not-allowed"
+                    placeholder="••••••••"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    disabled={loading || isOffline}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/30 hover:text-foreground transition-colors focus:outline-none disabled:opacity-50"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4.5 h-4.5" />
+                    ) : (
+                      <Eye className="w-4.5 h-4.5" />
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
 
-            {/* Password */}
-            <div className="relative flex items-center border-b border-border/50 focus-within:border-foreground transition-colors duration-200 pb-2.5">
-              <Lock className="w-[18px] h-[18px] text-muted-foreground/50 shrink-0 mr-3" />
-              <input
-                type={showPassword ? "text" : "password"}
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading || isOffline}
-                className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground/35 font-normal disabled:opacity-50"
-                placeholder="Password"
-                required
-                autoComplete="current-password"
-              />
+            {/* Error Message / Offline Status */}
+            {isOffline ? (
+              <p className="text-xs text-destructive bg-destructive/5 border border-destructive/10 p-3 rounded-md font-semibold leading-relaxed text-center">
+                You are currently offline. Please check your internet connection.
+              </p>
+            ) : (submitError || error) ? (
+              <p className="text-xs text-destructive bg-destructive/5 border border-destructive/10 p-3 rounded-md font-semibold leading-relaxed text-center">
+                {submitError ?? error}
+              </p>
+            ) : null}
+
+            {/* Submit Button */}
+            <div className="pt-2">
               <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
+                type="submit"
                 disabled={loading || isOffline}
-                className="ml-2 text-muted-foreground/40 hover:text-muted-foreground transition-colors focus:outline-none shrink-0 cursor-pointer"
+                className="w-full h-12 flex justify-center items-center bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm"
               >
-                {showPassword ? (
-                  <EyeOff className="w-[18px] h-[18px]" />
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <span>Signing In…</span>
+                  </>
                 ) : (
-                  <Eye className="w-[18px] h-[18px]" />
+                  <>
+                    <span>Sign In</span>
+                    <LogIn className="w-4 h-4 ml-2.5 opacity-80" />
+                  </>
                 )}
               </button>
             </div>
-          </div>
+          </form>
 
-          {/* Error / Offline Status */}
-          {isOffline ? (
-            <div className="flex items-start gap-2 text-destructive text-sm font-medium leading-relaxed -mt-2 bg-destructive/5 border border-destructive/10 p-3 rounded-md">
-              <AlertCircle className="w-4.5 h-4.5 shrink-0 mt-0.5 text-destructive" />
-              <span>You are currently offline. Please check your internet connection.</span>
+          {/* Footer links */}
+          <footer className="flex items-center justify-between pt-10 border-t border-border/10">
+            <div className="flex gap-5">
+              <button
+                onClick={async () => {
+                  try {
+                    await openUrl("https://github.com/Vishal-770/deskly-tauri/issues");
+                  } catch (err) {
+                    console.error("Failed to open support link:", err);
+                  }
+                }}
+                className="text-xs text-muted-foreground/60 hover:text-primary transition-colors font-semibold flex items-center gap-1.5 cursor-pointer bg-transparent border-none p-0 focus:outline-none"
+              >
+                <HelpCircle className="w-4 h-4" />
+                Support
+              </button>
+              <Link
+                to="/legal"
+                className="text-xs text-muted-foreground/60 hover:text-primary transition-colors font-semibold flex items-center gap-1.5 cursor-pointer bg-transparent border-none p-0 focus:outline-none"
+              >
+                <Scale className="w-4 h-4" />
+                Legal
+              </Link>
             </div>
-          ) : (submitError || error) ? (
-            <div className="flex items-start gap-2 text-destructive text-sm font-medium leading-relaxed -mt-2 bg-destructive/5 border border-destructive/10 p-3 rounded-md">
-              <AlertCircle className="w-4.5 h-4.5 shrink-0 mt-0.5 text-destructive" />
-              <span>{submitError ?? error}</span>
-            </div>
-          ) : null}
-
-          {/* Sign In Button */}
-          <button
-            type="submit"
-            disabled={loading || isOffline}
-            className="w-full h-[54px] flex items-center justify-center gap-2 bg-primary text-primary-foreground text-sm font-semibold rounded-md transition-opacity duration-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer active:opacity-85"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Signing In…</span>
-              </>
-            ) : (
-              <>
-                <span>Sign In</span>
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
-        </form>
+            <span className="text-xs text-muted-foreground/35 font-bold select-none">
+              {version ? `v${version}` : "v1.0.7"}
+            </span>
+          </footer>
+        </motion.section>
       </div>
-
-      {/* Footer */}
-      <footer className="relative z-10 shrink-0 flex items-center justify-between px-8 pt-3 pb-10">
-        <button
-          onClick={async () => {
-            try {
-              await openUrl("https://github.com/Vishal-770/deskly-tauri/issues");
-            } catch (err) {
-              console.error("Failed to open support link:", err);
-            }
-          }}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground/60 hover:text-foreground transition-colors cursor-pointer bg-transparent border-none focus:outline-none p-0"
-        >
-          <Headphones className="w-3.5 h-3.5" />
-          <span>Support</span>
-        </button>
-        <Link
-          to="/legal"
-          className="flex items-center gap-1.5 text-xs text-muted-foreground/60 hover:text-foreground transition-colors"
-        >
-          <Scale className="w-3.5 h-3.5" />
-          <span>Legal</span>
-        </Link>
-      </footer>
     </main>
   );
 }

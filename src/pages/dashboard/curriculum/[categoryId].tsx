@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "@/router";
 import { useAuth } from "@/hooks/useAuth";
 import { save } from "@tauri-apps/plugin-dialog";
@@ -11,6 +11,7 @@ import {
 } from "@/lib/features";
 
 import { ErrorDisplay } from "@/components/error-display";
+import { useOfflineData } from "@/hooks/use-offline-data";
 import { fetchWithTimeout } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -76,23 +77,18 @@ export default function CategoryCoursesPage() {
   const { isLoggedIn, loading: authLoading } = useAuth();
   const { categoryId } = useParams("/dashboard/curriculum/:categoryId");
   const navigate = useNavigate();
-  const cacheKey = categoryId ? `deskly::cache::curriculum_courses_${categoryId}` : "";
-
-  const [courses, setCourses] = useState<CurriculumCourse[]>(() => {
-    if (!cacheKey) return [];
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) {
-        console.error("Failed to parse cached curriculum courses", e);
-      }
-    }
-    return [];
+  const {
+    data: coursesRaw,
+    loading,
+    error,
+    retry: load,
+  } = useOfflineData<CurriculumCourse[]>({
+    cacheKey: categoryId ? `deskly::cache::curriculum_courses_${categoryId}` : "",
+    fetcher: () => getCurriculumCategoryCourses(categoryId!),
+    enabled: isLoggedIn && !authLoading && !!categoryId,
   });
-  const [loading, setLoading] = useState(courses.length === 0);
-  const [error, setError] = useState<string | null>(null);
+
+  const courses = useMemo(() => coursesRaw || [], [coursesRaw]);
   const [query, setQuery] = useState("");
 
   // Downloading syllabus state ("picking" | "downloading" | null)
@@ -103,55 +99,6 @@ export default function CategoryCoursesPage() {
     () => Object.values(activeCourseState).some((state) => state === "picking" || state === "downloading"),
     [activeCourseState]
   );
-
-  async function load() {
-    if (!categoryId) return;
-    try {
-      if (!isLoggedIn && !authLoading) return;
-      setError(null);
-      if (authLoading) return;
-
-      const hasCache = courses.length > 0;
-      setLoading(!hasCache);
-
-      const res = await fetchWithTimeout(getCurriculumCategoryCourses(categoryId), 15000);
-      if (res.success && res.data) {
-        setCourses(res.data);
-        if (cacheKey) {
-          localStorage.setItem(cacheKey, JSON.stringify(res.data));
-        }
-      } else {
-        if (!hasCache) {
-          setError(res.error ?? "Failed to fetch courses for this category.");
-        }
-      }
-    } catch (e) {
-      if (courses.length === 0) {
-        setError(e instanceof Error ? e.message : String(e));
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (cacheKey) {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setCourses(parsed);
-          }
-        } catch (e) {
-          console.error("Failed to parse cached curriculum courses", e);
-        }
-      }
-    }
-    if (isLoggedIn && categoryId) {
-      load();
-    }
-  }, [isLoggedIn, authLoading, categoryId]);
 
   // Filtering search query
   const filtered = useMemo(() => {

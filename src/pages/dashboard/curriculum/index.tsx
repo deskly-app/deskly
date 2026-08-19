@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "@/router";
 import { getCurriculumCategories, CurriculumCategory } from "@/lib/features";
+import { useOfflineData } from "@/hooks/use-offline-data";
 
 import { ErrorDisplay } from "@/components/error-display";
 import { ScrollText, ChevronRight } from "lucide-react";
@@ -38,53 +38,18 @@ export default function CurriculumIndexPage() {
   const { isLoggedIn, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
-  const [categories, setCategories] = useState<CurriculumCategory[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: categoriesRaw,
+    loading,
+    error,
+    retry: load,
+  } = useOfflineData<CurriculumCategory[]>({
+    cacheKey: "deskly::cache::curriculum_categories",
+    fetcher: getCurriculumCategories,
+    enabled: isLoggedIn && !authLoading,
+  });
 
-  // Cache loading
-  useEffect(() => {
-    const cached = localStorage.getItem("deskly::cache::curriculum::categories");
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached) as CurriculumCategory[];
-        if (parsed.length > 0) {
-          setCategories(parsed);
-          setLoading(false);
-        }
-      } catch (e) {
-        console.error("Failed to parse cached curriculum categories", e);
-      }
-    }
-  }, []);
-
-  async function load() {
-    try {
-      if (!isLoggedIn && !authLoading) return;
-      setError(null);
-      if (authLoading) return;
-
-      setLoading(categories.length > 0 ? false : true);
-
-      const res = await getCurriculumCategories();
-      if (res.success && res.data) {
-        setCategories(res.data);
-        localStorage.setItem("deskly::cache::curriculum::categories", JSON.stringify(res.data));
-      } else {
-        setError(res.error ?? "Failed to fetch curriculum categories.");
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (isLoggedIn) {
-      load();
-    }
-  }, [isLoggedIn, authLoading]);
+  const categories = categoriesRaw || [];
 
   const shell = (children: React.ReactNode) => (
     <>{children}</>

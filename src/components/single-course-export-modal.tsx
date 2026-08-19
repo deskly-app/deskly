@@ -8,7 +8,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import {
   CalendarPlus,
-  CalendarDays,
   ExternalLink,
   X,
   MapPin,
@@ -17,7 +16,6 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import * as Popover from "@radix-ui/react-popover";
 
 interface SingleCourseExportModalProps {
   entry: ScheduleEntry;
@@ -31,7 +29,6 @@ export default function SingleCourseExportModal({
   fullWidth = false,
 }: SingleCourseExportModalProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [showCalendar, setShowCalendar] = useState(false);
 
   // Set default recurrence end date to 4 months from now
   const [endDate, setEndDate] = useState(() => {
@@ -55,7 +52,7 @@ export default function SingleCourseExportModal({
       {fullWidth ? (
         <Button
           onClick={() => setIsOpen(true)}
-          className="w-full rounded-[var(--radius)] h-11 text-sm font-semibold gap-2 cursor-pointer bg-primary text-primary-foreground hover:bg-primary/95 transition-all shadow-sm flex items-center justify-center border-none"
+          className="w-full rounded-md h-11 text-sm font-semibold gap-2 cursor-pointer bg-primary text-primary-foreground hover:bg-primary/95 transition-all shadow-sm flex items-center justify-center border-none"
         >
           <CalendarPlus className="w-5 h-5" />
           <span>Add to Calendar</span>
@@ -63,7 +60,7 @@ export default function SingleCourseExportModal({
       ) : (
         <button
           onClick={() => setIsOpen(true)}
-          className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors cursor-pointer shrink-0"
+          className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors cursor-pointer shrink-0 border-none bg-transparent"
           title="Export this course to your calendar"
         >
           <CalendarPlus className="w-4 h-4" />
@@ -79,10 +76,7 @@ export default function SingleCourseExportModal({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => {
-                setIsOpen(false);
-                setShowCalendar(false);
-              }}
+              onClick={() => setIsOpen(false)}
               className="absolute inset-0 bg-background/60 backdrop-blur-sm cursor-pointer"
             />
 
@@ -92,117 +86,108 @@ export default function SingleCourseExportModal({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className="relative w-full max-w-[90vw] sm:max-w-md max-h-[85vh] overflow-y-auto no-scrollbar rounded-[var(--radius)] bg-card border border-border/30 shadow-2xl p-6 flex flex-col gap-5"
+              className="relative w-full max-w-[90vw] md:max-w-2xl max-h-[95vh] overflow-y-auto no-scrollbar rounded-lg bg-card border border-border/20 shadow-2xl p-5 sm:p-6 flex flex-col gap-6"
             >
               {/* Header */}
               <div className="flex items-center justify-between border-b border-border/10 pb-3">
                 <div className="flex items-center gap-2">
                   <CalendarPlus className="w-5 h-5 text-primary" />
-                  <h3 className="text-base font-semibold text-foreground tracking-tight">Export Course Event</h3>
+                  <h3 className="text-base sm:text-lg font-bold text-foreground tracking-tight">Export Course Event</h3>
                 </div>
                 <button
-                  onClick={() => {
-                    setIsOpen(false);
-                    setShowCalendar(false);
-                  }}
-                  className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/10 transition-colors cursor-pointer border-none bg-transparent"
+                  onClick={() => setIsOpen(false)}
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/10 transition-colors cursor-pointer border-none bg-transparent"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Course Info Card */}
-              <div className="p-4 rounded-[var(--radius)] bg-muted/5 border border-border/10 space-y-2">
-                <div className="flex items-center gap-2 leading-none">
-                  <span className="text-xs font-semibold text-primary tracking-wider uppercase">
-                    {entry.courseCode}
-                  </span>
-                  <span className="text-xs text-muted-foreground/60">
-                    · Slot {entry.slot}
-                  </span>
-                </div>
-                <h4 className="text-sm font-semibold text-foreground mt-1 leading-snug">{entry.courseTitle}</h4>
-                <div className="flex flex-col gap-1.5 mt-2 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-muted-foreground/60 shrink-0" />
-                    <span>{entry.startTime} – {entry.endTime}</span>
+              {/* Grid split layout: stacks on mobile, split columns on desktop */}
+              <div className="flex flex-col md:flex-row gap-6 items-stretch">
+                
+                {/* Left Column: Course details and add action */}
+                <div className="flex-1 flex flex-col justify-between gap-6 min-w-0">
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60 font-bold tracking-wider uppercase">
+                        <span>{entry.courseCode}</span>
+                        <span>·</span>
+                        <span>Slot {entry.slot}</span>
+                      </div>
+                      <h4 className="text-lg font-black text-foreground leading-snug tracking-tight">{entry.courseTitle}</h4>
+                    </div>
+
+                    <div className="space-y-2.5 text-sm text-muted-foreground/80 font-medium pt-1">
+                      <div className="flex items-center gap-2.5">
+                        <Clock className="w-4.5 h-4.5 text-muted-foreground/45 shrink-0" />
+                        <span>{entry.startTime} – {entry.endTime}</span>
+                      </div>
+                      {entry.venue && (
+                        <div className="flex items-center gap-2.5">
+                          <MapPin className="w-4.5 h-4.5 text-muted-foreground/45 shrink-0" />
+                          <span>{entry.venue}</span>
+                        </div>
+                      )}
+                      {entry.faculty && (
+                        <div className="flex items-center gap-2.5">
+                          <User className="w-4.5 h-4.5 text-muted-foreground/45 shrink-0" />
+                          <span className="truncate">{entry.faculty}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  {entry.venue && (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-muted-foreground/60 shrink-0" />
-                      <span>{entry.venue}</span>
-                    </div>
-                  )}
-                  {entry.faculty && (
-                    <div className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-muted-foreground/60 shrink-0" />
-                      <span className="truncate">{entry.faculty}</span>
-                    </div>
-                  )}
+
+                  <div className="space-y-3 pt-4 border-t border-border/10 md:border-t-0 md:pt-0">
+                    <p className="text-xs text-muted-foreground/55 leading-relaxed">
+                      Add this class as a weekly recurring event directly to your Google Calendar.
+                    </p>
+                    <Button
+                      onClick={async () => {
+                        try {
+                          await openUrl(gCalLink);
+                        } catch (err) {
+                          console.error("Failed to open calendar link:", err);
+                        }
+                      }}
+                      className="w-full rounded-md h-11 text-sm font-semibold gap-2 cursor-pointer bg-primary text-primary-foreground hover:bg-primary/95 shadow-sm border-none flex items-center justify-center"
+                    >
+                      <ExternalLink className="w-4.5 h-4.5" />
+                      <span>Add to Google Calendar</span>
+                    </Button>
+                  </div>
                 </div>
-              </div>
 
-               {/* Date Input using Radix Popover */}
-              <div className="space-y-3 p-4 rounded-[var(--radius)] bg-muted/5 border border-border/10">
-                <label className="text-xs font-medium tracking-[0.18em] text-muted-foreground/60 uppercase block leading-none">
-                  Repeat Schedule Weekly Until
-                </label>
-                <div className="relative mt-1">
-                  <Popover.Root open={showCalendar} onOpenChange={setShowCalendar}>
-                    <Popover.Trigger asChild>
-                      <button
-                        className="w-full h-11 rounded-[var(--radius)] bg-background border border-border/20 px-3 text-sm text-foreground outline-none focus:border-primary/50 transition-colors flex items-center justify-between cursor-pointer"
-                      >
-                        <span>{format(parsedEndDate, "PPP")}</span>
-                        <CalendarDays className="w-4 h-4 text-muted-foreground/60" />
-                      </button>
-                    </Popover.Trigger>
+                {/* Vertical Divider for desktop */}
+                <div className="hidden md:block w-px bg-border/10 self-stretch" />
 
-                    <Popover.Portal>
-                      <Popover.Content
-                        align="center"
-                        side="bottom"
-                        sideOffset={8}
-                        className="z-50 bg-card border border-border/20 shadow-2xl rounded-[var(--radius)] p-3 outline-none"
-                      >
-                        <Calendar
-                          mode="single"
-                          selected={parsedEndDate}
-                          onSelect={(date) => {
-                            if (date) {
-                              const y = date.getFullYear();
-                              const m = String(date.getMonth() + 1).padStart(2, "0");
-                              const day = String(date.getDate()).padStart(2, "0");
-                              setEndDate(`${y}-${m}-${day}`);
-                              setShowCalendar(false);
-                            }
-                          }}
-                          disabled={(date) => date < new Date()}
-                        />
-                      </Popover.Content>
-                    </Popover.Portal>
-                  </Popover.Root>
+                {/* Right Column: Calendar picker */}
+                <div className="w-full md:w-auto md:pl-2 shrink-0 flex flex-col gap-4 items-center">
+                  <div className="space-y-1 text-center">
+                    <label className="text-[10px] sm:text-xs font-bold tracking-wider text-muted-foreground/45 uppercase block">
+                      Repeat Weekly Until
+                    </label>
+                    <span className="text-sm font-bold text-foreground tracking-tight block">
+                      {format(parsedEndDate, "eeee, MMMM d, yyyy")}
+                    </span>
+                  </div>
+
+                  <div className="h-[280px] flex items-start justify-center">
+                    <Calendar
+                      mode="single"
+                      selected={parsedEndDate}
+                      onSelect={(date) => {
+                        if (date) {
+                          const y = date.getFullYear();
+                          const m = String(date.getMonth() + 1).padStart(2, "0");
+                          const day = String(date.getDate()).padStart(2, "0");
+                          setEndDate(`${y}-${m}-${day}`);
+                        }
+                      }}
+                      disabled={(date) => date < new Date()}
+                    />
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground/60 leading-normal">
-                  This weekly class will repeat in your calendar until this chosen end date.
-                </p>
-              </div>
 
-              {/* Action Buttons */}
-              <div className="mt-1">
-                <Button
-                  onClick={async () => {
-                    try {
-                      await openUrl(gCalLink);
-                    } catch (err) {
-                      console.error("Failed to open calendar link:", err);
-                    }
-                  }}
-                  className="w-full rounded-[var(--radius)] h-11 text-sm font-semibold gap-2 cursor-pointer bg-primary text-primary-foreground hover:bg-primary/95 transition-all flex items-center justify-center border-none shadow-sm"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  <span>Add to Google Calendar</span>
-                </Button>
               </div>
             </motion.div>
           </div>

@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getContactInfo, ContactDetail } from "@/lib/features";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { useOfflineData } from "@/hooks/use-offline-data";
 
 import { ErrorDisplay } from "@/components/error-display";
 import { Copy, Check, Phone, Search, Building2, X } from "lucide-react";
@@ -132,46 +133,17 @@ function ContactRow({ contact }: { contact: ContactDetail }) {
 
 export default function ContactPage() {
   const { loading: authLoading } = useAuth();
-  const [contacts, setContacts] = useState<ContactDetail[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: contacts,
+    loading,
+    error,
+    retry: fetchContacts,
+  } = useOfflineData<ContactDetail[]>({
+    cacheKey: "deskly::cache::contact_info",
+    fetcher: getContactInfo,
+  });
+
   const [query, setQuery] = useState("");
-
-  // Load from Cache first
-  useEffect(() => {
-    const cached = localStorage.getItem("deskly::cache::contact");
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (parsed && parsed.length > 0) {
-          setContacts(parsed);
-          setLoading(false);
-        }
-      } catch (e) {
-        console.error("Failed to parse cached contacts", e);
-      }
-    }
-  }, []);
-
-  const fetchContacts = async () => {
-    setLoading(contacts && contacts.length > 0 ? false : true);
-    setError(null);
-    try {
-      const res = await getContactInfo();
-      if (res.success && res.data) {
-        setContacts(res.data);
-        localStorage.setItem("deskly::cache::contact", JSON.stringify(res.data));
-      } else {
-        setError(res.error ?? "Failed to load contact information.");
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchContacts(); }, []);
 
   const filtered = useMemo(() => {
     if (!contacts) return [];

@@ -282,16 +282,7 @@ const COMMANDS: CommandMetadata[] = [
     description: "Retrieves list of student payment receipts records.",
     category: "Features"
   },
-  {
-    name: "payment_receipt_download",
-    displayName: "Download Payment Receipt",
-    description: "Downloads duplicate payment receipt HTML document and saves it directly to the local Downloads folder.",
-    category: "Features",
-    params: [
-      { name: "receitNo", label: "Receipt Number", type: "text", placeholder: "e.g. 19715/10/CHN" },
-      { name: "applno", label: "Application Number", type: "text", placeholder: "e.g. 2024035882" }
-    ]
-  },
+
   {
     name: "curriculum_get",
     displayName: "Get Curriculum Categories",
