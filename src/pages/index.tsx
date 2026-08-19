@@ -238,7 +238,7 @@ export default function Home() {
               </Link>
             </div>
             <span className="text-xs text-muted-foreground/35 font-bold select-none">
-              {version ? `v${version}` : "v1.0.7"}
+              {version ? `v${version}` : "v6.1.3"}
             </span>
           </footer>
         </motion.section>
