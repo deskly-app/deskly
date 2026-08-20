@@ -408,32 +408,43 @@ export default function AttendanceDetailPage() {
             {details.map((row, i) => (
               <div
                 key={`${row.serialNo}-${i}`}
-                className="flex items-center gap-3 sm:gap-4 py-3 px-1 rounded-md transition-colors hover:bg-muted/5 duration-150"
+                className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 py-3 px-1 rounded-md transition-colors hover:bg-muted/5 duration-150"
               >
-                {/* Serial */}
-                <span className="text-xs font-bold text-muted-foreground/35 tabular-nums w-5 shrink-0 text-right leading-none">
-                  {row.serialNo ?? i + 1}
-                </span>
-
-                {/* Date */}
-                <div className="min-w-0 w-24 sm:w-28 shrink-0 flex items-center">
-                  <span className="text-xs font-bold text-foreground truncate leading-none">{row.date}</span>
-                </div>
-
-                {/* Slot */}
-                <div className="shrink-0 w-14 sm:w-16 flex items-center">
-                  <span className="font-mono text-xs font-bold text-foreground/80 leading-none">
-                    {row.slot}
+                {/* Top line (mobile) / Left part (desktop) */}
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                  {/* Serial */}
+                  <span className="text-xs font-bold text-muted-foreground/35 tabular-nums w-5 shrink-0 text-right leading-none">
+                    {row.serialNo ?? i + 1}
                   </span>
+
+                  {/* Date */}
+                  <div className="min-w-0 w-24 sm:w-28 shrink-0">
+                    <span className="text-xs font-bold text-foreground truncate block leading-none">{row.date}</span>
+                  </div>
+
+                  {/* Slot */}
+                  <div className="shrink-0 w-14 sm:w-16">
+                    <span className="font-mono text-xs font-bold text-foreground/80 block leading-none">
+                      {row.slot}
+                    </span>
+                  </div>
+
+                  {/* Day & Time (desktop) */}
+                  <div className="flex-1 min-w-0 hidden sm:block">
+                    <span className="text-xs text-muted-foreground/50 font-medium truncate block leading-none">
+                      {formatDayAndTime(row.dayAndTime)}
+                    </span>
+                  </div>
                 </div>
 
-                {/* Day & Time */}
-                <div className="flex-1 min-w-0 hidden sm:block flex items-center">
-                  <span className="text-xs text-muted-foreground/50 font-medium truncate leading-none">{formatDayAndTime(row.dayAndTime)}</span>
-                </div>
-
-                {/* Status badge */}
-                <div className="shrink-0 ml-auto flex items-center">
+                {/* Bottom line (mobile only) / Right part (desktop) */}
+                <div className="flex items-center justify-between sm:justify-end gap-4 pl-8 sm:pl-0 shrink-0">
+                  {/* Day & Time (mobile) */}
+                  <span className="text-xs text-muted-foreground/50 font-medium sm:hidden leading-none">
+                    {formatDayAndTime(row.dayAndTime)}
+                  </span>
+                  
+                  {/* Status badge */}
                   <StatusBadge status={row.status} />
                 </div>
               </div>

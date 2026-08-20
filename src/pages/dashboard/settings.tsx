@@ -36,22 +36,18 @@ export default function SettingsPage() {
   const { isLoggedIn, loading: authLoading, logout } = useAuth();
   const navigate = useNavigate();
 
-  const initialSemesters = useState<Semester[]>(() => {
+  const [semesters, setSemesters] = useState<Semester[]>(() => {
     try {
       const cached = localStorage.getItem("deskly::cache::semesters");
       return cached ? JSON.parse(cached) : [];
     } catch { return []; }
-  })[0];
-
-  const initialActiveSem = useState<Semester | null>(() => {
+  });
+  const [selectedSemester, setSelectedSemester] = useState<Semester | null>(() => {
     try {
       const cached = localStorage.getItem("deskly::cache::current_semester");
       return cached ? JSON.parse(cached) : null;
     } catch { return null; }
-  })[0];
-
-  const [semesters, setSemesters] = useState<Semester[]>(initialSemesters);
-  const [selectedSemester, setSelectedSemester] = useState<Semester | null>(initialActiveSem);
+  });
 
   // Software Update States
   const [currentVersion, setCurrentVersion] = useState("");
@@ -204,7 +200,7 @@ export default function SettingsPage() {
             Settings
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Configure application preferences, active semester, and hostel settings.
+            Configure application preferences, active semester, and check system updates.
           </p>
         </div>
       </header>
@@ -288,7 +284,7 @@ export default function SettingsPage() {
                         {updateStatus === "upToDate" && `System is up to date (v${currentVersion})`}
                         {updateStatus === "available" && `Update available! v${latestVersion} ready.`}
                         {updateStatus === "downloading" && `Downloading: ${downloadProgress?.percent ?? 0}%`}
-                        {updateStatus === "finished" && "Restarting application..."}
+                        {updateStatus === "finished" && "Update installed. Please restart Deskly."}
                         {updateStatus === "error" && "Failed to check for updates."}
                       </p>
                     </div>

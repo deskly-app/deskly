@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { getPaymentReceipts, Receipt } from "@/lib/features";
 import { ErrorDisplay } from "@/components/error-display";
@@ -98,10 +99,10 @@ function ReceiptDialog({
     { icon: User,        label: "Registration ID",  value: item.regNo || "—" },
   ];
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           {/* Backdrop Overlay */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -122,7 +123,7 @@ function ReceiptDialog({
             {/* Header */}
             <div className="flex items-center justify-between border-b border-border/10 pb-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-muted/20 border border-border/10 flex items-center justify-center text-muted-foreground shrink-0">
                   <FileText className="w-5 h-5" />
                 </div>
                 <div className="space-y-0.5">
@@ -173,7 +174,8 @@ function ReceiptDialog({
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
 
@@ -298,7 +300,7 @@ export default function PaymentReceiptsPage() {
                   className="py-4 px-3 rounded-md transition-colors duration-150 hover:bg-muted/10 flex items-center justify-between gap-4 cursor-pointer"
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                    <div className="w-10 h-10 rounded-lg bg-muted/20 border border-border/10 flex items-center justify-center text-muted-foreground shrink-0">
                       <FileText className="w-5 h-5" />
                     </div>
                     <div className="min-w-0 flex-1">

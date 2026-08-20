@@ -400,10 +400,10 @@ export default function CoursesPage() {
                 <p className="text-xs text-muted-foreground/60 font-semibold mt-1">Semester credit breakdown</p>
               </div>
             </div>
-            <div className="bg-primary/10 border border-primary/20 text-primary px-3 py-1.5 rounded-full flex items-center gap-1.5 shrink-0">
-              <span className="text-xs font-bold uppercase tracking-wider leading-none">Total</span>
-              <span className="text-base font-black leading-none tabular-nums">{courseStats.totalCredits}</span>
-              <span className="text-xs font-semibold leading-none opacity-70">Cr</span>
+            <div className="flex items-baseline gap-1 text-right shrink-0">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mr-1">Total:</span>
+              <span className="text-lg font-black text-foreground tabular-nums leading-none">{courseStats.totalCredits}</span>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase leading-none">Credits</span>
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

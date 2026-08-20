@@ -12,11 +12,10 @@ import { Target, Search, BookOpen } from "lucide-react";
 
 function getCourseTypeStyle(type: string): { label: string; className: string } {
   const clean = type.trim().toUpperCase();
-  if (clean.includes("EMBEDDED THEORY")) return { label: type, className: "text-primary" };
-  if (clean.includes("EMBEDDED LAB")) return { label: type, className: "text-chart-2" };
-  if (clean.includes("THEORY")) return { label: type, className: "text-primary" };
-  if (clean.includes("LAB")) return { label: type, className: "text-chart-2" };
-  return { label: type, className: "text-muted-foreground" };
+  if (clean.includes("EMBEDDED THEORY") || clean.includes("THEORY")) {
+    return { label: type, className: "text-primary" };
+  }
+  return { label: type, className: "text-muted-foreground font-medium" };
 }
 
 function Sk({ className = "" }: { className?: string }) {
@@ -305,50 +304,91 @@ export default function MarksPage() {
                 </div>
               </div>
 
-              {/* Assessments Details Table */}
+              {/* Assessments Details Table/List */}
               {activeCourse.assessments && activeCourse.assessments.length > 0 ? (
-                <div className="overflow-x-auto no-scrollbar">
-                  <table className="w-full border-collapse text-left text-xs sm:text-sm">
-                    <thead>
-                      <tr className="border-b border-border/15 text-xs font-black uppercase tracking-wider text-muted-foreground/50">
-                        <th className="py-2.5 px-2 w-10">#</th>
-                        <th className="py-2.5 px-2 min-w-[120px]">Assessment Title</th>
-                        <th className="py-2.5 px-2 text-center w-40">Normal Marks</th>
-                        <th className="py-2.5 px-2 text-center w-40">Weighted Mark</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/5 font-semibold text-muted-foreground/90">
-                      {activeCourse.assessments.map((ass, index) => {
-                        const normalPercent =
-                          ass.maxMark > 0 ? (ass.scoredMark / ass.maxMark) * 100 : 0;
+                <>
+                  {/* Desktop Table View */}
+                  <div className="hidden sm:block overflow-x-auto no-scrollbar">
+                    <table className="w-full border-collapse text-left text-xs sm:text-sm">
+                      <thead>
+                        <tr className="border-b border-border/15 text-xs font-black uppercase tracking-wider text-muted-foreground/50">
+                          <th className="py-2.5 px-2 w-10">#</th>
+                          <th className="py-2.5 px-2 min-w-[120px]">Assessment Title</th>
+                          <th className="py-2.5 px-2 text-center w-40">Normal Marks</th>
+                          <th className="py-2.5 px-2 text-center w-40">Weighted Mark</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/5 font-semibold text-muted-foreground/90">
+                        {activeCourse.assessments.map((ass, index) => {
+                          const normalPercent =
+                            ass.maxMark > 0 ? (ass.scoredMark / ass.maxMark) * 100 : 0;
 
-                        return (
-                          <tr key={`${ass.slNo}-${index}`} className="hover:bg-muted/5 transition-colors">
-                            <td className="py-3 px-2 text-foreground/40 tabular-nums">
-                              {ass.slNo ?? index + 1}
-                            </td>
-                            <td className="py-3 px-2 text-foreground font-bold leading-normal">
+                          return (
+                            <tr key={`${ass.slNo}-${index}`} className="hover:bg-muted/5 transition-colors">
+                              <td className="py-3 px-2 text-foreground/40 tabular-nums">
+                                {ass.slNo ?? index + 1}
+                              </td>
+                              <td className="py-3 px-2 text-foreground font-bold leading-normal">
+                                {ass.markTitle}
+                              </td>
+                              <td className="py-3 px-2 text-center tabular-nums font-bold text-foreground">
+                                {ass.scoredMark}{" "}
+                                <span className="text-muted-foreground/30 font-normal">/</span>{" "}
+                                {ass.maxMark}
+                                <span className="text-xs font-bold text-muted-foreground/50 block sm:inline sm:ml-2 bg-muted/20 px-1.5 py-0.5 rounded leading-none">
+                                  {normalPercent.toFixed(1)}%
+                                </span>
+                              </td>
+                              <td className="py-3 px-2 text-center tabular-nums text-primary font-bold">
+                                {ass.weightageMark}{" "}
+                                <span className="text-primary/30 font-normal">/</span>{" "}
+                                {ass.weightagePercent}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile Stacked View */}
+                  <div className="space-y-3 sm:hidden">
+                    {activeCourse.assessments.map((ass, index) => {
+                      const normalPercent =
+                        ass.maxMark > 0 ? (ass.scoredMark / ass.maxMark) * 100 : 0;
+
+                      return (
+                        <div key={`${ass.slNo}-${index}`} className="p-3.5 rounded-lg border border-border/10 bg-muted/5 space-y-3 text-xs">
+                          <div className="flex items-start justify-between gap-3">
+                            <span className="font-bold text-foreground/40 tabular-nums">
+                              #{(ass.slNo ?? index + 1).toString().padStart(2, "0")}
+                            </span>
+                            <span className="font-bold text-foreground text-left flex-1 pl-1 leading-normal">
                               {ass.markTitle}
-                            </td>
-                            <td className="py-3 px-2 text-center tabular-nums font-bold text-foreground">
-                              {ass.scoredMark}{" "}
-                              <span className="text-muted-foreground/30 font-normal">/</span>{" "}
-                              {ass.maxMark}
-                              <span className="text-xs font-bold text-muted-foreground/50 block sm:inline sm:ml-2 bg-muted/20 px-1.5 py-0.5 rounded leading-none">
-                                {normalPercent.toFixed(1)}%
-                              </span>
-                            </td>
-                            <td className="py-3 px-2 text-center tabular-nums text-primary font-bold">
-                              {ass.weightageMark}{" "}
-                              <span className="text-primary/30 font-normal">/</span>{" "}
-                              {ass.weightagePercent}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/5 text-[11px] font-semibold text-muted-foreground/85">
+                            <div className="space-y-1">
+                              <span className="text-[10px] text-muted-foreground/45 uppercase tracking-wider block">Normal Marks</span>
+                              <p className="text-sm font-bold text-foreground tabular-nums">
+                                {ass.scoredMark} <span className="text-muted-foreground/30 font-normal">/</span> {ass.maxMark}
+                                <span className="text-[10px] font-bold text-muted-foreground bg-muted/30 px-1 py-0.5 rounded ml-2">
+                                  {normalPercent.toFixed(1)}%
+                                </span>
+                              </p>
+                            </div>
+                            <div className="space-y-1 text-right">
+                              <span className="text-[10px] text-muted-foreground/45 uppercase tracking-wider block">Weighted Mark</span>
+                              <p className="text-sm font-bold text-primary tabular-nums">
+                                {ass.weightageMark} <span className="text-primary/30 font-normal">/</span> {ass.weightagePercent}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center gap-2 border-t border-border/10">
                   <BookOpen className="w-8 h-8 text-muted-foreground/20" />

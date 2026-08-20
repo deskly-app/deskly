@@ -50,38 +50,38 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root {
-  --background: oklch(0.90 0 0);
-  --foreground: oklch(0.1450 0 0);
-  --card: oklch(0.94 0 0);
-  --card-foreground: oklch(0.1450 0 0);
-  --popover: oklch(0.94 0 0);
-  --popover-foreground: oklch(0.1450 0 0);
+:root, .light {
+  --background: oklch(0.97 0 0);
+  --foreground: oklch(0.08 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.08 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.08 0 0);
   --primary: oklch(0.2050 0 0);
   --primary-foreground: oklch(0.9850 0 0);
-  --secondary: oklch(0.8700 0 0);
-  --secondary-foreground: oklch(0.1450 0 0);
-  --muted: oklch(0.88 0 0);
-  --muted-foreground: oklch(0.5560 0 0);
-  --accent: oklch(0.89 0 0);
-  --accent-foreground: oklch(0.2050 0 0);
+  --secondary: oklch(0.9200 0 0);
+  --secondary-foreground: oklch(0.08 0 0);
+  --muted: oklch(0.92 0 0);
+  --muted-foreground: oklch(0.28 0 0);
+  --accent: oklch(0.92 0 0);
+  --accent-foreground: oklch(0.08 0 0);
   --destructive: oklch(0.5770 0.2450 27.3250);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.85 0 0);
-  --input: oklch(0.86 0 0);
+  --border: oklch(0.82 0 0);
+  --input: oklch(0.82 0 0);
   --ring: oklch(0.7080 0 0);
   --chart-1: oklch(0.8100 0.1000 252);
   --chart-2: oklch(0.6200 0.1900 260);
   --chart-3: oklch(0.5500 0.2200 263);
   --chart-4: oklch(0.4900 0.2200 264);
   --chart-5: oklch(0.4200 0.1800 266);
-  --sidebar: oklch(0.9850 0 0);
-  --sidebar-foreground: oklch(0.1450 0 0);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.08 0 0);
   --sidebar-primary: oklch(0.2050 0 0);
   --sidebar-primary-foreground: oklch(0.9850 0 0);
   --sidebar-accent: oklch(0.9700 0 0);
-  --sidebar-accent-foreground: oklch(0.2050 0 0);
-  --sidebar-border: oklch(0.9220 0 0);
+  --sidebar-accent-foreground: oklch(0.08 0 0);
+  --sidebar-border: oklch(0.85 0 0);
   --sidebar-ring: oklch(0.7080 0 0);
   --font-sans: "Montserrat Variable", sans-serif;
   --font-serif: "Montserrat Variable", serif;
@@ -124,37 +124,37 @@
 }
 
 .mobile-ui {
-  --background: oklch(0.90 0 0);
-  --foreground: oklch(0.1450 0 0);
-  --card: oklch(0.94 0 0);
-  --card-foreground: oklch(0.1450 0 0);
-  --popover: oklch(0.94 0 0);
-  --popover-foreground: oklch(0.1450 0 0);
+  --background: oklch(0.97 0 0);
+  --foreground: oklch(0.08 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.08 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.08 0 0);
   --primary: oklch(0.2050 0 0);
   --primary-foreground: oklch(0.9850 0 0);
-  --secondary: oklch(0.8700 0 0);
-  --secondary-foreground: oklch(0.1450 0 0);
-  --muted: oklch(0.88 0 0);
-  --muted-foreground: oklch(0.5560 0 0);
-  --accent: oklch(0.89 0 0);
-  --accent-foreground: oklch(0.2050 0 0);
+  --secondary: oklch(0.9200 0 0);
+  --secondary-foreground: oklch(0.08 0 0);
+  --muted: oklch(0.92 0 0);
+  --muted-foreground: oklch(0.28 0 0);
+  --accent: oklch(0.92 0 0);
+  --accent-foreground: oklch(0.08 0 0);
   --destructive: oklch(0.5770 0.2450 27.3250);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.85 0 0);
-  --input: oklch(0.86 0 0);
+  --border: oklch(0.82 0 0);
+  --input: oklch(0.82 0 0);
   --ring: oklch(0.7080 0 0);
   --chart-1: oklch(0.8100 0.1000 252);
   --chart-2: oklch(0.6200 0.1900 260);
   --chart-3: oklch(0.5500 0.2200 263);
   --chart-4: oklch(0.4900 0.2200 264);
   --chart-5: oklch(0.4200 0.1800 266);
-  --sidebar: oklch(0.9850 0 0);
-  --sidebar-foreground: oklch(0.1450 0 0);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.08 0 0);
   --sidebar-primary: oklch(0.2050 0 0);
   --sidebar-primary-foreground: oklch(0.9850 0 0);
   --sidebar-accent: oklch(0.9700 0 0);
-  --sidebar-accent-foreground: oklch(0.2050 0 0);
-  --sidebar-border: oklch(0.9220 0 0);
+  --sidebar-accent-foreground: oklch(0.08 0 0);
+  --sidebar-border: oklch(0.85 0 0);
   --sidebar-ring: oklch(0.7080 0 0);
   --font-sans: "Montserrat Variable", sans-serif;
   --font-serif: "Montserrat Variable", serif;
@@ -353,3 +353,62 @@
     pointer-events: none;
   }
 }
+
+/* Light Mode Contrast Fallbacks */
+.light [class*="text-muted-foreground/"] {
+  color: var(--muted-foreground) !important;
+}
+
+.light [class*="text-foreground/"] {
+  color: var(--foreground) !important;
+}
+
+.light [class*="border-border/"] {
+  border-color: var(--border) !important;
+}
+
+.light [class*="border-t/"] {
+  border-color: var(--border) !important;
+}
+
+.light [class*="border-b/"] {
+  border-color: var(--border) !important;
+}
+
+.light [class*="border-l/"] {
+  border-color: var(--border) !important;
+}
+
+.light [class*="border-r/"] {
+  border-color: var(--border) !important;
+}
+
+/* Dark Mode Contrast Fallbacks */
+.dark [class*="text-muted-foreground/"] {
+  color: color-mix(in srgb, var(--muted-foreground) 75%, transparent) !important;
+}
+
+.dark [class*="text-foreground/"] {
+  color: color-mix(in srgb, var(--foreground) 85%, transparent) !important;
+}
+
+.dark [class*="border-border/"] {
+  border-color: var(--border) !important;
+}
+
+.dark [class*="border-t/"] {
+  border-color: var(--border) !important;
+}
+
+.dark [class*="border-b/"] {
+  border-color: var(--border) !important;
+}
+
+.dark [class*="border-l/"] {
+  border-color: var(--border) !important;
+}
+
+.dark [class*="border-r/"] {
+  border-color: var(--border) !important;
+}
+

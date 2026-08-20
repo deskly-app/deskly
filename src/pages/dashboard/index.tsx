@@ -160,7 +160,7 @@ function GpaTrendGraph({ points }: { points: GpaTrendPoint[] }) {
               <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">
                 {m.label}
               </p>
-              <p className={`text-sm sm:text-base font-black leading-none mt-0.5 ${m.primary ? "text-primary" : "text-foreground"}`}>
+              <p className={`text-sm sm:text-base font-bold leading-none mt-0.5 ${m.primary ? "text-primary" : "text-foreground"}`}>
                 {m.val.toFixed(2)}
               </p>
             </div>
@@ -196,7 +196,7 @@ function GpaTrendGraph({ points }: { points: GpaTrendPoint[] }) {
                   <line x1={PX - 6} y1={y} x2={containerW - PX + 6} y2={y}
                     stroke="var(--border)" strokeOpacity={0.25} strokeDasharray="4 5" strokeWidth={0.8} />
                   <text x={PX - 10} y={y + 4} textAnchor="end" fontSize={10}
-                    fill="var(--muted-foreground)" opacity={0.35} fontFamily="system-ui">{v}</text>
+                    fill="var(--muted-foreground)" opacity={0.7} fontFamily="system-ui">{v}</text>
                 </g>
               );
             })}
@@ -216,13 +216,13 @@ function GpaTrendGraph({ points }: { points: GpaTrendPoint[] }) {
                     stroke="var(--primary)" strokeWidth={sel ? 2 : 0} />
                   <text x={c.x} y={c.y - 11} textAnchor="middle" fontSize={11}
                     fontWeight={sel ? 700 : 500} fill="var(--foreground)"
-                    opacity={sel ? 0.9 : 0.45} fontFamily="system-ui">
+                    opacity={sel ? 1 : 0.75} fontFamily="system-ui">
                     {c.pt.gpa.toFixed(2)}
                   </text>
                   <text x={c.x} y={H - 6} textAnchor="middle" fontSize={10}
                     fontWeight={sel ? 600 : 400}
                     fill={sel ? "var(--primary)" : "var(--muted-foreground)"}
-                    opacity={sel ? 0.85 : 0.3} fontFamily="system-ui">
+                    opacity={sel ? 0.9 : 0.65} fontFamily="system-ui">
                     {c.pt.name.replace(/semester/gi, "").replace(/20\d\d/g, "").trim() || c.pt.name}
                   </text>
                 </g>
@@ -386,7 +386,7 @@ export default function DashboardHomePage() {
         <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/35 mb-1.5">
           {getGreeting()}
         </p>
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-black tracking-tight text-foreground leading-none">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight text-foreground leading-none">
           {studentName ?? "Academic Dashboard"}
         </h1>
         <p className="text-xs sm:text-sm text-muted-foreground/35 mt-2 sm:mt-3">{formattedDate}</p>
@@ -408,15 +408,10 @@ export default function DashboardHomePage() {
                   Cumulative GPA
                 </p>
                 <div className="flex items-baseline gap-3 sm:gap-4 flex-wrap">
-                  <span className="text-6xl sm:text-7xl lg:text-8xl font-black tracking-tighter text-foreground leading-none">
+                  <span className="text-6xl sm:text-7xl lg:text-8xl font-bold tracking-tighter text-foreground leading-none">
                     {cgpaData.currentCgpa.toFixed(2)}
                   </span>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-base sm:text-lg font-medium text-muted-foreground/40">/ 10.00</span>
-                    <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground/30">
-                      {((cgpaData.currentCgpa / 10) * 100).toFixed(0)}th percentile
-                    </span>
-                  </div>
+                  <span className="text-base sm:text-lg font-medium text-muted-foreground/40">/ 10.00</span>
                 </div>
               </div>
 
@@ -450,7 +445,7 @@ export default function DashboardHomePage() {
                     <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/30">
                       {s.label}
                     </p>
-                    <p className="text-2xl sm:text-3xl font-black text-foreground leading-none">{s.value}</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-foreground leading-none">{s.value}</p>
                     <p className="text-[10px] sm:text-xs text-muted-foreground/40">{s.sub}</p>
                   </div>
                 ))}

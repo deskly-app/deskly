@@ -438,12 +438,7 @@ export default function ExamSchedulePage() {
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-extrabold tracking-wider">{tab.label}</span>
-                  <span className={`text-xs font-black px-1.5 py-0.5 rounded-full leading-none ${
-                    active ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
-                  }`}>
-                    {tab.count}
-                  </span>
+                  <span className="text-sm font-bold tracking-wider">{tab.label}</span>
                 </div>
                 <span className="text-xs font-semibold mt-1 leading-none opacity-60">
                   {tab.range}
@@ -477,14 +472,36 @@ export default function ExamSchedulePage() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-[280px_1fr] gap-8 items-start min-h-0 flex-1 xl:overflow-hidden pt-2">
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8 items-start min-h-0 flex-1 lg:overflow-hidden pt-2">
         
         {/* ── Left Sidebar (Sticky details) ────────────────────────────────── */}
-        <div className="hidden xl:block xl:space-y-6 xl:h-full xl:overflow-y-auto no-scrollbar pb-6 pr-2 shrink-0 xl:w-[280px]">
+        <div className="w-full lg:w-[280px] shrink-0 lg:h-full lg:overflow-y-auto no-scrollbar pb-6 space-y-6 lg:block">
           {loading && activeSchedules.length === 0 ? (
             <SidebarSkeleton />
           ) : (
-            <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-6 w-full">
+              {/* Quick Overview Stats */}
+              <div className="space-y-4">
+                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b border-border/10 pb-2">Quick Overview</p>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    {[
+                      { label: "Total Exams", val: tabStats.totalExams },
+                      { label: "Upcoming", val: tabStats.upcomingExams },
+                    ].map(({ label, val }) => (
+                      <div key={label} className="space-y-1">
+                        <p className="font-bold text-foreground text-3xl leading-none">{val}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 leading-tight">{label}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="space-y-1 pt-3 border-t border-border/10">
+                    <p className="font-bold text-foreground text-3xl leading-none">{tabStats.span}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 leading-tight">Total Exam Span</p>
+                  </div>
+                </div>
+              </div>
+
               {/* Next Exam Countdown (Minimalist, borderless layout) */}
               {nextExamInfo ? (
                 <div className="space-y-4">
@@ -494,10 +511,10 @@ export default function ExamSchedulePage() {
                     </p>
                   </div>
                   <div className="border-l-2 border-primary pl-4 py-1.5 space-y-2">
-                    <span className="text-xs font-extrabold text-primary tracking-wide uppercase">
+                    <span className="text-xs font-bold text-primary tracking-wide uppercase">
                       {nextExamInfo.exam.courseCode}
                     </span>
-                    <p className="text-base font-extrabold text-foreground leading-snug">{nextExamInfo.exam.courseTitle}</p>
+                    <p className="text-base font-bold text-foreground leading-snug">{nextExamInfo.exam.courseTitle}</p>
                     
                     <div className="space-y-2 text-sm text-muted-foreground pt-1">
                       <div className="flex items-center gap-2">
@@ -517,7 +534,7 @@ export default function ExamSchedulePage() {
 
                   {/* Countdown Digits */}
                   <div className="border border-border/20 rounded-md p-4 space-y-2.5 text-center">
-                    <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground">Starts in</span>
+                    <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Starts in</span>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-1 pt-1">
                       {[
                         { label: "Days", val: nextExamInfo.countdown.days },
@@ -526,10 +543,10 @@ export default function ExamSchedulePage() {
                         { label: "Secs", val: nextExamInfo.countdown.seconds },
                       ].map(({ label, val }, idx) => (
                         <div key={label} className="relative flex flex-col items-center">
-                          <span className="text-2xl font-black text-primary leading-none">
+                          <span className="text-2xl font-bold text-primary leading-none">
                             {String(val).padStart(2, "0")}
                           </span>
-                          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mt-2">
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mt-2">
                             {label}
                           </span>
                           {idx < 3 && (
@@ -548,54 +565,32 @@ export default function ExamSchedulePage() {
                       <Calendar className="w-4 h-4 text-muted-foreground/60" />
                     </div>
                     <div>
-                      <p className="text-base font-extrabold text-foreground">No upcoming exams</p>
+                      <p className="text-base font-bold text-foreground">No upcoming exams</p>
                       <p className="text-sm text-muted-foreground mt-0.5">All scheduled exams are completed.</p>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Quick Overview Stats */}
-              <div className="space-y-4">
-                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b border-border/10 pb-2">Quick Overview</p>
-                <div className="space-y-4 pt-1">
-                  <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
-                    {[
-                      { label: "Total Exams", val: tabStats.totalExams },
-                      { label: "Upcoming", val: tabStats.upcomingExams },
-                    ].map(({ label, val }) => (
-                      <div key={label} className="space-y-1.5 flex-1">
-                        <p className="font-black text-foreground text-3xl leading-none">{val}</p>
-                        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground leading-none">{label}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="space-y-1.5 pt-1 border-t border-border/10">
-                    <p className="font-black text-foreground text-3xl leading-none">{tabStats.span}</p>
-                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground leading-none">Total Exam Span</p>
-                  </div>
-                </div>
-              </div>
-
               {/* Important note */}
-              <div className="p-4 rounded-md bg-destructive/[0.03] border border-destructive/10 text-xs leading-relaxed text-destructive/80 space-y-2">
+              <div className="p-4 rounded-md bg-destructive/[0.03] border border-destructive/10 text-xs leading-relaxed text-destructive/80 space-y-2 md:col-span-2 lg:col-span-1">
                 <div className="flex items-center gap-1.5 font-bold uppercase tracking-widest">
                   <AlertCircle className="w-4 h-4 shrink-0" /> Note
                 </div>
-                <p className="font-semibold text-muted-foreground leading-snug">
-                  Please reach the exam venue at least 15 minutes before the reporting time.
+                <p className="font-medium text-muted-foreground leading-snug">
+                  Please reach the exam venue at least {selectedTab.toUpperCase().includes("FAT") ? "30" : "15"} minutes before the reporting time.
                 </p>
               </div>
-            </>
+            </div>
           )}
         </div>
 
         {/* ── Right Content: Chronological Timeline ────────────────────────── */}
-        <div className="xl:h-full xl:overflow-y-auto no-scrollbar pb-6 pr-2 space-y-4 w-full">
+        <div className="lg:h-full lg:overflow-y-auto no-scrollbar pb-6 pr-2 space-y-4 w-full">
           <div className="flex items-center justify-between pb-3 border-b border-border/20 shrink-0">
             <div>
               <h2 className="text-base font-bold text-foreground tracking-tight">Exam Schedule ({formatExamTypeLabel(selectedTab)})</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Exam Reporting Time : 30 minutes before schedule</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Exam Reporting Time : {selectedTab.toUpperCase().includes("FAT") ? "30" : "15"} minutes before schedule</p>
             </div>
             {!loading && (
               <span className="text-xs font-semibold bg-muted text-muted-foreground px-2 py-1 rounded-full">
@@ -620,10 +615,7 @@ export default function ExamSchedulePage() {
               </div>
             ) : (
               <div className="relative">
-                {/* Continuous timeline vertical line on desktop */}
-                <div className="absolute top-0 bottom-0 left-[131px] w-[2px] bg-border/15 hidden md:block" />
-
-                <div className="space-y-1 pt-2">
+                <div className="space-y-3.5 pt-2">
                   {activeSchedules.map((item, idx) => {
                     const examDate = parseDateStr(item.examDate);
                     const isScheduled = examDate !== null;
@@ -646,11 +638,11 @@ export default function ExamSchedulePage() {
                         if (dayDiff > 1) {
                           const gapDays = dayDiff - 1;
                           gapElement = (
-                            <div className="relative py-3 flex items-center justify-center">
+                            <div className="relative py-4 flex items-center justify-center">
                               {/* Line separator */}
-                              <div className="absolute left-[131px] right-0 border-t border-dashed border-border/20 hidden md:block" />
+                              <div className="absolute inset-x-0 border-t border-dashed border-border" />
                               {/* Pill */}
-                              <div className="relative z-10 bg-muted/65 text-muted-foreground text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full flex items-center gap-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                              <div className="relative z-10 bg-card border border-border/60 text-muted-foreground text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
                                 <Info className="w-3.5 h-3.5 text-muted-foreground/75" />
                                 <span>{gapDays} {gapDays === 1 ? "Day" : "Days"} Gap</span>
                               </div>
@@ -662,13 +654,13 @@ export default function ExamSchedulePage() {
 
                     return (
                       <div key={`${item.courseCode}-${idx}`} className="space-y-1">
-                        <div className="p-3.5 bg-background/50 backdrop-blur-xl border border-border/20 rounded-xl shadow-sm flex items-center justify-between gap-4 hover:bg-muted/15 transition-all duration-150">
+                        <div className="p-3.5 bg-background/50 backdrop-blur-xl border border-border/20 rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:bg-muted/15 transition-all duration-150">
                           {/* Left Column: Date bubble & Info */}
-                          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                          <div className="flex items-start sm:items-center gap-3.5 min-w-0 flex-1">
                             <div className="w-11 h-11 rounded-lg flex flex-col items-center justify-center shrink-0 border border-border/20 bg-muted/20 text-foreground/80">
                               {isScheduled ? (
                                 <>
-                                  <span className="text-sm font-extrabold leading-none">{dayNum}</span>
+                                  <span className="text-sm font-bold leading-none">{dayNum}</span>
                                   <span className="text-[10px] font-bold uppercase leading-none mt-0.5 tracking-wider">{weekDayStr}</span>
                                 </>
                               ) : (
@@ -678,7 +670,7 @@ export default function ExamSchedulePage() {
 
                             <div className="min-w-0 flex-1 space-y-1">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-xs font-black tracking-widest text-primary uppercase leading-none">
+                                <span className="text-xs font-bold tracking-widest text-primary uppercase leading-none">
                                   {item.courseCode}
                                 </span>
                                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none bg-primary/10 text-primary">
@@ -690,7 +682,7 @@ export default function ExamSchedulePage() {
                                   </span>
                                 )}
                               </div>
-                              <h4 className="text-sm font-bold text-foreground truncate leading-snug">
+                              <h4 className="text-sm font-bold text-foreground truncate sm:whitespace-normal sm:line-clamp-2 leading-snug">
                                 {item.courseTitle}
                               </h4>
                               <div className="flex items-center gap-4 text-xs text-muted-foreground/80 font-medium pt-0.5 truncate">
@@ -707,11 +699,11 @@ export default function ExamSchedulePage() {
                           </div>
 
                           {/* Right Column: Seat & Export details */}
-                          <div className="shrink-0 flex items-center gap-3">
-                            {isScheduled && <SingleExamExportModal entry={item} />}
+                          <div className="flex items-center justify-between sm:justify-end gap-3 border-t border-border/10 sm:border-0 pt-2 sm:pt-0 pl-14 sm:pl-0 shrink-0">
                             <span className="text-xs font-semibold text-muted-foreground/80 leading-none">
                               {displaySeatNo}
                             </span>
+                            {isScheduled && <SingleExamExportModal entry={item} />}
                           </div>
                         </div>
 

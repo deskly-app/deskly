@@ -31,24 +31,19 @@ function Sk({ className = "" }: { className?: string }) {
 
 function ContactSkeleton() {
   return (
-    <div className="divide-y divide-border/5 animate-pulse">
-      {[...Array(10)].map((_, i) => (
-        <div key={i} className="py-4 px-3 -mx-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          {/* Left: Department Name & Description skeleton */}
-          <div className="flex-1 space-y-2 pr-4">
-            <Sk className="h-4 w-1/3 rounded" />
-            <Sk className="h-3.5 w-3/5 rounded" />
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {[...Array(9)].map((_, i) => (
+        <div key={i} className="p-5 border border-border/20 rounded-xl space-y-4 bg-card/20 animate-pulse">
+          <div className="space-y-2">
+            <Sk className="h-4 w-3/4 rounded" />
+            <Sk className="h-3 w-5/6 rounded" />
+            <Sk className="h-3 w-2/3 rounded" />
           </div>
-          
-          {/* Right: Email and Buttons skeleton */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between md:justify-end gap-4 md:gap-6 shrink-0">
-            {/* Email skeleton */}
-            <Sk className="h-4 w-40 sm:w-48 md:w-56 rounded" />
-            
-            {/* Buttons skeleton */}
-            <div className="flex items-center gap-2 md:w-20 justify-end">
-              <Sk className="h-8 w-8 rounded-md" />
-              <Sk className="h-8 w-8 rounded-md" />
+          <div className="border-t border-border/10 pt-4 flex justify-between items-center">
+            <Sk className="h-3.5 w-1/2 rounded" />
+            <div className="flex gap-2">
+              <Sk className="h-7 w-7 rounded" />
+              <Sk className="h-7 w-7 rounded" />
             </div>
           </div>
         </div>
@@ -57,9 +52,9 @@ function ContactSkeleton() {
   );
 }
 
-// ─── Contact Row ─────────────────────────────────────────────────────────────
+// ─── Contact Card Component ───────────────────────────────────────────────────
 
-function ContactRow({ contact }: { contact: ContactDetail }) {
+function ContactCard({ contact }: { contact: ContactDetail }) {
   const [copied, setCopied] = useState(false);
   const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(contact.email)}`;
 
@@ -74,55 +69,53 @@ function ContactRow({ contact }: { contact: ContactDetail }) {
   };
 
   return (
-    <div className="group py-4 px-3 -mx-3 rounded-md flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-muted/10 transition-colors duration-150">
-      {/* Left section: Name + Description */}
-      <div className="flex-1 min-w-0 pr-4">
-        <h3 className="text-sm sm:text-base font-semibold text-foreground tracking-tight">
+    <div className="p-5 bg-card/30 border border-border/20 hover:border-border/35 rounded-xl transition-all flex flex-col justify-between gap-4 h-full">
+      <div className="space-y-2">
+        <h3 className="text-sm sm:text-base font-bold text-foreground tracking-tight leading-snug">
           {contact.department}
         </h3>
         {contact.description && (
-          <p className="text-xs sm:text-sm text-muted-foreground/80 mt-1 font-normal leading-relaxed max-w-2xl">
+          <p className="text-xs text-muted-foreground/80 font-medium leading-relaxed">
             {contact.description}
           </p>
         )}
       </div>
 
-      {/* Right section: Email and Buttons */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between md:justify-end gap-4 md:gap-6 shrink-0">
-        {/* Email Address */}
-        <span className="text-xs sm:text-sm font-mono text-muted-foreground selection:bg-primary/20 md:w-56 truncate">
-          {contact.email}
-        </span>
+      <div className="space-y-3 pt-1">
+        <div className="border-t border-border/10" />
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs font-mono text-muted-foreground/85 truncate select-all flex-1 pr-2" title={contact.email}>
+            {contact.email}
+          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Copy Button */}
+            <button
+              onClick={handleCopy}
+              title="Copy email address"
+              className="p-1.5 rounded-md border border-border/10 text-muted-foreground hover:text-foreground hover:bg-muted/10 transition-colors cursor-pointer"
+            >
+              {copied ? (
+                <Check className="w-3.5 h-3.5 text-primary" />
+              ) : (
+                <Copy className="w-3.5 h-3.5" />
+              )}
+            </button>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2 md:w-20 justify-end">
-          {/* Copy Button */}
-          <button
-            onClick={handleCopy}
-            title="Copy email address"
-            className="p-2 rounded-md border border-border/10 text-muted-foreground hover:text-foreground hover:bg-accent/50 hover:border-border/30 transition-all duration-150 flex items-center justify-center cursor-pointer"
-          >
-            {copied ? (
-              <Check className="w-4 h-4 text-primary" />
-            ) : (
-              <Copy className="w-4 h-4" />
-            )}
-          </button>
-
-          {/* Browser Gmail compose link */}
-          <button
-            onClick={async () => {
-              try {
-                await openUrl(gmailUrl);
-              } catch (err) {
-                console.error("Failed to open Gmail link:", err);
-              }
-            }}
-            title="Compose in browser Gmail"
-            className="p-2 rounded-md border border-border/10 text-muted-foreground hover:text-foreground hover:bg-accent/50 hover:border-border/30 transition-all duration-150 flex items-center justify-center cursor-pointer bg-transparent"
-          >
-            <GmailIcon className="w-4 h-4" />
-          </button>
+            {/* Browser Gmail compose link */}
+            <button
+              onClick={async () => {
+                try {
+                  await openUrl(gmailUrl);
+                } catch (err) {
+                  console.error("Failed to open Gmail link:", err);
+                }
+              }}
+              title="Compose in browser Gmail"
+              className="p-1.5 rounded-md border border-border/10 text-muted-foreground hover:text-foreground hover:bg-muted/10 transition-colors cursor-pointer bg-transparent"
+            >
+              <GmailIcon className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -226,22 +219,10 @@ export default function ContactPage() {
               </p>
             </div>
           ) : (
-            <div className="flex flex-col">
-              {/* Directory Header on desktop */}
-              <div className="hidden md:flex items-center justify-between px-3 pb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/10">
-                <div>Department</div>
-                <div className="flex items-center gap-6">
-                  <span className="w-56 text-left">Email Address</span>
-                  <span className="w-20 text-right">Actions</span>
-                </div>
-              </div>
-              
-              {/* List rows */}
-              <div className="divide-y divide-border/5">
-                {filtered.map((contact) => (
-                  <ContactRow key={contact.department} contact={contact} />
-                ))}
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filtered.map((contact) => (
+                <ContactCard key={contact.department} contact={contact} />
+              ))}
             </div>
           )}
         </>

@@ -25,15 +25,8 @@ import {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatCourseType(type: string) {
   const clean = type.trim().toUpperCase();
-  let colorClass = "text-muted-foreground";
-  if (clean === "TH") colorClass = "text-chart-1 font-bold";
-  else if (clean === "LO" || clean === "LA") colorClass = "text-chart-2 font-bold";
-  else if (clean === "ETL") colorClass = "text-chart-4 font-bold";
-  else if (clean === "PJT") colorClass = "text-chart-3 font-bold";
-  else if (clean === "SS") colorClass = "text-chart-5 font-bold";
-  
   return (
-    <span className={`text-xs tracking-wide ${colorClass}`}>
+    <span className="text-xs tracking-wide font-semibold text-muted-foreground">
       {clean}
     </span>
   );
@@ -41,12 +34,9 @@ function formatCourseType(type: string) {
 
 function formatGrade(grade: string) {
   const clean = grade.trim().toUpperCase();
-  let colorClass = "text-muted-foreground";
-  if (clean === "S" || clean === "A") colorClass = "text-chart-2 font-black";
-  else if (clean === "B") colorClass = "text-chart-3 font-black";
-  else if (clean === "C" || clean === "P") colorClass = "text-chart-1 font-black";
-  else if (clean === "D") colorClass = "text-chart-5 font-black";
-  else if (clean === "E" || clean === "F") colorClass = "text-destructive font-black";
+  let colorClass = "text-foreground";
+  if (clean === "S" || clean === "A") colorClass = "text-primary font-extrabold";
+  else if (clean === "E" || clean === "F") colorClass = "text-destructive font-extrabold";
 
   return (
     <span className={`text-sm tracking-wide ${colorClass}`}>
@@ -108,8 +98,8 @@ function GradesSkeleton() {
       </div>
 
       {/* Table skeleton */}
-      <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-2 pr-2">
-        <table className="w-full border-collapse text-left">
+      <div className="flex-1 min-h-0 overflow-auto no-scrollbar pt-2 pr-2">
+        <table className="w-full border-collapse text-left min-w-[900px]">
           <thead>
             <tr className="border-b border-border/30 text-xs font-black uppercase tracking-wider text-muted-foreground">
               <th className="py-4 px-3 w-12">#</th>
@@ -251,9 +241,9 @@ export default function GradesPage() {
             <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground">Total Subjects</span>
             <BookOpen className="w-5 h-5 text-primary shrink-0" />
           </div>
-          <div className="mt-4 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-foreground leading-none">{totalSubjects}</span>
-            <span className="text-xs font-bold text-muted-foreground/60 leading-none">Completed</span>
+          <div className="mt-3">
+            <span className="text-3xl font-black text-foreground leading-none block">{totalSubjects}</span>
+            <span className="text-[11px] font-bold text-muted-foreground/60 block mt-1.5 uppercase tracking-wider">Completed</span>
           </div>
         </div>
 
@@ -263,21 +253,21 @@ export default function GradesPage() {
             <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground">Total Credits</span>
             <Bookmark className="w-5 h-5 text-primary shrink-0" />
           </div>
-          <div className="mt-4 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-foreground leading-none">{totalCredits}</span>
-            <span className="text-xs font-bold text-muted-foreground/60 leading-none">Earned</span>
+          <div className="mt-3">
+            <span className="text-3xl font-black text-foreground leading-none block">{totalCredits}</span>
+            <span className="text-[11px] font-bold text-muted-foreground/60 block mt-1.5 uppercase tracking-wider">Earned</span>
           </div>
         </div>
 
         {/* CGPA */}
         <div className="flex flex-col justify-between bg-card/40 border border-border/30 rounded-lg p-5 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:border-primary/10 transition-colors duration-200 min-h-[104px]">
           <div className="flex items-center justify-between w-full">
-            <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground">SGPA (Current)</span>
+            <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground">CGPA</span>
             <Award className="w-5 h-5 text-primary shrink-0" />
           </div>
-          <div className="mt-4 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-foreground leading-none">{cgpaVal}</span>
-            <span className="text-xs font-bold text-muted-foreground/60 leading-none">Cumulative</span>
+          <div className="mt-3">
+            <span className="text-3xl font-black text-foreground leading-none block">{cgpaVal}</span>
+            <span className="text-[11px] font-bold text-muted-foreground/60 block mt-1.5 uppercase tracking-wider">Cumulative GPA</span>
           </div>
         </div>
 
@@ -321,7 +311,7 @@ export default function GradesPage() {
       </div>
 
       {/* ── Table: Grade History ───────────────────────────────────────────── */}
-      <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pr-2">
+      <div className="flex-1 min-h-0 overflow-auto no-scrollbar pr-2">
         {filteredGrades.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
             <FileText className="w-8 h-8 text-muted-foreground/20" />
@@ -332,7 +322,7 @@ export default function GradesPage() {
           </div>
         ) : (
           <div className="overflow-x-auto no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
-            <table className="w-full border-collapse text-left">
+            <table className="w-full border-collapse text-left min-w-[900px]">
               <thead>
                 <tr className="border-b border-border/30 text-xs font-black uppercase tracking-wider text-muted-foreground">
                   <th className="py-4 px-3 w-12">#</th>
@@ -383,15 +373,15 @@ export default function GradesPage() {
             
             <div className="flex flex-wrap gap-2">
               {[
-                { label: "S", count: gradeCounts.S, color: "bg-chart-2/10 text-chart-2 border border-chart-2/15" },
-                { label: "A", count: gradeCounts.A, color: "bg-chart-2/5 text-chart-2 border border-chart-2/10" },
-                { label: "B", count: gradeCounts.B, color: "bg-chart-3/10 text-chart-3 border border-chart-3/15" },
-                { label: "C", count: gradeCounts.C, color: "bg-chart-1/10 text-chart-1 border border-chart-1/15" },
-                { label: "D", count: gradeCounts.D, color: "bg-chart-5/10 text-chart-5 border border-chart-5/15" },
-                { label: "E", count: gradeCounts.E, color: "bg-destructive/10 text-destructive border border-destructive/15" },
-                { label: "F", count: gradeCounts.F, color: "bg-destructive/15 text-destructive border border-destructive/20" },
-                { label: "P", count: gradeCounts.P, color: "bg-chart-1/5 text-chart-1 border border-chart-1/10" },
-                { label: "N", count: gradeCounts.N, color: "bg-muted text-muted-foreground border border-border/20" },
+                { label: "S", count: gradeCounts.S, color: "bg-primary/10 text-primary border border-primary/20" },
+                { label: "A", count: gradeCounts.A, color: "bg-primary/10 text-primary border border-primary/20" },
+                { label: "B", count: gradeCounts.B, color: "bg-muted text-muted-foreground border border-border/60" },
+                { label: "C", count: gradeCounts.C, color: "bg-muted text-muted-foreground border border-border/60" },
+                { label: "D", count: gradeCounts.D, color: "bg-muted text-muted-foreground border border-border/60" },
+                { label: "E", count: gradeCounts.E, color: "bg-destructive/10 text-destructive border border-destructive/20" },
+                { label: "F", count: gradeCounts.F, color: "bg-destructive/10 text-destructive border border-destructive/20" },
+                { label: "P", count: gradeCounts.P, color: "bg-muted text-muted-foreground border border-border/60" },
+                { label: "N", count: gradeCounts.N, color: "bg-muted text-muted-foreground border border-border/40" },
               ].map(({ label, count, color }) => (
                 <div key={label} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-black leading-none ${color}`}>
                   <span>{label}</span>

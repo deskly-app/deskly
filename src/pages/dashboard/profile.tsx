@@ -66,14 +66,14 @@ function renderPhoto(photoUrl: string, name: string, maxWClass = "max-w-[12rem]"
 
 function renderDetailField(icon: React.ReactNode, label: string, value: string | null | undefined, className = "") {
   return (
-    <div className={`flex items-center justify-between gap-4 py-3 border-b border-border/10 group hover:border-primary/25 transition-colors min-w-0 ${className}`}>
+    <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 py-3 border-b border-border/10 group hover:border-primary/25 transition-colors min-w-0 ${className}`}>
       <div className="flex items-center gap-3 min-w-0">
         <div className="w-8 h-8 rounded-full bg-primary/5 flex items-center justify-center text-muted-foreground/70 group-hover:bg-primary/10 group-hover:text-primary transition-all shrink-0">
           {icon}
         </div>
         <span className="text-xs font-bold text-muted-foreground/60 uppercase tracking-wider">{label}</span>
       </div>
-      <span className="text-xs sm:text-sm font-extrabold text-foreground/90 break-words text-right pl-4">{value || "N/A"}</span>
+      <span className="text-xs sm:text-sm font-bold text-foreground/90 break-words text-left sm:text-right sm:pl-4 pl-11">{value || "N/A"}</span>
     </div>
   );
 }
@@ -225,7 +225,7 @@ export default function StudentProfilePage() {
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
-            <h1 className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-foreground via-foreground/95 to-muted-foreground bg-clip-text text-transparent">
+            <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground/95 to-muted-foreground bg-clip-text text-transparent">
               My Profile
             </h1>
           </div>
@@ -237,10 +237,10 @@ export default function StudentProfilePage() {
 
       {/* ── Section 1: Student Personal & Academic Details ───────────────── */}
       <section className="space-y-6">
-        <h3 className="text-sm font-black text-foreground uppercase tracking-wider border-b border-border/10 pb-2">
+        <h3 className="text-sm font-bold text-foreground uppercase tracking-wider border-b border-border/10 pb-2">
           Student Information
         </h3>
-        <div className="flex flex-col xl:flex-row gap-8 xl:gap-12 items-start w-full">
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-center lg:items-start w-full">
           {/* Photo */}
           {renderPhoto(student.photoUrl, student.name, "w-52 max-w-full shrink-0", "max-h-[20rem]")}
           
@@ -248,17 +248,17 @@ export default function StudentProfilePage() {
           <div className="flex-1 w-full space-y-6">
             <div className="border-b border-border/10 pb-4">
               <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-wider">Full Name</p>
-              <h2 className="text-2xl font-black tracking-tight text-foreground">{student.name}</h2>
+              <h2 className="text-2xl font-bold tracking-tight text-foreground">{student.name}</h2>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-1 w-full">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-1 w-full">
               {renderDetailField(<User className="w-4 h-4" />, "Register No.", student.registerNumber)}
               {renderDetailField(<User className="w-4 h-4" />, "Application No.", student.applicationNumber)}
               {renderDetailField(<Layers className="w-4 h-4" />, "Program / Branch", student.program)}
               {renderDetailField(<Calendar className="w-4 h-4" />, "Date of Birth", student.dob)}
               {renderDetailField(<User className="w-4 h-4" />, "Gender", student.gender)}
               {renderDetailField(<Phone className="w-4 h-4" />, "Mobile Number", student.mobile)}
-              {renderDetailField(<Mail className="w-4 h-4" />, "VIT Email ID", student.vitEmail, "md:col-span-2")}
-              {renderDetailField(<Mail className="w-4 h-4" />, "Personal Email ID", student.personalEmail, "md:col-span-2")}
+              {renderDetailField(<Mail className="w-4 h-4" />, "VIT Email ID", student.vitEmail, "lg:col-span-2")}
+              {renderDetailField(<Mail className="w-4 h-4" />, "Personal Email ID", student.personalEmail, "lg:col-span-2")}
             </div>
           </div>
         </div>
@@ -267,10 +267,10 @@ export default function StudentProfilePage() {
       {/* ── Section 2: Proctor Details ───────────────────────────────────── */}
       {proctor && (
         <section className="space-y-6 pt-4 border-t border-border/10">
-          <h3 className="text-sm font-black text-foreground uppercase tracking-wider border-b border-border/10 pb-2">
+          <h3 className="text-sm font-bold text-foreground uppercase tracking-wider border-b border-border/10 pb-2">
             Proctor Details
           </h3>
-          <div className="flex flex-col xl:flex-row gap-8 xl:gap-12 items-start w-full">
+          <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-center lg:items-start w-full">
             {/* Photo */}
             {renderPhoto(proctor.photoUrl, proctor.name, "w-44 max-w-full shrink-0", "max-h-[16rem]")}
             
@@ -278,15 +278,15 @@ export default function StudentProfilePage() {
             <div className="flex-1 w-full space-y-6">
               <div className="border-b border-border/10 pb-4">
                 <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-wider">Proctor Name</p>
-                <h2 className="text-xl font-black tracking-tight text-foreground">{proctor.name}</h2>
+                <h2 className="text-xl font-bold tracking-tight text-foreground">{proctor.name}</h2>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-1 w-full">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-1 w-full">
                 {renderDetailField(<User className="w-4 h-4" />, "Faculty ID", proctor.facultyId)}
                 {renderDetailField(<User className="w-4 h-4" />, "Designation", proctor.designation)}
                 {renderDetailField(<Layers className="w-4 h-4" />, "School", proctor.school)}
                 {renderDetailField(<MapPin className="w-4 h-4" />, "Cabin Room", proctor.cabin)}
                 {renderDetailField(<Phone className="w-4 h-4" />, "Mobile", proctor.mobile)}
-                {renderDetailField(<Mail className="w-4 h-4" />, "Email Address", proctor.email, "md:col-span-2")}
+                {renderDetailField(<Mail className="w-4 h-4" />, "Email Address", proctor.email, "lg:col-span-2")}
               </div>
             </div>
           </div>
@@ -296,10 +296,10 @@ export default function StudentProfilePage() {
       {/* ── Section 3: Hostel / Residence Details ─────────────────────────── */}
       {hostel && (
         <section className="space-y-6 pt-4 border-t border-border/10">
-          <h3 className="text-sm font-black text-foreground uppercase tracking-wider border-b border-border/10 pb-2">
+          <h3 className="text-sm font-bold text-foreground uppercase tracking-wider border-b border-border/10 pb-2">
             Hostel Details
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-1 w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-1 w-full">
             {renderDetailField(<Home className="w-4 h-4" />, "Block Name", hostel.blockName)}
             {renderDetailField(<MapPin className="w-4 h-4" />, "Room Number", hostel.roomNumber)}
             {renderDetailField(<Layers className="w-4 h-4" />, "Bed Type", hostel.bedType)}

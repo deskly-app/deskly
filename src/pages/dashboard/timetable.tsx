@@ -415,7 +415,7 @@ export default function TimetablePage() {
                             <span className="font-semibold uppercase text-foreground/80">{item.slot}</span>
                             {isNow && (
                               <span className="flex items-center gap-1 text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full leading-none ml-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />Live
+                                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />Ongoing
                               </span>
                             )}
                           </div>
@@ -462,7 +462,7 @@ export default function TimetablePage() {
                     <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground/45">{focusedLabel}</p>
                     {classStatus.cur && (
                       <span className="flex items-center gap-1 text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />Live
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />Ongoing
                       </span>
                     )}
                   </div>
