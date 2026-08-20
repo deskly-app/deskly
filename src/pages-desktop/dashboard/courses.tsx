@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getTimetableCourses, TimetableCourse } from "@/lib/features";
 import { useOfflineData } from "@/hooks/use-offline-data";
+import { Separator } from "@/components/ui/separator";
 
 import { ErrorDisplay } from "@/components/error-display";
 import {
@@ -27,147 +28,66 @@ import {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getCourseTypeStyle(type: string): { label: string; className: string } {
-  const clean = type.trim().toUpperCase();
-  if (clean.includes("EMBEDDED THEORY")) return { label: type, className: "text-primary" };
-  if (clean.includes("EMBEDDED LAB")) return { label: type, className: "text-primary" };
-  if (clean.includes("THEORY")) return { label: type, className: "text-primary" };
-  if (clean.includes("LAB")) return { label: type, className: "text-primary" };
-  if (clean.includes("ONLINE")) return { label: type, className: "text-primary" };
-  if (clean.includes("SOFT SKILL") || clean.includes("SKILL")) return { label: type, className: "text-primary" };
-  return { label: type, className: "text-muted-foreground" };
+  return { label: type.trim(), className: "text-muted-foreground" };
 }
 
 function getCategoryStyle(category: string): { label: string; className: string } {
-  const clean = category.trim();
-  return { label: clean, className: "text-muted-foreground" };
+  return { label: category.trim(), className: "text-muted-foreground" };
 }
 
-// ─── Desktop Course Row Component ─────────────────────────────────────────────
+// ─── Course Card Component ─────────────────────────────────────────────────────
 
-function DesktopCourseRow({ item, index }: { item: TimetableCourse; index: number }) {
+function CourseCard({ item, index }: { item: TimetableCourse; index: number }) {
   const typeStyle = getCourseTypeStyle(item.courseType);
   const catStyle = getCategoryStyle(item.category);
 
   return (
-    <div className="py-4 border-b border-border/20 hover:bg-muted/5 transition-colors hidden md:grid grid-cols-[1fr_280px_120px] items-center gap-6 min-w-0">
-      
-      {/* Left: Code, Badges & Title */}
-      <div className="min-w-0 space-y-1.5">
-        <div className="flex items-center gap-2 flex-wrap min-w-0">
-          <span className="text-xs font-bold text-muted-foreground/40 tabular-nums shrink-0">
+    <div className="p-5 bg-transparent border border-border hover:border-foreground/30 rounded-xl transition-all flex flex-col justify-between gap-4 h-full">
+      <div className="space-y-3">
+        {/* Top: Serial & Code */}
+        <div className="flex items-center justify-between text-xs text-muted-foreground/60">
+          <span className="font-bold text-muted-foreground/35 tabular-nums">
             #{(index + 1).toString().padStart(2, "0")}
           </span>
-          <span className="text-xs font-black tracking-wider text-primary bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-full leading-none shrink-0">
+          <span className="font-bold text-primary uppercase tracking-wider">
             {item.code}
           </span>
-          {item.slot && (
-            <span className="font-mono text-xs font-bold text-muted-foreground/80 bg-muted/50 border border-border/20 px-2.5 py-0.5 rounded-full leading-none shrink-0">
-              Slot: {item.slot}
-            </span>
-          )}
-          <span className="text-xs font-semibold text-muted-foreground shrink-0">
-            {typeStyle.label}
-          </span>
-          {item.category && (
-            <span className="text-xs font-medium text-muted-foreground/70 bg-muted/40 border border-border/20 px-2.5 py-0.5 rounded-full leading-none shrink-0 truncate max-w-[240px]" title={catStyle.label}>
-              {catStyle.label}
-            </span>
-          )}
         </div>
-        
-        <h3 className="text-base font-bold text-foreground leading-snug truncate">
+
+        {/* Title */}
+        <h3 className="text-base font-bold text-foreground leading-snug break-words">
           {item.title}
         </h3>
-      </div>
 
-      {/* Middle: Instructor & Venue */}
-      <div className="space-y-1 min-w-0">
-        {item.faculty?.name ? (
-          <div className="flex items-center gap-1.5 min-w-0">
-            <User className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0" />
-            <span className="text-xs font-semibold text-foreground truncate" title={item.faculty.name}>
-              {item.faculty.name}
-            </span>
-          </div>
-        ) : (
-          <span className="text-xs text-muted-foreground/40">—</span>
-        )}
-        {item.venue && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60 min-w-0">
-            <MapPin className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0" />
-            <span className="font-medium truncate">{item.venue}</span>
-            {item.faculty?.school && (
-              <span className="text-[11px] text-muted-foreground/40 font-semibold uppercase">
-                · {item.faculty.school}
+        {/* Slot & Type Details */}
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground/75 uppercase leading-none font-semibold">
+          {item.slot && (
+            <>
+              <span>{item.slot}</span>
+              <span>·</span>
+            </>
+          )}
+          <span>{typeStyle.label}</span>
+          {item.category && (
+            <>
+              <span>·</span>
+              <span className="truncate max-w-[150px]" title={catStyle.label}>
+                {catStyle.label}
               </span>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Right: Credits */}
-      <div className="text-right space-y-0.5">
-        <div className="flex items-baseline justify-end gap-1">
-          <span className="text-xl font-black text-foreground tabular-nums leading-none">
-            {item.credits?.total ?? 0}
-          </span>
-          <span className="text-xs text-muted-foreground/50 font-medium">Credits</span>
+            </>
+          )}
         </div>
-        <p className="font-mono text-[11px] text-muted-foreground/50 leading-none tabular-nums">
-          L-T-P-J: {item.credits?.lecture ?? 0}-{item.credits?.tutorial ?? 0}-{item.credits?.practical ?? 0}-{item.credits?.project ?? 0}
-        </p>
       </div>
 
-    </div>
-  );
-}
+      <div className="space-y-4 pt-1">
+        <Separator className="bg-border/5" />
 
-// ─── Mobile Course Card Component ─────────────────────────────────────────────
-
-function MobileCourseCard({ item, index }: { item: TimetableCourse; index: number }) {
-  const typeStyle = getCourseTypeStyle(item.courseType);
-  const catStyle = getCategoryStyle(item.category);
-
-  return (
-    <div className="py-4 border-b border-border/20 space-y-3 block md:hidden">
-      {/* Top row: Code, Slot, Type, Category */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs font-bold text-muted-foreground/40 tabular-nums shrink-0">
-          #{(index + 1).toString().padStart(2, "0")}
-        </span>
-        <span className="text-xs font-black tracking-wider text-primary bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-full leading-none shrink-0">
-          {item.code}
-        </span>
-        {item.slot && (
-          <span className="font-mono text-xs font-bold text-muted-foreground/80 bg-muted/50 border border-border/20 px-2.5 py-0.5 rounded-full leading-none shrink-0">
-            Slot: {item.slot}
-          </span>
-        )}
-        <span className="text-xs font-semibold text-muted-foreground shrink-0">
-          {typeStyle.label}
-        </span>
-        {item.category && (
-          <span className="text-xs font-medium text-muted-foreground/70 bg-muted/40 border border-border/20 px-2.5 py-0.5 rounded-full leading-none shrink-0 truncate max-w-[200px]" title={catStyle.label}>
-            {catStyle.label}
-          </span>
-        )}
-      </div>
-
-      {/* Course Title */}
-      <h3 className="text-base font-bold text-foreground leading-snug">
-        {item.title}
-      </h3>
-
-      {/* Separator Divider */}
-      <div className="h-px w-full bg-border/20" />
-
-      {/* Bottom info: Faculty/Venue on left, Credits on right */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="space-y-1 min-w-0 flex-1">
+        {/* Faculty & Venue */}
+        <div className="space-y-2">
           {item.faculty?.name ? (
-            <div className="flex items-center gap-1.5 min-w-0">
-              <User className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0" />
-              <span className="text-xs font-semibold text-foreground truncate">
+            <div className="flex items-center gap-2 min-w-0">
+              <User className="w-3.5 h-3.5 text-muted-foreground/45 shrink-0" />
+              <span className="text-xs font-semibold text-foreground truncate" title={item.faculty.name}>
                 {item.faculty.name}
               </span>
             </div>
@@ -175,11 +95,11 @@ function MobileCourseCard({ item, index }: { item: TimetableCourse; index: numbe
             <span className="text-xs text-muted-foreground/40">—</span>
           )}
           {item.venue && (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60 min-w-0">
-              <MapPin className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0" />
+            <div className="flex items-center gap-2 text-xs text-muted-foreground/60 min-w-0">
+              <MapPin className="w-3.5 h-3.5 text-muted-foreground/45 shrink-0" />
               <span className="font-medium truncate">{item.venue}</span>
               {item.faculty?.school && (
-                <span className="text-[11px] text-muted-foreground/40 font-semibold uppercase">
+                <span className="text-[11px] text-muted-foreground/45 font-semibold uppercase">
                   · {item.faculty.school}
                 </span>
               )}
@@ -187,16 +107,26 @@ function MobileCourseCard({ item, index }: { item: TimetableCourse; index: numbe
           )}
         </div>
 
-        <div className="text-right shrink-0 space-y-0.5">
-          <div className="flex items-baseline justify-end gap-1">
-            <span className="text-lg font-black text-foreground tabular-nums leading-none">
-              {item.credits?.total ?? 0}
+        <Separator className="bg-border/5" />
+
+        {/* Bottom footer: Credits details */}
+        <div className="flex items-center justify-between gap-3 pt-0.5">
+          <div className="space-y-0.5">
+            <span className="text-[9px] font-bold text-muted-foreground/45 uppercase tracking-widest leading-none block">
+              L-T-P-J Scheme
             </span>
-            <span className="text-xs text-muted-foreground/50 font-medium">Credits</span>
+            <p className="font-mono text-[11px] text-muted-foreground/60 leading-none tabular-nums mt-1">
+              {item.credits?.lecture ?? 0}-{item.credits?.tutorial ?? 0}-{item.credits?.practical ?? 0}-{item.credits?.project ?? 0}
+            </p>
           </div>
-          <p className="font-mono text-[11px] text-muted-foreground/50 leading-none tabular-nums">
-            L-T-P-J: {item.credits?.lecture ?? 0}-{item.credits?.tutorial ?? 0}-{item.credits?.practical ?? 0}-{item.credits?.project ?? 0}
-          </p>
+          <div className="text-right shrink-0">
+            <div className="flex items-baseline justify-end gap-1">
+              <span className="text-lg font-black text-foreground tabular-nums leading-none">
+                {item.credits?.total ?? 0}
+              </span>
+              <span className="text-[10px] text-muted-foreground/50 font-semibold uppercase">Credits</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -205,37 +135,44 @@ function MobileCourseCard({ item, index }: { item: TimetableCourse; index: numbe
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
+function Sk({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse rounded bg-muted/50 ${className}`} />;
+}
+
 function CoursesSkeleton() {
   return (
     <div className="w-full space-y-6">
-      <div className="flex justify-between pb-4 border-b border-border/20">
+      <div className="flex justify-between pb-4 border-b border-border/10">
         <div className="space-y-2">
-          <div className="animate-pulse rounded bg-muted/60 h-7 w-48" />
-          <div className="animate-pulse rounded bg-muted/60 h-3 w-64" />
+          <Sk className="h-7 w-48" />
+          <Sk className="h-3 w-64" />
         </div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 border-y border-border/20 py-5">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 border-y border-border/10 py-5">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="flex items-center justify-start pr-4 border-r border-border/20 last:border-r-0 space-y-1.5">
-            <div className="animate-pulse rounded bg-muted/60 h-3 w-16" />
-            <div className="animate-pulse rounded bg-muted/60 h-6 w-12" />
+          <div key={i} className="flex items-center justify-start pr-4 border-r border-border/10 last:border-r-0 space-y-1.5">
+            <Sk className="h-3 w-16" />
+            <Sk className="h-6 w-12" />
           </div>
         ))}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="animate-pulse rounded-md bg-muted/60 h-10" />
-        <div className="animate-pulse rounded-md bg-muted/60 h-10" />
-        <div className="animate-pulse rounded-md bg-muted/60 h-10" />
+        <Sk className="h-10 rounded-md" />
+        <Sk className="h-10 rounded-md" />
+        <Sk className="h-10 rounded-md" />
       </div>
-      <div className="divide-y divide-border/20 animate-pulse">
-        {[...Array(8)].map((_, i) => (
-          <div key={i} className="py-4 flex flex-col md:grid md:grid-cols-[1fr_280px_120px] gap-4">
-            <div className="space-y-2">
-              <div className="rounded bg-muted/60 h-4 w-24" />
-              <div className="rounded bg-muted/60 h-5 w-2/3" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="p-5 border border-border rounded-xl space-y-4">
+            <div className="flex justify-between">
+              <Sk className="h-4 w-8" />
+              <Sk className="h-4 w-16" />
             </div>
-            <div className="rounded bg-muted/60 h-4 w-40" />
-            <div className="rounded bg-muted/60 h-4 w-20" />
+            <Sk className="h-6 w-3/4" />
+            <Sk className="h-4 w-1/2" />
+            <Separator className="bg-border/5" />
+            <Sk className="h-4 w-2/3" />
+            <Sk className="h-4 w-1/2" />
           </div>
         ))}
       </div>
@@ -344,13 +281,13 @@ export default function CoursesPage() {
     <div className="w-full space-y-6 select-none">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <header className="pb-4 border-b border-border/20 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+      <header className="pb-4 border-b border-border/10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
         <div className="space-y-1">
-          <h1 className="text-2xl font-medium tracking-tight text-foreground flex items-center gap-2">
+          <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <Layers className="w-6 h-6 text-primary shrink-0" />
             My Registered Courses
           </h1>
-          <p className="text-xs text-muted-foreground">Courses you are registered for this semester</p>
+          <p className="text-xs text-muted-foreground/60 font-semibold">Courses you are registered for this semester</p>
         </div>
         {!isLoading && courses.length > 0 && (
           <span className="text-xs text-muted-foreground/60 font-semibold pb-0.5">
@@ -360,7 +297,7 @@ export default function CoursesPage() {
       </header>
 
       {/* ── Top Stats Grid ──────────────────────────────────────────────────── */}
-      <div className="w-full grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 border-y border-border/20 py-5">
+      <div className="w-full grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 border-y border-border/10 py-5">
         {[
           { label: "Total Courses", value: courseStats.total, sub: "" },
           { label: "Total Credits", value: courseStats.totalCredits, sub: "Cr" },
@@ -371,7 +308,7 @@ export default function CoursesPage() {
         ].map((stat, idx) => (
           <div
             key={stat.label}
-            className={`flex items-center justify-start py-2.5 px-3 border-border/20 ${
+            className={`flex items-center justify-start py-2.5 px-3 border-border/10 ${
               idx % 2 === 0 ? "border-r md:border-r" : "md:border-r"
             } ${idx === 5 ? "md:border-r-0 lg:border-r-0" : ""} ${
               idx < 4 ? "border-b md:border-b-0" : ""
@@ -398,12 +335,12 @@ export default function CoursesPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             disabled={isLoading}
-            className="w-full h-10 pl-10 pr-10 rounded-lg border border-border/20 bg-muted/10 text-xs placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/30 transition-all disabled:opacity-50 text-foreground"
+            className="w-full h-10 pl-10 pr-10 rounded-lg border border-border/10 bg-muted/10 text-xs placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/30 transition-all disabled:opacity-50 text-foreground"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors cursor-pointer"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors cursor-pointer border-none bg-transparent"
             >
               <X className="w-4 h-4" />
             </button>
@@ -411,7 +348,7 @@ export default function CoursesPage() {
         </div>
 
         <Select value={selectedTypeFilter} onValueChange={setSelectedTypeFilter}>
-          <SelectTrigger className="w-full h-10 rounded-lg bg-muted/10 border-border/20 text-xs">
+          <SelectTrigger className="w-full h-10 rounded-lg bg-muted/10 border-border/10 text-xs">
             <SelectValue placeholder="All Course Types" />
           </SelectTrigger>
           <SelectContent className="rounded-lg border-border/30 bg-card">
@@ -423,7 +360,7 @@ export default function CoursesPage() {
         </Select>
 
         <Select value={selectedCategoryFilter} onValueChange={setSelectedCategoryFilter}>
-          <SelectTrigger className="w-full h-10 rounded-lg bg-muted/10 border-border/20 text-xs">
+          <SelectTrigger className="w-full h-10 rounded-lg bg-muted/10 border-border/10 text-xs">
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
           <SelectContent className="rounded-lg border-border/30 bg-card">
@@ -435,51 +372,38 @@ export default function CoursesPage() {
         </Select>
       </div>
 
-      {/* ── Registered Courses List ─────────────────────────────────────────── */}
+      {/* ── Registered Courses Card Grid ───────────────────────────────────── */}
       {filteredCourses.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3 text-center border-b border-border/20">
+        <div className="flex flex-col items-center justify-center py-20 gap-3 text-center border-b border-border/10">
           <FileText className="w-8 h-8 text-muted-foreground/20" />
           <p className="text-sm font-bold text-foreground">No registered courses found</p>
           <p className="text-xs text-muted-foreground">Try modifying your filters or search terms.</p>
         </div>
       ) : (
-        <div className="flex flex-col">
-          {/* Table Header on Desktop */}
-          <div className="hidden md:grid grid-cols-[1fr_280px_120px] items-center gap-6 pb-2.5 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest border-b border-border/20">
-            <div>Course Information</div>
-            <div>Instructor & Venue</div>
-            <div className="text-right">Credits</div>
-          </div>
-
-          {/* List Rows */}
-          <div className="flex flex-col">
-            {filteredCourses.map((item, idx) => (
-              <div key={`${item.code}-${idx}`}>
-                <DesktopCourseRow item={item} index={idx} />
-                <MobileCourseCard item={item} index={idx} />
-              </div>
-            ))}
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filteredCourses.map((item, idx) => (
+            <CourseCard key={`${item.code}-${idx}`} item={item} index={idx} />
+          ))}
         </div>
       )}
 
       {/* ── Footer Summary ──────────────────────────────────────────────────── */}
       {courses.length > 0 && (
-        <footer className="pt-4 border-t border-border/20 mt-6">
+        <footer className="pt-4 border-t border-border/10 mt-6">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
                 <FileText className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">Credit Summary</h3>
-                <p className="text-xs text-muted-foreground/60">Semester credit breakdown</p>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-foreground leading-none">Credit Summary</h3>
+                <p className="text-xs text-muted-foreground/60 font-semibold mt-1">Semester credit breakdown</p>
               </div>
             </div>
-            <div className="bg-primary/10 border border-primary/20 text-primary px-3 py-1.5 rounded-full flex items-center gap-1.5 shrink-0">
-              <span className="text-xs font-bold uppercase tracking-wider leading-none">Total</span>
-              <span className="text-base font-black leading-none tabular-nums">{courseStats.totalCredits}</span>
-              <span className="text-xs font-semibold leading-none opacity-70">Cr</span>
+            <div className="flex items-baseline gap-1 text-right shrink-0">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mr-1">Total:</span>
+              <span className="text-lg font-black text-foreground tabular-nums leading-none">{courseStats.totalCredits}</span>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase leading-none">Credits</span>
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -492,8 +416,8 @@ export default function CoursesPage() {
               <div key={row.label} className="flex items-center gap-2 min-w-0">
                 <span className="shrink-0">{row.icon}</span>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/50 truncate">{row.label}</p>
-                  <p className="text-sm font-black text-foreground leading-none tabular-nums">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/50 truncate leading-none">{row.label}</p>
+                  <p className="text-sm font-black text-foreground leading-none tabular-nums mt-1.5">
                     {row.count}
                     <span className="text-xs font-semibold text-muted-foreground/60 ml-1">({row.credits} Cr)</span>
                   </p>

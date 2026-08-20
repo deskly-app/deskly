@@ -16,7 +16,7 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={cn("p-3 bg-card rounded-lg border border-border/40", className)}
+      className={cn("relative p-3 bg-card rounded-lg border border-border/40", className)}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4",
@@ -25,11 +25,11 @@ function Calendar({
         nav: "space-x-1 flex items-center",
         button_previous: cn(
           buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-70 hover:opacity-100 absolute left-1 cursor-pointer rounded-md"
+          "h-7 w-7 bg-transparent p-0 opacity-70 hover:opacity-100 absolute left-1 top-1 z-10 cursor-pointer rounded-md"
         ),
         button_next: cn(
           buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-70 hover:opacity-100 absolute right-1 cursor-pointer rounded-md"
+          "h-7 w-7 bg-transparent p-0 opacity-70 hover:opacity-100 absolute right-1 top-1 z-10 cursor-pointer rounded-md"
         ),
         month_grid: "w-full border-collapse space-y-1",
         weekdays: "flex",
