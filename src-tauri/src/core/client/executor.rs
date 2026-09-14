@@ -180,10 +180,17 @@ impl VtopExecutor for BaseHttpExecutor {
                     .get("content-disposition")
                     .and_then(|v| v.to_str().ok())
                     .and_then(|s| {
-                        if let Some(pos) = s.find("filename=\"") {
-                            let start = pos + 10;
-                            if let Some(end) = s[start..].find('\"') {
-                                return Some(s[start..start + end].to_string());
+                        if let Some(pos) = s.find("filename=") {
+                            let val = s[pos + 9..].trim();
+                            if val.starts_with('"') {
+                                if let Some(end) = val[1..].find('"') {
+                                    return Some(val[1..=end].to_string());
+                                }
+                            } else {
+                                let part = val.split(';').next().unwrap_or("").trim();
+                                if !part.is_empty() {
+                                    return Some(part.to_string());
+                                }
                             }
                         }
                         None
@@ -242,7 +249,15 @@ impl<'a, E: VtopExecutor> AutoReloginRetryDecorator<'a, E> {
                     })?;
 
             let retry_req = build_req(&fresh_tokens);
-            let retry_res = self.inner.execute(&retry_req).await?;
+            let retry_res = match self.inner.execute(&retry_req).await {
+                Ok(res) => res,
+                Err(BackendError::SessionExpired(_)) => {
+                    return Err(BackendError::AuthFailed(
+                        "Authentication failed after auto-relogin retry".to_string(),
+                    ));
+                }
+                Err(e) => return Err(e),
+            };
 
             if let VtopResponse::Text(html) = &retry_res {
                 if VtopPayloadAdapter::is_session_expired(html) {

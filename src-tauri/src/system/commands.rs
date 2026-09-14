@@ -60,7 +60,11 @@ pub fn save_calendar_file(
     {
         use tauri::Manager;
         if let Ok(dir) = app.path().document_dir() {
-            let path = dir.join(&filename);
+            let safe_name = std::path::Path::new(&filename)
+                .file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_else(|| "calendar.ics".to_string());
+            let path = dir.join(&safe_name);
             match std::fs::write(&path, &content) {
                 Ok(_) => {
                     let path_str = path.to_string_lossy().to_string();
@@ -68,7 +72,7 @@ pub fn save_calendar_file(
                         .notification()
                         .builder()
                         .title("Calendar Exported")
-                        .body(format!("Timetable successfully saved to: {}", filename))
+                        .body(format!("Timetable successfully saved to: {}", safe_name))
                         .show();
                     Ok(path_str)
                 }
