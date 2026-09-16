@@ -135,16 +135,8 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-
-      - name: Install Android SDK packages
-        shell: bash
-        run: |
-          (yes || true) | sdkmanager --licenses >/dev/null
-          sdkmanager \
-            "platform-tools" \
-            "platforms;android-35" \
-            "build-tools;35.0.0" \
-            "ndk;30.0.14904198"
+        with:
+          packages: platform-tools platforms;android-35 build-tools;35.0.0 ndk;30.0.14904198
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
