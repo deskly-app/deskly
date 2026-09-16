@@ -79,38 +79,6 @@
         will-change: opacity, transform;
       }
 
-      /* App name */
-      .boot-name {
-        margin-top: 20px;
-        font-size: 28px;
-        font-weight: 300;
-        letter-spacing: -0.03em;
-        color: oklch(0.985 0 0);
-        opacity: 0;
-        font-family: 'Saira', system-ui, sans-serif;
-        animation: boot-fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.25s forwards;
-        will-change: opacity, transform;
-      }
-      html.mobile-ui.light .boot-name {
-        color: oklch(0.145 0 0);
-      }
-
-      /* Tagline */
-      .boot-tagline {
-        margin-top: 6px;
-        font-size: 12px;
-        font-weight: 400;
-        letter-spacing: 0.01em;
-        color: oklch(0.55 0 0);
-        opacity: 0;
-        font-family: 'Saira', system-ui, sans-serif;
-        animation: boot-fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.4s forwards;
-        will-change: opacity, transform;
-      }
-      html.mobile-ui.light .boot-tagline {
-        color: oklch(0.5 0 0);
-      }
-
       /* Loading bar */
       .boot-bar-track {
         margin-top: 52px;
@@ -136,34 +104,15 @@
       html.mobile-ui.light .boot-bar-fill {
         background-color: oklch(0.145 0 0);
       }
-
-      /* Version */
-      .boot-version {
-        position: absolute;
-        bottom: calc(env(safe-area-inset-bottom) + 28px);
-        font-size: 11px;
-        font-weight: 600;
-        letter-spacing: 0.05em;
-        color: oklch(0.38 0 0);
-        font-family: 'Saira', system-ui, sans-serif;
-        opacity: 0;
-        animation: boot-fade-in 0.5s ease 0.8s forwards;
-      }
-      html.mobile-ui.light .boot-version {
-        color: oklch(0.6 0 0);
-      }
     </style>
   </head>
 
   <body>
     <div id="mobile-boot-splash">
       <img src="/logo.png" alt="Deskly Logo" class="boot-logo" />
-      <span class="boot-name">Deskly</span>
-      <span class="boot-tagline">Your student dashboard</span>
       <div class="boot-bar-track">
         <div class="boot-bar-fill"></div>
       </div>
-      <span class="boot-version">v6.1.3</span>
     </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

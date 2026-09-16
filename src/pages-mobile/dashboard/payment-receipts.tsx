@@ -105,9 +105,7 @@ function ReceiptDrawer({
           {/* Header Row */}
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-4 flex-1 min-w-0">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
-                <FileText className="w-6 h-6" />
-              </div>
+              <FileText className="w-6 h-6 text-primary shrink-0" />
               <div className="flex-1 min-w-0 space-y-1">
                 <span className="text-xs font-bold text-primary uppercase tracking-widest leading-none block">
                   Receipt Details
@@ -336,9 +334,7 @@ export default function PaymentReceiptsPage() {
                   className="bg-card/70 backdrop-blur-md border border-border/30 p-4 rounded-xl shadow-sm flex items-center justify-between gap-4 active:opacity-75 hover:bg-muted/5 transition-all duration-150 cursor-pointer"
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
-                      <FileText className="w-5 h-5" />
-                    </div>
+                    <FileText className="w-5 h-5 text-primary shrink-0" />
                     <div className="min-w-0 flex-1">
                       <h3 className="text-sm font-extrabold text-foreground leading-none truncate">
                         Receipt #{receipt.receiptNumber}

@@ -337,8 +337,7 @@ function TimetableDrawer({
                 </div>
                 <span className="font-mono tabular-nums whitespace-nowrap shrink-0 text-right text-muted-foreground/75">
                   {item.courseType.toLowerCase().includes("lab") ? attendanceRecord.attendedClasses / 2 : attendanceRecord.attendedClasses} /{" "}
-                  {item.courseType.toLowerCase().includes("lab") ? attendanceRecord.totalClasses / 2 : attendanceRecord.totalClasses}{" "}
-                  {item.courseType.toLowerCase().includes("lab") ? "labs" : "classes"} attended
+                  {item.courseType.toLowerCase().includes("lab") ? attendanceRecord.totalClasses / 2 : attendanceRecord.totalClasses}
                 </span>
               </div>
             </div>

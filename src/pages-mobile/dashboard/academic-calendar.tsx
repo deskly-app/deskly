@@ -369,18 +369,18 @@ export default function AcademicCalendarPage() {
                 <div className="space-y-3">
                   {selectedCell.content.map((event, idx) => {
                     const type = classifyEvent(event);
-                    let badgeStyle = "bg-muted text-muted-foreground";
-                    if (type === "holiday") badgeStyle = "bg-destructive/10 text-destructive border-destructive/20";
-                    if (type === "exam") badgeStyle = "bg-amber-500/10 text-amber-500 border-amber-500/20";
-                    if (type === "instructional") badgeStyle = "bg-primary/10 text-primary border-primary/20";
+                    let textStyle = "text-muted-foreground/60";
+                    if (type === "holiday") textStyle = "text-destructive";
+                    if (type === "exam") textStyle = "text-amber-500";
+                    if (type === "instructional") textStyle = "text-primary";
 
                     return (
                       <div
                         key={idx}
-                        className="p-4 rounded-lg border border-border/10 bg-muted/5 space-y-2"
+                        className="p-4 rounded-lg border border-border/10 bg-muted/5 space-y-1.5"
                       >
                         <span
-                          className={`inline-block px-2 py-0.5 border rounded text-xs font-extrabold uppercase tracking-wider leading-none ${badgeStyle}`}
+                          className={`text-[10px] font-black uppercase tracking-widest leading-none ${textStyle}`}
                         >
                           {type}
                         </span>

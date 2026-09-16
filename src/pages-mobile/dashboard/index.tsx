@@ -5,8 +5,8 @@ import { getStudentProfile, getFeedbackStatus, getStudentGradeView, ProfileData 
 import {
   BookOpen,
   Clock,
-  FileText,
-  ClipboardList,
+  MessageSquare,
+  MessageCircle,
   GraduationCap,
   TrendingUp,
 } from "lucide-react";
@@ -563,8 +563,8 @@ export default function MobileDashboardHome() {
               const label = isCurriculum ? "Content Feedback" : "General Feedback";
               const mid = parseFeedbackText(item.midSemester);
               const tee = parseFeedbackText(item.teeSemester);
-              const Icon = isCurriculum ? FileText : ClipboardList;
-              const iconColor = "text-primary bg-primary/10";
+              const Icon = isCurriculum ? MessageSquare : MessageCircle;
+              const iconColor = "text-primary";
 
               return (
                 <div

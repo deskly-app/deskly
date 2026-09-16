@@ -20,6 +20,7 @@ import {
   LayoutGrid,
   School,
   X,
+  ChevronRight,
 } from "lucide-react";
 
 // ─── Drawer Component ─────────────────────────────────────────────────────────
@@ -80,9 +81,7 @@ function CourseDetailDrawer({
                 Class Slot
               </span>
               <div className="flex items-center gap-2 pt-0.5">
-                <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0 text-primary">
-                  <LayoutGrid className="w-4 h-4" />
-                </div>
+                <LayoutGrid className="w-4 h-4 text-primary shrink-0" />
                 <span className="text-sm font-semibold text-foreground">{item.slot || "—"}</span>
               </div>
             </div>
@@ -93,9 +92,7 @@ function CourseDetailDrawer({
                 Classroom Venue
               </span>
               <div className="flex items-center gap-2 pt-0.5">
-                <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0 text-primary">
-                  <MapPin className="w-4 h-4" />
-                </div>
+                <MapPin className="w-4 h-4 text-primary shrink-0" />
                 <span className="text-sm font-semibold text-foreground truncate">{item.venue || "—"}</span>
               </div>
             </div>
@@ -106,9 +103,7 @@ function CourseDetailDrawer({
                 Class ID
               </span>
               <div className="flex items-center gap-2 pt-0.5">
-                <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0 text-primary">
-                  <FileText className="w-4 h-4" />
-                </div>
+                <FileText className="w-4 h-4 text-primary shrink-0" />
                 <span className="text-sm font-semibold text-foreground truncate">{item.classId || "—"}</span>
               </div>
             </div>
@@ -119,9 +114,7 @@ function CourseDetailDrawer({
                 Group
               </span>
               <div className="flex items-center gap-2 pt-0.5">
-                <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0 text-primary">
-                  <Monitor className="w-4 h-4" />
-                </div>
+                <Monitor className="w-4 h-4 text-primary shrink-0" />
                 <span className="text-sm font-semibold text-foreground">{item.classGroup || "—"}</span>
               </div>
             </div>
@@ -181,10 +174,8 @@ function CourseDetailDrawer({
                   Faculty Instructor
                 </h3>
                 
-                <div className="flex items-center gap-4 py-1">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 text-primary border border-primary/10">
-                    <User className="w-5 h-5" />
-                  </div>
+                <div className="flex items-center gap-3 py-1">
+                  <User className="w-5 h-5 text-primary shrink-0" />
                   
                   <div className="min-w-0 flex-1 space-y-1.5">
                     <h4 className="text-sm font-bold text-foreground truncate leading-none">
@@ -224,88 +215,42 @@ function MobileCourseCard({
   return (
     <div
       onClick={onClick}
-      className="p-5 bg-transparent border border-border hover:border-foreground/30 rounded-xl transition-all flex flex-col justify-between gap-4 h-full cursor-pointer"
+      className="group p-4 bg-muted/5 border border-border/10 rounded-[20px] transition-all duration-200 active:scale-[0.98] active:bg-muted/10 flex items-center justify-between gap-3 cursor-pointer"
     >
-      <div className="space-y-3">
-        {/* Top: Serial & Code */}
-        <div className="flex items-center justify-between text-xs text-muted-foreground/60">
-          <span className="font-bold text-muted-foreground/35 tabular-nums">
-            #{(index + 1).toString().padStart(2, "0")}
+      <div className="flex-1 min-w-0 space-y-2.5">
+        <div className="flex items-center gap-2 text-[11px] leading-none">
+          <span className="font-black text-muted-foreground/30 tabular-nums">
+            {(index + 1).toString().padStart(2, "0")}
           </span>
-          <span className="font-bold text-primary uppercase tracking-wider">
+          <div className="w-1 h-1 rounded-full bg-border/40" />
+          <span className="font-bold text-primary uppercase tracking-widest">
             {item.code}
           </span>
         </div>
 
-        {/* Title */}
-        <h3 className="text-base font-bold text-foreground leading-snug break-words">
+        <h3 className="text-sm font-bold text-foreground leading-snug break-words pr-2">
           {item.title}
         </h3>
 
-        {/* Slot & Type Details */}
-        <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground/75 uppercase leading-none font-semibold">
+        <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground/60 uppercase font-bold tracking-widest leading-none">
           {item.slot && (
-            <>
-              <span>{item.slot}</span>
-              <span>·</span>
-            </>
+            <div className="flex items-center gap-2">
+              <span className="text-foreground/70">{item.slot}</span>
+              <div className="w-0.5 h-0.5 rounded-full bg-border/50" />
+            </div>
           )}
           <span>{typeStyle.label}</span>
           {item.category && (
-            <>
-              <span>·</span>
-              <span className="truncate max-w-[150px]" title={catStyle.label}>
-                {catStyle.label}
-              </span>
-            </>
+            <div className="flex items-center gap-2">
+              <div className="w-0.5 h-0.5 rounded-full bg-border/50" />
+              <span className="truncate max-w-[120px]">{catStyle.label}</span>
+            </div>
           )}
         </div>
       </div>
-
-      <div className="space-y-4 pt-1">
-        <Separator className="bg-border/5" />
-
-        {/* Faculty & Venue */}
-        <div className="space-y-2">
-          {item.faculty?.name ? (
-            <div className="flex items-center gap-2 min-w-0">
-              <User className="w-3.5 h-3.5 text-muted-foreground/45 shrink-0" />
-              <span className="text-xs font-semibold text-foreground truncate" title={item.faculty.name}>
-                {item.faculty.name}
-              </span>
-            </div>
-          ) : (
-            <span className="text-xs text-muted-foreground/40">—</span>
-          )}
-          {item.venue && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground/60 min-w-0">
-              <MapPin className="w-3.5 h-3.5 text-muted-foreground/45 shrink-0" />
-              <span className="font-medium truncate">{item.venue}</span>
-            </div>
-          )}
-        </div>
-
-        <Separator className="bg-border/5" />
-
-        {/* Bottom footer: Credits details */}
-        <div className="flex items-center justify-between gap-3 pt-0.5">
-          <div className="space-y-0.5">
-            <span className="text-[9px] font-bold text-muted-foreground/45 uppercase tracking-widest leading-none block">
-              L-T-P-J Scheme
-            </span>
-            <p className="font-mono text-[11px] text-muted-foreground/60 leading-none tabular-nums mt-1">
-              {item.credits?.lecture ?? 0}-{item.credits?.tutorial ?? 0}-{item.credits?.practical ?? 0}-{item.credits?.project ?? 0}
-            </p>
-          </div>
-          <div className="text-right shrink-0">
-            <div className="flex items-baseline justify-end gap-1">
-              <span className="text-lg font-black text-foreground tabular-nums leading-none">
-                {item.credits?.total ?? 0}
-              </span>
-              <span className="text-[10px] text-muted-foreground/50 font-semibold uppercase">Credits</span>
-            </div>
-          </div>
-        </div>
+      
+      <div className="shrink-0 text-muted-foreground/30 group-active:text-foreground/60 transition-colors pr-1">
+        <ChevronRight className="w-5 h-5" />
       </div>
     </div>
   );

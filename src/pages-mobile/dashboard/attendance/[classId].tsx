@@ -4,7 +4,7 @@ import { useParams, useNavigate } from "@/router";
 import { getAttendanceDetail, AttendanceDetailRecord, AttendanceRecord } from "@/lib/attendance";
 import { isNetworkError } from "@/lib/utils";
 import { useOfflineData } from "@/hooks/use-offline-data";
-import { Calendar, WifiOff, CheckCircle2, XCircle, Clock, User, BarChart3, ArrowLeft, Award } from "lucide-react";
+import { Calendar, WifiOff, CheckCircle2, XCircle, Clock, User, BarChart3, Award } from "lucide-react";
 import { OfflineDisplay } from "@/components/offline-display";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 
@@ -218,14 +218,7 @@ export default function AttendanceDetailPage() {
     <div className="w-full space-y-6 px-2 py-4 select-none relative">
       
       {/* ── Header ── */}
-      <header className="pb-4 border-b border-border/10">
-        <button
-          onClick={() => navigate("/dashboard/attendance")}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors mb-3 group cursor-pointer bg-transparent border-none p-0"
-        >
-          <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5 duration-150 relative -translate-y-[0.5px]" />
-          <span>Back to Attendance</span>
-        </button>
+      <header className="pb-4">
 
         {/* Header content: Stacks vertically on mobile */}
         <div className="flex flex-col items-center justify-between gap-6 w-full">
@@ -264,7 +257,7 @@ export default function AttendanceDetailPage() {
       </header>
 
       {/* ── Summary Stats Grid (2 horizontal rows on mobile: Row 1 has 3 items, Row 2 has 2 items) ── */}
-      <div className="grid grid-cols-6 py-6 border-y border-border/10 gap-y-6">
+      <div className="grid grid-cols-6 py-6 border-t border-border/10 gap-y-6">
         
         {/* Total Slots */}
         <div className="col-span-2 flex flex-col gap-1.5 pl-2">
@@ -371,9 +364,12 @@ export default function AttendanceDetailPage() {
                   {row.serialNo ?? i + 1}
                 </span>
 
-                {/* Date */}
-                <div className="min-w-0 w-24 shrink-0 flex items-center">
-                  <span className="text-xs font-bold text-foreground truncate leading-none">{row.date}</span>
+                {/* Date & Time */}
+                <div className="min-w-0 flex-1 flex flex-col justify-center gap-1.5">
+                  <span className="text-[13px] font-bold text-foreground truncate leading-none">{row.date}</span>
+                  {row.dayAndTime && (
+                    <span className="text-[10px] font-medium text-muted-foreground truncate leading-none">{row.dayAndTime.replace(",", ", ").replace("-", " - ")}</span>
+                  )}
                 </div>
 
                 {/* Slot */}

@@ -145,30 +145,47 @@ export default function MarksPage() {
             <div className="relative z-10 p-5 bg-card/80 border border-border/40 rounded-xl shadow-sm backdrop-blur-md space-y-4">
               <div className="flex items-start justify-between gap-3">
                 {/* Course Info */}
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60 font-medium flex-wrap">
-                    <span className="text-xs font-bold text-primary uppercase tracking-wide leading-none">{activeCourse.courseCode}</span>
-                    <span>&bull;</span>
-                    <span className="font-mono">{activeCourse.slot}</span>
-                    <span>&bull;</span>
-                    <span className="uppercase">{activeCourse.courseType}</span>
+                <div className="min-w-0 flex-1 flex flex-col gap-3">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-black text-primary uppercase tracking-widest leading-none">
+                      {activeCourse.courseCode}
+                    </span>
+                    <h2 className="text-base font-bold text-foreground leading-tight pr-2 break-words">
+                      {activeCourse.courseTitle}
+                    </h2>
                   </div>
-                  <h2 className="text-base font-bold text-foreground leading-snug">{activeCourse.courseTitle}</h2>
-                  <p className="text-xs text-muted-foreground/50 font-mono leading-none pt-0.5">{activeCourse.faculty}</p>
+                  
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center text-[11px] text-muted-foreground/70 font-bold uppercase tracking-wider leading-none">
+                      <span>{activeCourse.courseType}</span>
+                      <span className="mx-2 text-border/60">•</span>
+                      <span>{activeCourse.slot}</span>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground/50 font-semibold leading-none truncate">
+                      {activeCourse.faculty}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Total Score Box */}
-                {activeCourse.assessments.length > 0 && (
-                  <div className="shrink-0 bg-muted/20 border border-border/20 rounded-[18px] px-3 py-2 flex flex-col items-center justify-center text-center">
-                    <span className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none mb-1">Total</span>
-                    <div className="flex items-baseline gap-0.5 leading-none">
-                      <span className="text-xl font-black text-foreground tabular-nums">
-                        {activeCourse.assessments.reduce((s, a) => s + a.weightageMark, 0).toFixed(1)}
-                      </span>
-                      <span className="text-xs font-semibold text-muted-foreground/45">/100</span>
+                {activeCourse.assessments.length > 0 && (() => {
+                  const totalScored = activeCourse.assessments.reduce((s, a) => s + a.weightageMark, 0);
+                  const totalGiven = activeCourse.assessments.reduce((s, a) => s + a.weightagePercent, 0);
+                  const formattedScored = totalScored % 1 === 0 ? totalScored.toFixed(0) : totalScored.toFixed(1);
+                  const formattedGiven = totalGiven % 1 === 0 ? totalGiven.toFixed(0) : totalGiven.toFixed(1);
+
+                  return (
+                    <div className="shrink-0 bg-muted/20 border border-border/20 rounded-[18px] px-3 py-2 flex flex-col items-center justify-center text-center">
+                      <span className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none mb-1">Total</span>
+                      <div className="flex items-baseline gap-0.5 leading-none">
+                        <span className="text-xl font-black text-foreground tabular-nums">
+                          {formattedScored}
+                        </span>
+                        <span className="text-xs font-semibold text-muted-foreground/45">/{formattedGiven}</span>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
 
               {/* Mode badge */}

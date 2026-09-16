@@ -70,16 +70,8 @@ function HistoryGradeDrawer({
         <div className="overflow-y-auto no-scrollbar px-6 space-y-6 pt-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0 space-y-2">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-extrabold uppercase bg-primary/10 text-primary border border-primary/20 tracking-wider">
-                  {item.courseCode}
-                </span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-extrabold uppercase bg-muted text-muted-foreground tracking-wider">
-                  {item.courseType.trim()}
-                </span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-extrabold uppercase bg-primary/10 text-primary border border-primary/20 tracking-wider">
-                  Grade {item.grade.trim().toUpperCase()}
-                </span>
+              <div className="text-xs text-muted-foreground/60 font-semibold leading-relaxed uppercase break-words">
+                {item.courseCode} · {item.courseType.trim()} · Grade {item.grade.trim().toUpperCase()}
               </div>
               <h2 className="text-xl font-bold text-foreground leading-snug tracking-tight">
                 {item.courseTitle}
@@ -102,9 +94,7 @@ function HistoryGradeDrawer({
                 Credits
               </span>
               <div className="flex items-center gap-2 pt-0.5">
-                <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0 text-primary">
-                  <Monitor className="w-4 h-4" />
-                </div>
+                <Monitor className="w-4 h-4 text-primary shrink-0" />
                 <span className="text-sm font-semibold text-foreground">{item.credits} Credits</span>
               </div>
             </div>
@@ -114,9 +104,7 @@ function HistoryGradeDrawer({
                 Exam Session
               </span>
               <div className="flex items-center gap-2 pt-0.5">
-                <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0 text-primary">
-                  <CalendarDays className="w-4 h-4" />
-                </div>
+                <CalendarDays className="w-4 h-4 text-primary shrink-0" />
                 <span className="text-sm font-semibold text-foreground truncate">{item.examMonth || "—"}</span>
               </div>
             </div>
@@ -126,9 +114,7 @@ function HistoryGradeDrawer({
                 Result Declared
               </span>
               <div className="flex items-center gap-2 pt-0.5">
-                <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0 text-primary">
-                  <CalendarDays className="w-4 h-4" />
-                </div>
+                <CalendarDays className="w-4 h-4 text-primary shrink-0" />
                 <span className="text-sm font-semibold text-foreground truncate">{item.resultDeclared || "—"}</span>
               </div>
             </div>
@@ -138,9 +124,7 @@ function HistoryGradeDrawer({
                 Distribution
               </span>
               <div className="flex items-center gap-2 pt-0.5">
-                <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0 text-primary">
-                  <FileText className="w-4 h-4" />
-                </div>
+                <FileText className="w-4 h-4 text-primary shrink-0" />
                 <span className="text-sm font-semibold text-foreground truncate">{item.courseDistribution || "—"}</span>
               </div>
             </div>
@@ -168,16 +152,8 @@ function SemesterGradeDrawer({
         <div className="overflow-y-auto no-scrollbar px-6 space-y-6 pt-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0 space-y-2">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-extrabold uppercase bg-primary/10 text-primary border border-primary/20 tracking-wider">
-                  {item.courseCode}
-                </span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-extrabold uppercase bg-muted text-muted-foreground tracking-wider">
-                  {item.courseType}
-                </span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-extrabold uppercase bg-primary/10 text-primary border border-primary/20 tracking-wider">
-                  Grade {item.grade}
-                </span>
+              <div className="text-xs text-muted-foreground/60 font-semibold leading-relaxed uppercase break-words">
+                {item.courseCode} · {item.courseType} · Grade {item.grade}
               </div>
               <h2 className="text-xl font-bold text-foreground leading-snug tracking-tight">
                 {item.courseTitle}
