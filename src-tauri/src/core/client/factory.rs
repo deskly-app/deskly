@@ -4,6 +4,8 @@ use crate::auth::types::AuthTokens;
 use crate::core::constants::{USER_AGENT, VTOP_BASE_URL};
 use crate::core::error::BackendError;
 
+const SECTIGO_INTERMEDIATE: &[u8] = include_bytes!("../../auth/sectigo_intermediate.pem");
+
 /// Factory for creating configured reqwest HTTP clients.
 pub struct HttpClientFactory;
 
@@ -25,14 +27,15 @@ impl HttpClientFactory {
                 headers
             });
 
-        #[cfg(debug_assertions)]
-        {
-            builder = builder.danger_accept_invalid_certs(true);
+        // 100% Secure Fix: Inject the missing VTOP intermediate certificate 
+        // directly so the Rust client can bridge the trust chain.
+        if let Ok(cert) = reqwest::Certificate::from_pem(SECTIGO_INTERMEDIATE) {
+            builder = builder.add_root_certificate(cert);
         }
 
         builder
             .build()
-            .map_err(|e| BackendError::Network(format!("Failed to create HTTP client: {e}")))
+            .map_err(|e| BackendError::Network(format!("Failed to build HTTP client: {e}")))
     }
 }
 
