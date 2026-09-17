@@ -223,9 +223,6 @@ export default function MarksPage() {
               <span className="text-xs font-bold text-muted-foreground/45 uppercase tracking-widest leading-none">
                 Assessments
               </span>
-              <span className="text-xs font-black text-primary/50 uppercase tracking-widest leading-none">
-                Tap card to swap score format
-              </span>
             </div>
           )}
 

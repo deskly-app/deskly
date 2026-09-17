@@ -186,7 +186,6 @@ function AttendanceSkeleton() {
   );
 }
 
-// ─── Attendance Row Component ──────────────────────────────────────────────────
 function AttendanceRow({
   item,
   onSelect,
@@ -197,46 +196,50 @@ function AttendanceRow({
   const pct = item.attendancePercentage;
 
   return (
-    <div
+    <button
       onClick={onSelect}
-      className="py-4 px-3 rounded-md transition-colors duration-150 hover:bg-muted/10 cursor-pointer flex items-center justify-between gap-4"
+      className="w-full flex items-center gap-4 py-4 px-3 text-left border-none bg-transparent hover:bg-muted/5 active:bg-muted/15 rounded-md transition-all cursor-pointer"
     >
-      <div className="flex-1 min-w-0 flex items-center gap-4">
-        <ListCircularProgress percentage={pct} size={48} />
+      {/* Left: Circular progress */}
+      <ListCircularProgress percentage={pct} size={48} />
 
-        <div className="flex-1 min-w-0 space-y-1">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60 flex-wrap">
-            <span className="font-bold text-foreground uppercase tracking-wider">
-              {item.courseCode}
-            </span>
-            <span>·</span>
-            <span className="font-semibold uppercase text-foreground/80 leading-none">{item.slot}</span>
-            <span>·</span>
-            <span className="uppercase">{formatCourseType(item.courseType)}</span>
-          </div>
-          <p className="text-base font-bold text-foreground tracking-tight leading-snug truncate">
-            {item.courseTitle}
-          </p>
+      {/* Middle: Spacious details column */}
+      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+        {/* First line: Course Code, Slot & Type */}
+        <div className="flex items-center gap-2 leading-none flex-wrap">
+          <span className="text-sm font-semibold tracking-wide text-foreground uppercase">
+            {item.courseCode}
+          </span>
+          <span className="text-xs font-semibold text-muted-foreground/60 font-mono leading-none">
+            ({item.slot})
+          </span>
         </div>
 
-        <div className="shrink-0 flex flex-col items-end gap-1.5 text-right">
-          <p className="text-sm font-bold text-foreground leading-none tabular-nums">
+        {/* Second line: Course Title */}
+        <p className="text-xs text-muted-foreground truncate leading-none">
+          {item.courseTitle}
+        </p>
+      </div>
+
+      {/* Right: Attendance fraction details & Chevron */}
+      <div className="flex items-center gap-3 shrink-0">
+        <div className="text-right">
+          <p className="text-sm font-semibold text-foreground leading-none tabular-nums">
             {item.courseType.toLowerCase().includes("lab") ? item.attendedClasses / 2 : item.attendedClasses}{" "}
             <span className="text-muted-foreground/45 text-xs font-normal">
               / {item.courseType.toLowerCase().includes("lab") ? item.totalClasses / 2 : item.totalClasses}
             </span>
           </p>
-          <div className="w-14 h-1 bg-muted/30 rounded-full overflow-hidden ml-auto">
+          <div className="w-14 h-1 bg-muted/30 rounded-full overflow-hidden mt-1.5 ml-auto">
             <div
               className={`h-full rounded-full ${getBarBgColor(pct)}`}
               style={{ width: `${Math.min(pct, 100)}%` }}
             />
           </div>
         </div>
+        <ChevronRight className="w-5 h-5 text-muted-foreground/35 shrink-0" />
       </div>
-
-      <ChevronRight className="w-4 h-4 text-muted-foreground/30 shrink-0" />
-    </div>
+    </button>
   );
 }
 
@@ -446,7 +449,7 @@ export default function AttendancePage() {
       )}
 
       {/* Header */}
-      <header className="flex items-center gap-2 pb-3 border-b border-border/10">
+      <header className="flex items-center gap-2 pb-1">
         <UserCheck className="w-6 h-6 text-primary shrink-0" />
         <h1 className="text-xl font-bold tracking-tight text-foreground leading-none">
           My Attendance
@@ -454,7 +457,7 @@ export default function AttendancePage() {
       </header>
 
       {/* Stats Card (Clean borderless overview layout) */}
-      <div className="py-5 border-y border-border/10 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+      <div className="py-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
         
         {/* Left Stat - Attendance % */}
         <div className="flex items-center justify-center gap-3 min-w-0">
@@ -494,10 +497,12 @@ export default function AttendancePage() {
         </div>
 
       </div>
+      
+      <Separator className="bg-border/10" />
 
       {/* Course List Section */}
       <section className="space-y-4 pt-1">
-        <div className="flex items-center justify-between gap-4 pb-2 border-b border-border/10">
+        <div className="flex items-center justify-between gap-4 pb-1">
           <div className="space-y-0.5">
             <h2 className="text-xs font-bold text-primary uppercase tracking-widest leading-none">
               Course Attendance
@@ -519,7 +524,7 @@ export default function AttendancePage() {
         </div>
 
         {filteredAttendance.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-3 text-center border-b border-border/10">
+          <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
             <UserCheck className="w-8 h-8 text-muted-foreground/20" />
             <p className="text-sm font-semibold text-foreground leading-none">No records found</p>
             <p className="text-xs text-muted-foreground">Check filter settings or reload.</p>
