@@ -4,6 +4,8 @@ use std::time::Duration;
 
 use super::constants::VTOP_BASE_URL;
 
+const SECTIGO_INTERMEDIATE: &[u8] = include_bytes!("sectigo_intermediate.pem");
+
 pub fn build_http_client() -> Result<reqwest::Client, String> {
     let mut builder = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(10))
@@ -23,9 +25,11 @@ pub fn build_http_client() -> Result<reqwest::Client, String> {
             headers
         });
 
-    // Workaround for VTOP's broken SSL certificates (missing intermediate chains)
-    // and Android's lack of native OS certificate store access in rustls.
-    builder = builder.danger_accept_invalid_certs(true);
+    // 100% Secure Fix: Inject the missing VTOP intermediate certificate 
+    // directly so the Rust client can bridge the trust chain.
+    if let Ok(cert) = reqwest::Certificate::from_pem(SECTIGO_INTERMEDIATE) {
+        builder = builder.add_root_certificate(cert);
+    }
 
     Ok(builder.build().map_err(|e| format!("failed to build reqwest client: {e}"))?)
 }
