@@ -23,13 +23,11 @@ pub fn build_http_client() -> Result<reqwest::Client, String> {
             headers
         });
 
-    #[cfg(debug_assertions)]
-    {
-        builder = builder.danger_accept_invalid_certs(true);
-    }
+    // Workaround for VTOP's broken SSL certificates (missing intermediate chains)
+    // and Android's lack of native OS certificate store access in rustls.
+    builder = builder.danger_accept_invalid_certs(true);
 
-    builder.build()
-        .map_err(|e| format!("failed to create http client: {e}"))
+    Ok(builder.build().map_err(|e| format!("failed to build reqwest client: {e}"))?)
 }
 
 pub async fn get_with_redirect_follow(
