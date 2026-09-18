@@ -4,7 +4,6 @@ import { useOfflineData } from "@/hooks/use-offline-data";
 
 import { ErrorDisplay } from "@/components/error-display";
 import {
-  ArrowLeft,
   User,
   Mail,
   Phone,
@@ -106,7 +105,7 @@ function ProfileSkeleton() {
               <Sk className="h-2.5 w-16 rounded-full" />
               <Sk className="h-8 w-64 rounded-full" />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-2 w-full">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-12 gap-y-2 w-full">
               {[...Array(6)].map((_, i) => (
                 <div key={i} className="flex items-center justify-between py-3 border-b border-border/10">
                   <div className="flex items-center gap-3">
@@ -117,7 +116,7 @@ function ProfileSkeleton() {
                 </div>
               ))}
               {[...Array(2)].map((_, i) => (
-                <div key={i} className="flex items-center justify-between py-3 border-b border-border/10 md:col-span-2">
+                <div key={i} className="flex items-center justify-between py-3 border-b border-border/10 xl:col-span-2">
                   <div className="flex items-center gap-3">
                     <Sk className="w-8 h-8 rounded-full shrink-0" />
                     <Sk className="h-3 w-24 rounded-full" />
@@ -140,7 +139,7 @@ function ProfileSkeleton() {
               <Sk className="h-2.5 w-16 rounded-full" />
               <Sk className="h-7 w-48 rounded-full" />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-2 w-full">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-12 gap-y-2 w-full">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="flex items-center justify-between py-3 border-b border-border/10">
                   <div className="flex items-center gap-3">
@@ -150,7 +149,7 @@ function ProfileSkeleton() {
                   <Sk className="h-4 w-32 rounded-full" />
                 </div>
               ))}
-              <div className="flex items-center justify-between py-3 border-b border-border/10 md:col-span-2">
+              <div className="flex items-center justify-between py-3 border-b border-border/10 xl:col-span-2">
                 <div className="flex items-center gap-3">
                   <Sk className="w-8 h-8 rounded-full shrink-0" />
                   <Sk className="h-3 w-24 rounded-full" />
@@ -165,7 +164,7 @@ function ProfileSkeleton() {
       {/* Residence Section skeleton */}
       <div className="space-y-6 pt-4 border-t border-border/10">
         <Sk className="h-5 w-36 rounded-full" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-2 w-full">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-12 gap-y-2 w-full">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="flex items-center justify-between py-3 border-b border-border/10">
               <div className="flex items-center gap-3">
@@ -218,18 +217,10 @@ export default function StudentProfilePage() {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <header className="pb-4 border-b border-border/20 flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => window.history.back()}
-              className="p-1.5 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground/95 to-muted-foreground bg-clip-text text-transparent">
-              My Profile
-            </h1>
-          </div>
-          <p className="text-xs text-muted-foreground pl-7">
+          <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground/95 to-muted-foreground bg-clip-text text-transparent">
+            My Profile
+          </h1>
+          <p className="text-xs text-muted-foreground">
             Manage and view your academic, proctor, and hostel details
           </p>
         </div>
@@ -240,7 +231,7 @@ export default function StudentProfilePage() {
         <h3 className="text-sm font-bold text-foreground uppercase tracking-wider border-b border-border/10 pb-2">
           Student Information
         </h3>
-        <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-center lg:items-start w-full">
+        <div className="flex flex-col xl:flex-row gap-8 xl:gap-12 items-center xl:items-start w-full">
           {/* Photo */}
           {renderPhoto(student.photoUrl, student.name, "w-52 max-w-full shrink-0", "max-h-[20rem]")}
           
@@ -250,15 +241,15 @@ export default function StudentProfilePage() {
               <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-wider">Full Name</p>
               <h2 className="text-2xl font-bold tracking-tight text-foreground">{student.name}</h2>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-1 w-full">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-12 gap-y-1 w-full">
               {renderDetailField(<User className="w-4 h-4" />, "Register No.", student.registerNumber)}
               {renderDetailField(<User className="w-4 h-4" />, "Application No.", student.applicationNumber)}
               {renderDetailField(<Layers className="w-4 h-4" />, "Program / Branch", student.program)}
               {renderDetailField(<Calendar className="w-4 h-4" />, "Date of Birth", student.dob)}
               {renderDetailField(<User className="w-4 h-4" />, "Gender", student.gender)}
               {renderDetailField(<Phone className="w-4 h-4" />, "Mobile Number", student.mobile)}
-              {renderDetailField(<Mail className="w-4 h-4" />, "VIT Email ID", student.vitEmail, "lg:col-span-2")}
-              {renderDetailField(<Mail className="w-4 h-4" />, "Personal Email ID", student.personalEmail, "lg:col-span-2")}
+              {renderDetailField(<Mail className="w-4 h-4" />, "VIT Email ID", student.vitEmail, "xl:col-span-2")}
+              {renderDetailField(<Mail className="w-4 h-4" />, "Personal Email ID", student.personalEmail, "xl:col-span-2")}
             </div>
           </div>
         </div>
@@ -270,7 +261,7 @@ export default function StudentProfilePage() {
           <h3 className="text-sm font-bold text-foreground uppercase tracking-wider border-b border-border/10 pb-2">
             Proctor Details
           </h3>
-          <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-center lg:items-start w-full">
+          <div className="flex flex-col xl:flex-row gap-8 xl:gap-12 items-center xl:items-start w-full">
             {/* Photo */}
             {renderPhoto(proctor.photoUrl, proctor.name, "w-44 max-w-full shrink-0", "max-h-[16rem]")}
             
@@ -280,13 +271,13 @@ export default function StudentProfilePage() {
                 <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-wider">Proctor Name</p>
                 <h2 className="text-xl font-bold tracking-tight text-foreground">{proctor.name}</h2>
               </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-1 w-full">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-12 gap-y-1 w-full">
                 {renderDetailField(<User className="w-4 h-4" />, "Faculty ID", proctor.facultyId)}
                 {renderDetailField(<User className="w-4 h-4" />, "Designation", proctor.designation)}
                 {renderDetailField(<Layers className="w-4 h-4" />, "School", proctor.school)}
                 {renderDetailField(<MapPin className="w-4 h-4" />, "Cabin Room", proctor.cabin)}
                 {renderDetailField(<Phone className="w-4 h-4" />, "Mobile", proctor.mobile)}
-                {renderDetailField(<Mail className="w-4 h-4" />, "Email Address", proctor.email, "lg:col-span-2")}
+                {renderDetailField(<Mail className="w-4 h-4" />, "Email Address", proctor.email, "xl:col-span-2")}
               </div>
             </div>
           </div>
@@ -299,7 +290,7 @@ export default function StudentProfilePage() {
           <h3 className="text-sm font-bold text-foreground uppercase tracking-wider border-b border-border/10 pb-2">
             Hostel Details
           </h3>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-1 w-full">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-12 gap-y-1 w-full">
             {renderDetailField(<Home className="w-4 h-4" />, "Block Name", hostel.blockName)}
             {renderDetailField(<MapPin className="w-4 h-4" />, "Room Number", hostel.roomNumber)}
             {renderDetailField(<Layers className="w-4 h-4" />, "Bed Type", hostel.bedType)}
