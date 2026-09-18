@@ -249,8 +249,8 @@ function DashboardSkeleton() {
         <Sk className="h-10 sm:h-14 w-48 sm:w-64" />
         <Sk className="h-3 w-36" />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] items-start">
-        <div className="pr-0 lg:pr-12 space-y-8 sm:space-y-10">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_260px] items-start">
+        <div className="pr-0 xl:pr-12 space-y-8 sm:space-y-10">
           <div className="space-y-5">
             <Sk className="h-3 w-20" />
             <Sk className="h-14 sm:h-20 w-40 sm:w-52" />
@@ -274,7 +274,7 @@ function DashboardSkeleton() {
             <Sk className="h-[180px] w-full" />
           </div>
         </div>
-        <div className="mt-8 lg:mt-0 pt-6 lg:pt-0 border-t lg:border-t-0 lg:border-l border-border/10 lg:pl-8 space-y-5">
+        <div className="mt-8 xl:mt-0 pt-6 xl:pt-0 border-t xl:border-t-0 xl:border-l border-border/10 xl:pl-8 space-y-5">
           <Sk className="h-3 w-20" />
           {[...Array(5)].map((_, i) => (
             <div key={i} className="flex items-center justify-between py-0.5">
@@ -394,11 +394,11 @@ export default function DashboardHomePage() {
         <p className="text-xs sm:text-sm text-muted-foreground/35 mt-2 sm:mt-3">{formattedDate}</p>
       </header>
 
-      {/* ── Grid: 1 col → 2 col at lg ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_250px] items-start">
+      {/* ── Grid: 1 col → 2 col at xl ── */}
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_250px] items-start">
 
         {/* Left column */}
-        <div className="pr-0 lg:pr-12 space-y-8 sm:space-y-10 min-w-0">
+        <div className="pr-0 xl:pr-12 space-y-8 sm:space-y-10 min-w-0">
 
           {/* CGPA */}
           {cgpaData && (
@@ -465,17 +465,42 @@ export default function DashboardHomePage() {
 
         {/* ── Right sidebar ── */}
         <div className="
-          mt-8 lg:mt-0
-          pt-6 lg:pt-0
-          border-t lg:border-t-0 border-border/10
-          lg:border-l lg:border-border/10 lg:pl-7
-          lg:sticky lg:top-6
-          flex flex-col gap-5
+          w-full xl:w-[250px]
+          mt-8 xl:mt-0
+          pt-6 xl:pt-0
+          border-t xl:border-t-0 border-border/10
+          xl:border-l xl:border-border/10 xl:pl-7
+          xl:sticky xl:top-6
+          grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-6 xl:gap-5
         ">
 
-          {/* Feedback — first on small */}
+          {/* Quick Access */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/35">
+              Quick Access
+            </p>
+            <nav>
+              {QUICK_LINKS.map((link) => {
+                const Icon = link.icon;
+                return (
+                  <Link key={link.path} to={link.path}
+                    className="group flex items-center justify-between py-2.5 sm:py-3 px-2 rounded-md hover:bg-muted/40 transition-colors duration-150">
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                      <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground/35 group-hover:text-foreground/55 transition-colors shrink-0" />
+                      <span className="text-xs sm:text-sm font-medium text-foreground/60 group-hover:text-foreground/90 transition-colors truncate">
+                        {link.label}
+                      </span>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/15 group-hover:text-muted-foreground/40 transition-colors shrink-0" />
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* Feedback */}
           {feedbackData && feedbackData.length > 0 && (
-            <div className="order-1 lg:order-2 space-y-4 lg:pb-5 lg:border-b lg:border-border/10">
+            <div className="space-y-4 xl:pt-5 xl:border-t xl:border-border/10">
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-3.5 h-3.5 text-muted-foreground/30 shrink-0" />
                 <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/35">
@@ -510,30 +535,6 @@ export default function DashboardHomePage() {
               </div>
             </div>
           )}
-
-          {/* Quick Access — second on small, first on lg */}
-          <div className="order-2 lg:order-1 space-y-1.5">
-            <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/35">
-              Quick Access
-            </p>
-            <nav>
-              {QUICK_LINKS.map((link) => {
-                const Icon = link.icon;
-                return (
-                  <Link key={link.path} to={link.path}
-                    className="group flex items-center justify-between py-2.5 sm:py-3 px-2 rounded-md hover:bg-muted/40 transition-colors duration-150">
-                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                      <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground/35 group-hover:text-foreground/55 transition-colors shrink-0" />
-                      <span className="text-xs sm:text-sm font-medium text-foreground/60 group-hover:text-foreground/90 transition-colors truncate">
-                        {link.label}
-                      </span>
-                    </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/15 group-hover:text-muted-foreground/40 transition-colors shrink-0" />
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
         </div>
       </div>
     </div>
