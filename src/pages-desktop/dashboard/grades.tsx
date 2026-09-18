@@ -62,9 +62,9 @@ function Sk({ className = "" }: { className?: string }) {
 // ─── Loader Skeleton Layout ───────────────────────────────────────────────────
 function GradesSkeleton() {
   return (
-    <div className="w-full lg:h-[calc(100vh-5rem)] lg:flex lg:flex-col lg:overflow-hidden space-y-6">
+    <div className="w-full space-y-6">
       {/* Header skeleton */}
-      <div className="flex justify-between pb-6 border-b border-border/40 shrink-0">
+      <div className="flex justify-between pb-4 border-b border-border/20">
         <div className="space-y-2">
           <Sk className="h-7 w-36" />
           <Sk className="h-3 w-52" />
@@ -72,7 +72,7 @@ function GradesSkeleton() {
       </div>
 
       {/* Cards skeleton */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[...Array(3)].map((_, i) => (
           <div key={i} className="flex flex-col justify-between bg-card/40 border border-border/30 rounded-lg p-5 min-h-[104px]">
             <div className="flex items-center justify-between w-full">
@@ -84,9 +84,21 @@ function GradesSkeleton() {
         ))}
       </div>
 
+      {/* Grades summary skeleton */}
+      <div className="p-4 rounded-lg bg-muted/20 border border-border/10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="space-y-1.5">
+          <Sk className="h-3.5 w-28" />
+          <Sk className="h-2.5 w-52" />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {[...Array(9)].map((_, i) => (
+            <Sk key={i} className="h-7 w-14 rounded-md" />
+          ))}
+        </div>
+      </div>
 
       {/* Search & filters skeleton */}
-      <div className="flex items-center justify-between pb-4 border-b border-border/20 shrink-0 pt-4">
+      <div className="flex items-center justify-between pb-4 border-b border-border/20 pt-4">
         <div className="space-y-2">
           <Sk className="h-5 w-44" />
           <Sk className="h-3 w-64" />
@@ -98,7 +110,7 @@ function GradesSkeleton() {
       </div>
 
       {/* Table skeleton */}
-      <div className="flex-1 min-h-0 overflow-auto no-scrollbar pt-2 pr-2">
+      <div className="overflow-x-auto no-scrollbar pt-2">
         <table className="w-full border-collapse text-left min-w-[900px]">
           <thead>
             <tr className="border-b border-border/30 text-xs font-black uppercase tracking-wider text-muted-foreground">
@@ -205,9 +217,9 @@ export default function GradesPage() {
   }
 
   return shell(
-    <div className="w-full lg:h-[calc(100vh-5rem)] lg:flex lg:flex-col lg:overflow-hidden space-y-6">
+    <div className="w-full space-y-6">
       {error && (
-        <div className="flex items-center justify-between p-3 bg-destructive/10 border border-destructive/20 text-destructive text-xs rounded-md gap-4 shrink-0">
+        <div className="flex items-center justify-between p-3 bg-destructive/10 border border-destructive/20 text-destructive text-xs rounded-md gap-4">
           <div className="flex items-center gap-2 min-w-0">
             <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse shrink-0" />
             <span className="truncate">Sync failed: {error} (Viewing cached data)</span>
@@ -222,7 +234,7 @@ export default function GradesPage() {
       )}
       
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-border/20 shrink-0">
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-border/20">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <GraduationCap className="w-6 h-6 text-primary shrink-0" />
@@ -233,7 +245,7 @@ export default function GradesPage() {
       </header>
 
       {/* ── Top Stats Cards ────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
         {/* Total Subjects */}
         <div className="flex flex-col justify-between bg-card/40 border border-border/30 rounded-lg p-5 shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:border-primary/10 transition-colors duration-200 min-h-[104px]">
@@ -273,9 +285,40 @@ export default function GradesPage() {
 
       </div>
 
+      {/* ── Grades Summary Breakdown ────────────────────────────────────────── */}
+      {data?.cgpa?.gradeDistribution && (
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 p-5 rounded-lg bg-muted/20 border border-border/10">
+          <div className="space-y-1">
+            <h3 className="text-xs font-black uppercase tracking-wider text-foreground flex items-center gap-1.5">
+              <HelpCircle className="w-3.5 h-3.5 text-primary" /> Grades Summary
+            </h3>
+            <p className="text-xs text-muted-foreground font-semibold">Cumulative distribution count across all semesters</p>
+          </div>
+          
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: "S", count: gradeCounts.S, color: "bg-primary/10 text-primary border border-primary/20" },
+              { label: "A", count: gradeCounts.A, color: "bg-primary/10 text-primary border border-primary/20" },
+              { label: "B", count: gradeCounts.B, color: "bg-muted text-muted-foreground border border-border/60" },
+              { label: "C", count: gradeCounts.C, color: "bg-muted text-muted-foreground border border-border/60" },
+              { label: "D", count: gradeCounts.D, color: "bg-muted text-muted-foreground border border-border/60" },
+              { label: "E", count: gradeCounts.E, color: "bg-destructive/10 text-destructive border border-destructive/20" },
+              { label: "F", count: gradeCounts.F, color: "bg-destructive/10 text-destructive border border-destructive/20" },
+              { label: "P", count: gradeCounts.P, color: "bg-muted text-muted-foreground border border-border/60" },
+              { label: "N", count: gradeCounts.N, color: "bg-muted text-muted-foreground border border-border/40" },
+            ].map(({ label, count, color }) => (
+              <div key={label} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-black leading-none ${color}`}>
+                <span>{label}</span>
+                <span className="opacity-30 font-normal">|</span>
+                <span>{count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Search & Filter Controls ───────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/20 shrink-0 pt-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/20 pt-2">
         <div>
           <h2 className="text-base font-bold text-foreground tracking-tight">Academic Grade History</h2>
           <p className="text-xs text-muted-foreground mt-0.5">Chronological record of course assessments and completions</p>
@@ -311,88 +354,49 @@ export default function GradesPage() {
       </div>
 
       {/* ── Table: Grade History ───────────────────────────────────────────── */}
-      <div className="flex-1 min-h-0 overflow-auto no-scrollbar pr-2">
-        {filteredGrades.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-            <FileText className="w-8 h-8 text-muted-foreground/20" />
-            <div>
-              <p className="text-sm font-bold text-foreground">No grades found</p>
-              <p className="text-xs text-muted-foreground mt-1">Try modifying your search or filter settings.</p>
-            </div>
+      {filteredGrades.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
+          <FileText className="w-8 h-8 text-muted-foreground/20" />
+          <div>
+            <p className="text-sm font-bold text-foreground">No grades found</p>
+            <p className="text-xs text-muted-foreground mt-1">Try modifying your search or filter settings.</p>
           </div>
-        ) : (
-          <div className="overflow-x-auto no-scrollbar -mx-6 px-6 md:mx-0 md:px-0">
-            <table className="w-full border-collapse text-left min-w-[900px]">
-              <thead>
-                <tr className="border-b border-border/30 text-xs font-black uppercase tracking-wider text-muted-foreground">
-                  <th className="py-4 px-3 w-12">#</th>
-                  <th className="py-4 px-3 w-28">Course Code</th>
-                  <th className="py-4 px-3">Course Title</th>
-                  <th className="py-4 px-3 w-28">Course Type</th>
-                  <th className="py-4 px-3 w-20 text-center">Credits</th>
-                  <th className="py-4 px-3 w-20 text-center">Grade</th>
-                  <th className="py-4 px-3 w-28">Exam Month</th>
-                  <th className="py-4 px-3 w-32">Result Declared</th>
-                  <th className="py-4 px-3 w-36">Course Distribution</th>
+        </div>
+      ) : (
+        <div className="overflow-x-auto no-scrollbar">
+          <table className="w-full border-collapse text-left min-w-[900px]">
+            <thead>
+              <tr className="border-b border-border/30 text-xs font-black uppercase tracking-wider text-muted-foreground">
+                <th className="py-4 px-3 w-12">#</th>
+                <th className="py-4 px-3 w-28">Course Code</th>
+                <th className="py-4 px-3">Course Title</th>
+                <th className="py-4 px-3 w-28">Course Type</th>
+                <th className="py-4 px-3 w-20 text-center">Credits</th>
+                <th className="py-4 px-3 w-20 text-center">Grade</th>
+                <th className="py-4 px-3 w-28">Exam Month</th>
+                <th className="py-4 px-3 w-32">Result Declared</th>
+                <th className="py-4 px-3 w-36">Course Distribution</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/10 text-sm font-semibold text-muted-foreground/90">
+              {filteredGrades.map((item, idx) => (
+                <tr key={`${item.courseCode}-${idx}`} className="hover:bg-muted/15 transition-colors duration-150 border-b border-border/10">
+                  <td className="py-4 px-3 font-bold text-foreground/80">{item.slNo ?? idx + 1}</td>
+                  <td className="py-4 px-3 font-extrabold tracking-wider text-primary uppercase">{item.courseCode}</td>
+                  <td className="py-4 px-3 font-bold text-foreground leading-normal max-w-[200px] md:max-w-[350px] break-words" title={item.courseTitle}>
+                    {item.courseTitle}
+                  </td>
+                  <td className="py-4 px-3">{formatCourseType(item.courseType)}</td>
+                  <td className="py-4 px-3 text-center font-bold text-foreground">{item.credits}</td>
+                  <td className="py-4 px-3 text-center">{formatGrade(item.grade)}</td>
+                  <td className="py-4 px-3 text-xs font-bold">{item.examMonth}</td>
+                  <td className="py-4 px-3 text-xs font-bold">{item.resultDeclared || "-"}</td>
+                  <td className="py-4 px-3">{formatDistribution(item.courseDistribution)}</td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-border/10 text-sm font-semibold text-muted-foreground/90">
-                {filteredGrades.map((item, idx) => (
-                  <tr key={`${item.courseCode}-${idx}`} className="hover:bg-muted/15 transition-colors duration-150 border-b border-border/10">
-                    <td className="py-4 px-3 font-bold text-foreground/80">{item.slNo ?? idx + 1}</td>
-                    <td className="py-4 px-3 font-extrabold tracking-wider text-primary uppercase">{item.courseCode}</td>
-                    <td className="py-4 px-3 font-bold text-foreground leading-normal max-w-[200px] md:max-w-[350px] break-words" title={item.courseTitle}>
-                      {item.courseTitle}
-                    </td>
-                    <td className="py-4 px-3">{formatCourseType(item.courseType)}</td>
-                    <td className="py-4 px-3 text-center font-bold text-foreground">{item.credits}</td>
-                    <td className="py-4 px-3 text-center">{formatGrade(item.grade)}</td>
-                    <td className="py-4 px-3 text-xs font-bold">{item.examMonth}</td>
-                    <td className="py-4 px-3 text-xs font-bold">{item.resultDeclared || "-"}</td>
-                    <td className="py-4 px-3">{formatDistribution(item.courseDistribution)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* ── Footer: Grades Summary Breakdown & Grade Key ─────────────────────── */}
-      {data?.cgpa?.gradeDistribution && (
-        <footer className="space-y-6 pt-6 border-t border-border/20 shrink-0">
-          
-          {/* Grades Summary Breakdown */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 p-5 rounded-lg bg-muted/20 border border-border/10">
-            <div className="space-y-1">
-              <h3 className="text-xs font-black uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                <HelpCircle className="w-3.5 h-3.5 text-primary" /> Grades Summary
-              </h3>
-              <p className="text-xs text-muted-foreground font-semibold">Cumulative distribution count across all semesters</p>
-            </div>
-            
-            <div className="flex flex-wrap gap-2">
-              {[
-                { label: "S", count: gradeCounts.S, color: "bg-primary/10 text-primary border border-primary/20" },
-                { label: "A", count: gradeCounts.A, color: "bg-primary/10 text-primary border border-primary/20" },
-                { label: "B", count: gradeCounts.B, color: "bg-muted text-muted-foreground border border-border/60" },
-                { label: "C", count: gradeCounts.C, color: "bg-muted text-muted-foreground border border-border/60" },
-                { label: "D", count: gradeCounts.D, color: "bg-muted text-muted-foreground border border-border/60" },
-                { label: "E", count: gradeCounts.E, color: "bg-destructive/10 text-destructive border border-destructive/20" },
-                { label: "F", count: gradeCounts.F, color: "bg-destructive/10 text-destructive border border-destructive/20" },
-                { label: "P", count: gradeCounts.P, color: "bg-muted text-muted-foreground border border-border/60" },
-                { label: "N", count: gradeCounts.N, color: "bg-muted text-muted-foreground border border-border/40" },
-              ].map(({ label, count, color }) => (
-                <div key={label} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-black leading-none ${color}`}>
-                  <span>{label}</span>
-                  <span className="opacity-30 font-normal">|</span>
-                  <span>{count}</span>
-                </div>
               ))}
-            </div>
-          </div>
-
-        </footer>
+            </tbody>
+          </table>
+        </div>
       )}
 
     </div>
