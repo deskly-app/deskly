@@ -138,7 +138,7 @@ function DetailSkeleton() {
           <Sk className="h-3 w-64" />
         </div>
       </div>
-      <div className="grid grid-cols-6 lg:grid-cols-5 gap-6 py-6 border-y border-border/10">
+      <div className="grid grid-cols-6 lg:grid-cols-5 gap-6 py-6 border-b border-border/10">
         {[...Array(5)].map((_, i) => (
           <div key={i} className="pl-2 space-y-2 border-l border-border/10 first:border-0">
             <Sk className="h-3 w-14" />
@@ -314,7 +314,7 @@ export default function AttendanceDetailPage() {
       </header>
 
       {/* ── Summary Stats Grid (2 horizontal rows on smaller screens, 5 columns on desktop lg+) ── */}
-      <div className="grid grid-cols-6 lg:grid-cols-5 gap-y-6 py-6 border-y border-border/10">
+      <div className="grid grid-cols-6 lg:grid-cols-5 gap-y-6 py-6 border-b border-border/10">
         
         {/* Total Slots */}
         <div className="col-span-2 lg:col-span-1 flex flex-col gap-1.5 pl-2">
