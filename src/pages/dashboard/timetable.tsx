@@ -277,7 +277,7 @@ export default function TimetablePage() {
           <Sk className="h-8 w-24 rounded" />
         </div>
         <div className="grid grid-cols-7 gap-2">{[...Array(7)].map((_,i) => <Sk key={i} className="h-12 w-full" />)}</div>
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8 items-start">
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-8 items-start">
           <div className="space-y-2">{[...Array(4)].map((_,i) => <CardSkeleton key={i} />)}</div>
           <SidebarSkeleton />
         </div>
@@ -353,8 +353,8 @@ export default function TimetablePage() {
         </div>
       </div>
 
-      {/* ── Main content grid: stacks below on small/medium, sidebar on right at lg+ ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8 items-start">
+      {/* ── Main content grid: stacks below on small/medium/laptop, sidebar on right at xl+ ── */}
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-8 items-start">
         
         {/* Left schedule list */}
         <div className="space-y-4 min-w-0 w-full">
@@ -451,8 +451,8 @@ export default function TimetablePage() {
           </div>
         </div>
 
-        {/* Right sidebar: stacks below on small/medium, sticky on lg+ */}
-        <div className="w-full lg:w-[300px] shrink-0 space-y-6 pt-6 lg:pt-0 lg:border-l lg:border-border/10 lg:pl-8 lg:sticky lg:top-6">
+        {/* Right sidebar: stacks below on small/medium/laptop, sticky on xl+ */}
+        <div className="w-full xl:w-[300px] shrink-0 space-y-6 pt-6 xl:pt-0 xl:border-l xl:border-border/10 xl:pl-8 xl:sticky xl:top-6">
           {loading ? <SidebarSkeleton /> : (
             <>
               {/* Live Status */}
