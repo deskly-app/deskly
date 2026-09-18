@@ -301,25 +301,25 @@ export default function DashboardHomePage() {
   }>({
     cacheKey: "deskly::cache::dashboard",
     fetcher: async () => {
-      const [cgpaRes, feedbackRes, profileRes, gradeRes] = await Promise.all([
-        getCgpaPage(),
-        getFeedbackStatus(),
-        getStudentProfile().catch(() => null),
-        getStudentGradeView().catch(() => null),
-      ]);
+      // Stagger requests across the shared connection pool so VTOP isn't overwhelmed
+      const profileRes = await getStudentProfile().catch(() => null);
+      const cgpaRes = await getCgpaPage().catch((e) => ({ success: false, error: String(e), cgpaData: undefined }));
+      const feedbackRes = await getFeedbackStatus().catch((e) => ({ success: false, error: String(e), data: undefined }));
+      const gradeRes = await getStudentGradeView().catch(() => null);
 
       let gpaTrend: GpaTrendPoint[] = [];
       if (gradeRes?.success && gradeRes.data) {
         const sems = gradeRes.data.semesters || [];
         if (sems.length > 0) {
-          const results = await Promise.all(
-            sems.map(async (sem) => {
-              if (sem.id === gradeRes.data?.semesterSubId)
-                return { id: sem.id, name: sem.name, gpa: gradeRes.data!.gpa ?? null };
+          const results = [];
+          for (const sem of sems) {
+            if (sem.id === gradeRes.data?.semesterSubId) {
+              results.push({ id: sem.id, name: sem.name, gpa: gradeRes.data!.gpa ?? null });
+            } else {
               const r = await getStudentGradeView(sem.id).catch(() => null);
-              return { id: sem.id, name: sem.name, gpa: r?.success && r.data?.gpa !== undefined ? r.data.gpa : null };
-            }),
-          );
+              results.push({ id: sem.id, name: sem.name, gpa: r?.success && r.data?.gpa !== undefined ? r.data.gpa : null });
+            }
+          }
           gpaTrend = results.filter((r): r is GpaTrendPoint => r.gpa !== null).reverse();
         }
       }
@@ -331,8 +331,10 @@ export default function DashboardHomePage() {
         gpaTrend,
       };
 
-      if (!cgpaRes.success && cgpaRes.error) return { success: false, error: cgpaRes.error };
-      if (!feedbackRes.success && feedbackRes.error) return { success: false, error: feedbackRes.error };
+      // Only fail the entire screen if ALL critical fetches failed
+      if (!cgpaRes.success && !feedbackRes.success && !profileRes?.success) {
+        return { success: false, error: cgpaRes.error || feedbackRes.error || "Failed to load dashboard data." };
+      }
       return { success: true, data };
     },
     enabled: isLoggedIn && !authLoading,

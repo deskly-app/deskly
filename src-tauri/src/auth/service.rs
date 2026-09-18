@@ -54,6 +54,7 @@ impl AuthService {
 
             if setup_html.trim().is_empty() {
                 if attempt < 10 {
+                    tokio::time::sleep(std::time::Duration::from_millis(250)).await;
                     continue;
                 }
                 return Err(BackendError::Network(
@@ -326,6 +327,25 @@ impl AuthService {
         app: &AppHandle,
         store: &State<'_, AuthStore>,
     ) -> Result<AuthTokens, BackendError> {
+        // Singleflight: serialize concurrent auto-relogins so only 1 runs at a time
+        let _lock = store.relogin_mutex.lock().await;
+
+        // Double-check if another waiting task already refreshed tokens while we waited for the lock
+        if let Ok(existing_tokens) = Self::get_tokens_from_store(store) {
+            if has_complete_tokens(&existing_tokens) {
+                let guard = store
+                    .inner
+                    .lock()
+                    .map_err(|_| BackendError::StorageError("failed to lock auth store".to_string()))?;
+                if let Some(state) = guard.state.as_ref() {
+                    let age_ms = now_unix_ms().saturating_sub(state.last_login);
+                    if age_ms < 30_000 {
+                        return Ok(existing_tokens);
+                    }
+                }
+            }
+        }
+
         let (user_id, password, should_repair_encrypted) = {
             let guard = store
                 .inner
@@ -405,17 +425,28 @@ impl AuthService {
         };
 
         if state.as_ref().is_some_and(|s| s.logged_in && tokens_missing) {
-            if Self::perform_auto_relogin(app, store).await.is_err() {
-                let mut guard = store
-                    .inner
-                    .lock()
-                    .map_err(|_| BackendError::StorageError("failed to lock auth store".to_string()))?;
-                guard.state = None;
-                guard.tokens = None;
-                guard.semester = None;
-                guard.password_encrypted = None;
-                let _ = save_to_disk(app, &guard);
-                return Ok(None);
+            match Self::perform_auto_relogin(app, store).await {
+                Ok(_) => {}
+                Err(BackendError::AuthFailed(_)) => {
+                    // Password changed or credentials invalid on VTOP -> wipe credentials and force login screen
+                    let mut guard = store
+                        .inner
+                        .lock()
+                        .map_err(|_| BackendError::StorageError("failed to lock auth store".to_string()))?;
+                    guard.state = None;
+                    guard.tokens = None;
+                    guard.semester = None;
+                    guard.password_encrypted = None;
+                    let _ = save_to_disk(app, &guard);
+                    return Ok(None);
+                }
+                Err(BackendError::Network(_)) => {
+                    // Network timeout or VTOP offline -> KEEP CALM! Do NOT wipe credentials.
+                    // Keep the student logged in so they can view cached dashboard data.
+                }
+                Err(_) => {
+                    // Any other transient error -> keep calm, preserve session
+                }
             }
         }
 

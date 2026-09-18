@@ -8,12 +8,14 @@ use super::types::PersistedAuth;
 
 pub struct AuthStore {
     pub(crate) inner: Mutex<PersistedAuth>,
+    pub(crate) relogin_mutex: tokio::sync::Mutex<()>,
 }
 
 impl AuthStore {
     fn new(initial: PersistedAuth) -> Self {
         Self {
             inner: Mutex::new(initial),
+            relogin_mutex: tokio::sync::Mutex::new(()),
         }
     }
 }
