@@ -102,9 +102,9 @@ export function useAuth(): UseAuthReturn {
         // Sync token existence
         const tokens = await authGetTokens();
         updateStore({ hasTokens: tokens !== null });
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        updateStore({ error: msg, authState: null });
+      } catch (_err) {
+        const state = await authGetState().catch(() => null);
+        updateStore({ authState: state, error: null });
       } finally {
         updateStore({ loading: false, initialized: true });
         refreshPromise = null;

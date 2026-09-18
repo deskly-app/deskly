@@ -51,7 +51,7 @@ export function useOfflineData<T>({
   cacheKey,
   fetcher,
   enabled = true,
-  timeout = 15000,
+  timeout = 35000,
   transform,
   isEmpty,
 }: UseOfflineDataOptions<T>): UseOfflineDataResult<T> {

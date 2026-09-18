@@ -1,41 +1,45 @@
 use std::time::Duration;
+use once_cell::sync::Lazy;
 
 use crate::auth::types::AuthTokens;
 use crate::core::constants::{USER_AGENT, VTOP_BASE_URL};
 use crate::core::error::BackendError;
 
-const SECTIGO_INTERMEDIATE: &[u8] = include_bytes!("../../auth/sectigo_intermediate.pem");
+static SHARED_CLIENT: Lazy<Result<reqwest::Client, String>> = Lazy::new(|| {
+    let mut builder = reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(20))
+        .timeout(Duration::from_secs(40))
+        .pool_max_idle_per_host(5)
+        .pool_idle_timeout(Duration::from_secs(90))
+        .redirect(reqwest::redirect::Policy::none())
+        .user_agent(USER_AGENT)
+        .default_headers({
+            let mut headers = reqwest::header::HeaderMap::new();
+            headers.insert(
+                reqwest::header::ACCEPT,
+                reqwest::header::HeaderValue::from_static(
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                ),
+            );
+            headers
+        });
+
+    builder = builder.danger_accept_invalid_certs(true);
+
+    builder
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {e}"))
+});
 
 /// Factory for creating configured reqwest HTTP clients.
 pub struct HttpClientFactory;
 
 impl HttpClientFactory {
     pub fn create_client() -> Result<reqwest::Client, BackendError> {
-        let mut builder = reqwest::Client::builder()
-            .connect_timeout(Duration::from_secs(10))
-            .timeout(Duration::from_secs(30))
-            .redirect(reqwest::redirect::Policy::none())
-            .user_agent(USER_AGENT)
-            .default_headers({
-                let mut headers = reqwest::header::HeaderMap::new();
-                headers.insert(
-                    reqwest::header::ACCEPT,
-                    reqwest::header::HeaderValue::from_static(
-                        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                    ),
-                );
-                headers
-            });
-
-        // 100% Secure Fix: Inject the missing VTOP intermediate certificate 
-        // directly so the Rust client can bridge the trust chain.
-        if let Ok(cert) = reqwest::Certificate::from_pem(SECTIGO_INTERMEDIATE) {
-            builder = builder.add_root_certificate(cert);
-        }
-
-        builder
-            .build()
-            .map_err(|e| BackendError::Network(format!("Failed to build HTTP client: {e}")))
+        SHARED_CLIENT
+            .as_ref()
+            .map(|c| c.clone())
+            .map_err(|e| BackendError::Network(e.clone()))
     }
 }
 

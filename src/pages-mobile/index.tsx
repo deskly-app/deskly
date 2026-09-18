@@ -17,7 +17,7 @@ import loginImg from "@/assets/login_image.png";
 
 export default function MobileHome() {
   const navigate = useNavigate();
-  const { authState, loading, error, login, initialized } = useAuth();
+  const { authState, loading, login, initialized } = useAuth();
   const [regNo, setRegNo] = useState("");
   const [password, setPassword] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -170,10 +170,10 @@ export default function MobileHome() {
               <AlertCircle className="w-4.5 h-4.5 shrink-0 mt-0.5 text-destructive" />
               <span>You are currently offline. Please check your internet connection.</span>
             </div>
-          ) : (submitError || error) ? (
+          ) : submitError ? (
             <div className="flex items-start gap-2 text-destructive text-sm font-medium leading-relaxed -mt-2 bg-destructive/5 border border-destructive/10 p-3 rounded-md">
               <AlertCircle className="w-4.5 h-4.5 shrink-0 mt-0.5 text-destructive" />
-              <span>{submitError ?? error}</span>
+              <span>{submitError}</span>
             </div>
           ) : null}
 

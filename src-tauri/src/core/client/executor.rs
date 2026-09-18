@@ -243,10 +243,7 @@ impl<'a, E: VtopExecutor> AutoReloginRetryDecorator<'a, E> {
             eprintln!("[decorator] Session expired detected. Triggering auto-relogin...");
             let fresh_tokens =
                 crate::auth::service::AuthService::perform_auto_relogin(self.app, self.store)
-                    .await
-                    .map_err(|e| {
-                        BackendError::AuthFailed(format!("Auto-relogin failed: {}", e))
-                    })?;
+                    .await?;
 
             let retry_req = build_req(&fresh_tokens);
             let retry_res = match self.inner.execute(&retry_req).await {

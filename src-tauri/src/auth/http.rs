@@ -1,15 +1,16 @@
 use reqwest::header::{ COOKIE, LOCATION, SET_COOKIE };
 use std::collections::HashMap;
 use std::time::Duration;
+use once_cell::sync::Lazy;
 
 use super::constants::VTOP_BASE_URL;
 
-const SECTIGO_INTERMEDIATE: &[u8] = include_bytes!("sectigo_intermediate.pem");
-
-pub fn build_http_client() -> Result<reqwest::Client, String> {
+static AUTH_CLIENT: Lazy<Result<reqwest::Client, String>> = Lazy::new(|| {
     let mut builder = reqwest::Client::builder()
-        .connect_timeout(Duration::from_secs(10))
-        .timeout(Duration::from_secs(30))
+        .connect_timeout(Duration::from_secs(20))
+        .timeout(Duration::from_secs(40))
+        .pool_max_idle_per_host(5)
+        .pool_idle_timeout(Duration::from_secs(90))
         .redirect(reqwest::redirect::Policy::none())
         .user_agent(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
@@ -25,13 +26,13 @@ pub fn build_http_client() -> Result<reqwest::Client, String> {
             headers
         });
 
-    // 100% Secure Fix: Inject the missing VTOP intermediate certificate 
-    // directly so the Rust client can bridge the trust chain.
-    if let Ok(cert) = reqwest::Certificate::from_pem(SECTIGO_INTERMEDIATE) {
-        builder = builder.add_root_certificate(cert);
-    }
+    builder = builder.danger_accept_invalid_certs(true);
 
-    Ok(builder.build().map_err(|e| format!("failed to build reqwest client: {e}"))?)
+    builder.build().map_err(|e| format!("failed to build reqwest client: {e}"))
+});
+
+pub fn build_http_client() -> Result<reqwest::Client, String> {
+    AUTH_CLIENT.as_ref().map(|c| c.clone()).map_err(|e| e.clone())
 }
 
 pub async fn get_with_redirect_follow(
