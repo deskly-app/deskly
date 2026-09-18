@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import {
   getAcademicCalendarOptions,
@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar as CalendarIcon, Info, RefreshCw, X } from "lucide-react";
+import { Calendar as CalendarIcon, Info, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -128,7 +128,6 @@ export default function AcademicCalendarPage() {
     data: scheduleData,
     loading: viewLoading,
     error: viewError,
-    retry: retryView,
   } = useOfflineData<MonthlySchedule>({
     cacheKey: selectedOption ? `deskly::cache::calendar_view_${selectedOption.dateValue}` : "",
     fetcher: () => getAcademicCalendarView(selectedOption!.dateValue),
@@ -141,11 +140,6 @@ export default function AcademicCalendarPage() {
 
   // Selected cell details in side panel
   const [selectedCell, setSelectedCell] = useState<CalendarCell | null>(null);
-
-  const fetchView = useCallback((_dateVal?: string) => {
-    setSelectedCell(null);
-    retryView();
-  }, [retryView]);
 
   // Calendar Math: construct 35-42 grid cells based on loaded schedule and options
   const calendarCells = useMemo(() => {
@@ -246,14 +240,6 @@ export default function AcademicCalendarPage() {
                 ))}
               </SelectContent>
             </Select>
-
-            <button
-              onClick={() => fetchView(selectedOption.dateValue)}
-              title="Refresh calendar view"
-              className="p-2 h-9 w-9 rounded-md border border-border/10 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors flex items-center justify-center cursor-pointer"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
           </div>
         )}
       </header>
