@@ -4,7 +4,7 @@ Deskly is architected according to the **Open/Closed Principle (OCP)**: open for
 
 ---
 
-## 🚀 1. Adding a New VTOP Feature: Step-by-Step Tutorial
+## 1. Adding a New VTOP Feature: Step-by-Step Tutorial
 
 This walkthrough illustrates how to add a hypothetical **Hostel Leave Application** or **Internal Marks** feature to Deskly.
 
@@ -180,7 +180,7 @@ tauri::Builder::default()
 
 ---
 
-## 🧩 2. Extensibility Checklist
+## 2. Extensibility Checklist
 
 When extending Deskly's backend, verify the following:
 

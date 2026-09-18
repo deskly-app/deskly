@@ -4,7 +4,7 @@ This document provides an in-depth low-level design analysis of Deskly's **Singl
 
 ---
 
-## 💥 1. The Core Problem: The Thundering Herd / Token Stampede
+## 1. The Core Problem: The Thundering Herd / Token Stampede
 
 In modern desktop applications built with reactive UI frameworks (React 19, TanStack Query), pages load multiple independent widgets simultaneously. 
 
@@ -39,7 +39,7 @@ Without synchronization, 5 distinct login attempts hit the legacy university ser
 
 ---
 
-## 🛡️ 2. The Solution: Singleflight Mutex with Double-Checked Locking
+## 2. The Solution: Singleflight Mutex with Double-Checked Locking
 
 To solve this, Deskly implements the **Singleflight Pattern** combined with **Double-Checked Locking** inside `src-tauri/src/auth/store.rs` and `src-tauri/src/auth/service.rs`.
 
@@ -118,7 +118,7 @@ pub async fn perform_auto_relogin(
 
 ---
 
-## 📊 3. Detailed Concurrency Sequence Timeline
+## 3. Detailed Concurrency Sequence Timeline
 
 The diagram below maps the precise execution timeline when 4 parallel tasks hit session expiration simultaneously:
 
@@ -173,7 +173,7 @@ sequenceDiagram
 
 ---
 
-## 🔒 4. Deadlock Prevention & Lock Hierarchy
+## 4. Deadlock Prevention & Lock Hierarchy
 
 Deskly operates in a hybrid synchronous/asynchronous environment. Mixing `std::sync::Mutex` and `tokio::sync::Mutex` without strict discipline can cause catastrophic deadlocks or thread starvation.
 
@@ -203,7 +203,7 @@ If a thread holds a `std::sync::MutexGuard` across an `.await` point:
 
 ---
 
-## ⏱️ 5. The 30-Second Freshness Window Rationale
+## 5. The 30-Second Freshness Window Rationale
 
 The double-checked condition checks:
 ```rust

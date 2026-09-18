@@ -4,7 +4,7 @@ This document specifies the object-oriented and structural models of the Deskly 
 
 ---
 
-## 📐 1. Complete UML Class Diagram
+## 1. Complete UML Class Diagram
 
 The following class diagram models the core structs, traits, relationships, and methods across the Deskly backend:
 
@@ -166,7 +166,7 @@ classDiagram
 
 ---
 
-## 📦 2. Module & Package Architecture Diagram
+## 2. Module & Package Architecture Diagram
 
 The backend divides concerns into clear, bounded contexts:
 
@@ -226,7 +226,7 @@ graph TD
 
 ---
 
-## 🔄 3. Sequence Diagram: Transparent Auto-Relogin
+## 3. Sequence Diagram: Transparent Auto-Relogin
 
 The sequence below illustrates what happens when a protected resource fetch encounters an expired session:
 
@@ -282,7 +282,7 @@ sequenceDiagram
 
 ---
 
-## 🚦 4. State Machine Diagram: Authentication Session Lifecycle
+## 4. State Machine Diagram: Authentication Session Lifecycle
 
 This diagram documents the lifecycle states of a user session in Deskly:
 

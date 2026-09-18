@@ -6,7 +6,7 @@ Deskly bridges modern desktop user interfaces (React + TypeScript) with the lega
 
 ---
 
-## 📚 Document Index
+## Document Index
 
 | Document | Topic | Key Focus Areas |
 | :--- | :--- | :--- |
@@ -18,7 +18,7 @@ Deskly bridges modern desktop user interfaces (React + TypeScript) with the lega
 
 ---
 
-## 🏛️ High-Level System Context
+## High-Level System Context
 
 ```mermaid
 flowchart TD
@@ -80,7 +80,7 @@ flowchart TD
 
 ---
 
-## 🎯 Architectural Guarantees & Constraints
+## Architectural Guarantees & Constraints
 
 1. **Zero Session Disruption**: When VTOP invalidates a session (typically after 15–20 minutes of inactivity or server-side expiration), running or parallel requests do not crash. They transparently re-authenticate and complete their original data fetch without notifying or bothering the end user.
 2. **Singleflight Concurrency Protection**: Multiple concurrent resource requests from a single page view (e.g., Dashboard loading Attendance, Timetable, CGPA, and Exam Schedule simultaneously) are serialized through an asynchronous mutex with double-checked token freshness. Exactly **one** re-login HTTP handshake is dispatched, eliminating account lockouts and IP throttling.

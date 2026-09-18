@@ -4,7 +4,7 @@ This document details the software design patterns implemented across Deskly’s
 
 ---
 
-## 📋 Pattern Summary Matrix
+## Pattern Summary Matrix
 
 | Pattern | Category | Concrete Implementation | File Location |
 | :--- | :--- | :--- | :--- |
@@ -18,7 +18,7 @@ This document details the software design patterns implemented across Deskly’s
 
 ---
 
-## 1. 🎀 Decorator Pattern: `AutoReloginRetryDecorator`
+## 1. Decorator Pattern: `AutoReloginRetryDecorator`
 
 ### Intent
 Transparently augment any HTTP executor with automatic session expiration detection, credential re-authentication, and request replay capabilities without modifying the underlying executor or domain services.
@@ -74,7 +74,7 @@ impl<'a, E: VtopExecutor> AutoReloginRetryDecorator<'a, E> {
 
 ---
 
-## 2. 🚦 Singleflight Pattern: Concurrency Mutex & Double-Checked Locking
+## 2. Singleflight Pattern: Concurrency Mutex & Double-Checked Locking
 
 ### Intent
 Coalesce multiple concurrent requests for the same expensive operation (re-authenticating with VTOP) so that only **one** execution runs at a time, and subsequent callers reuse the fresh result.
@@ -90,7 +90,7 @@ When a user visits a multi-widget screen like the Dashboard, up to 5 concurrent 
 
 ---
 
-## 3. 🏭 Factory Pattern: `VtopRequestFactory` & `HttpClientFactory`
+## 3. Factory Pattern: `VtopRequestFactory` & `HttpClientFactory`
 
 ### Intent
 Encapsulate the complex instantiation logic of outgoing network requests and client instances into dedicated factories.
@@ -133,7 +133,7 @@ Instantiates a pre-configured `reqwest::Client` with Keep-Alive connection pooli
 
 ---
 
-## 4. 🔌 Adapter Pattern: `VtopPayloadAdapter`
+## 4. Adapter Pattern: `VtopPayloadAdapter`
 
 ### Intent
 Convert heterogeneous, legacy server-rendered HTML/Struts responses into clean semantic data signals expected by modern Rust services.
@@ -169,7 +169,7 @@ impl VtopPayloadAdapter {
 
 ---
 
-## 5. 🎯 Strategy Pattern: `HybridCredentialStrategy` & `SemesterResolutionStrategy`
+## 5. Strategy Pattern: `HybridCredentialStrategy` & `SemesterResolutionStrategy`
 
 ### Intent
 Define a family of interchangeable algorithms, allowing Deskly to adapt its credential storage and semester resolution behavior dynamically based on runtime conditions.
@@ -187,7 +187,7 @@ Resolves which semester data to query:
 
 ---
 
-## 6. 👁️ Observer Pattern: `AuthSubject` & `AuthObserver`
+## 6. Observer Pattern: `AuthSubject` & `AuthObserver`
 
 ### Intent
 Maintain loose coupling between the core authentication state machine and side-effect consumers (disk persistence, frontend event emission, telemetry).
@@ -224,7 +224,7 @@ impl AuthSubject {
 
 ---
 
-## 7. 📦 Singleton / Flyweight Pattern: `SHARED_CLIENT`
+## 7. Singleton / Flyweight Pattern: `SHARED_CLIENT`
 
 ### Intent
 Share a single, pooled HTTP connection manager across all threads and asynchronous tasks.

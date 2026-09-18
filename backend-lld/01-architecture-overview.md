@@ -4,7 +4,7 @@ Deskly’s backend is structured as a layered, modular asynchronous system in Ru
 
 ---
 
-## 🏗️ Layered Architecture & Tiers
+## Layered Architecture & Tiers
 
 The backend is decomposed into five distinct architectural layers:
 
