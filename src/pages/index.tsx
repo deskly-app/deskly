@@ -93,35 +93,35 @@ export default function Home() {
   return (
     <main className="h-full min-h-0 overflow-y-auto no-scrollbar relative bg-background text-foreground antialiased selection:bg-primary/20">
       {/* Industrial Watermark - Subtle branding */}
-      <div className="hidden sm:block absolute top-24 right-24 text-[14rem] font-black text-foreground opacity-[0.015] pointer-events-none select-none leading-none tracking-tighter uppercase">
+      <div className="hidden md:block absolute top-16 right-16 lg:top-24 lg:right-24 text-[8rem] lg:text-[12rem] xl:text-[14rem] font-black text-foreground opacity-[0.015] pointer-events-none select-none leading-none tracking-tighter uppercase">
         DESKLY
       </div>
 
-      <div className="min-h-full w-full flex items-center justify-center p-6 sm:p-16">
+      <div className="min-h-full w-full flex items-center justify-center px-4 py-6 sm:px-8 sm:py-10">
         <motion.section
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={smoothTransition}
-          className="w-full max-w-[400px] flex flex-col gap-16 py-10"
+          className="w-full max-w-[380px] sm:max-w-[400px] flex flex-col gap-8 sm:gap-10 py-2 sm:py-4"
         >
           {/* Logo & Header */}
-          <div className="space-y-8 flex flex-col items-center sm:items-start text-center sm:text-left">
-            <img src="/logo.png" className="w-12 h-12 sm:w-14 sm:h-14 object-contain" alt="Deskly Logo" />
-            <div className="space-y-3">
-              <h1 className="text-4xl sm:text-5xl font-light tracking-tight text-foreground leading-none">
+          <div className="space-y-4 sm:space-y-6 flex flex-col items-center sm:items-start text-center sm:text-left">
+            <img src="/logo.png" className="w-10 h-10 sm:w-12 sm:h-12 object-contain" alt="Deskly Logo" />
+            <div className="space-y-2 sm:space-y-2.5">
+              <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-foreground leading-tight">
                 Sign In
               </h1>
-              <p className="text-sm text-muted-foreground/60 leading-relaxed max-w-[320px]">
+              <p className="text-xs sm:text-sm text-muted-foreground/60 leading-relaxed max-w-[320px]">
                 Sync your student dashboard with your official VTOP credentials.
               </p>
             </div>
           </div>
 
-          <form className="space-y-12" onSubmit={onSubmit}>
-            <div className="space-y-8">
+          <form className="space-y-6 sm:space-y-8" onSubmit={onSubmit}>
+            <div className="space-y-4 sm:space-y-5">
               
               {/* Registration Number Field */}
-              <div className="group space-y-3">
+              <div className="group space-y-1.5 sm:space-y-2">
                 <label
                   htmlFor="reg-no"
                   className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground/50 ml-0.5"
@@ -135,18 +135,18 @@ export default function Home() {
                     value={regNo}
                     onChange={(e) => setRegNo(e.target.value)}
                     disabled={loading || isOffline}
-                    className="block w-full h-12 pl-0 pr-12 bg-transparent border-b border-border/70 focus:border-primary focus:outline-none text-base font-normal text-foreground placeholder:text-muted-foreground/25 transition-colors rounded-none disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="block w-full h-10 sm:h-11 pl-0 pr-10 bg-transparent border-b border-border/70 focus:border-primary focus:outline-none text-sm sm:text-base font-normal text-foreground placeholder:text-muted-foreground/25 transition-colors rounded-none disabled:opacity-50 disabled:cursor-not-allowed"
                     placeholder="Username"
                     required
                   />
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/30 transition-colors pointer-events-none group-focus-within:text-primary/70">
-                    <User className="w-4.5 h-4.5" />
+                    <User className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                   </div>
                 </div>
               </div>
 
               {/* Password Field */}
-              <div className="group space-y-3">
+              <div className="group space-y-1.5 sm:space-y-2">
                 <label
                   htmlFor="password"
                   className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground/50 ml-0.5"
@@ -160,7 +160,7 @@ export default function Home() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={loading || isOffline}
-                    className="block w-full h-12 pl-0 pr-12 bg-transparent border-b border-border/70 focus:border-primary focus:outline-none text-base font-normal text-foreground placeholder:text-muted-foreground/25 transition-colors rounded-none disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="block w-full h-10 sm:h-11 pl-0 pr-10 bg-transparent border-b border-border/70 focus:border-primary focus:outline-none text-sm sm:text-base font-normal text-foreground placeholder:text-muted-foreground/25 transition-colors rounded-none disabled:opacity-50 disabled:cursor-not-allowed"
                     placeholder="••••••••"
                     required
                   />
@@ -168,12 +168,12 @@ export default function Home() {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     disabled={loading || isOffline}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/30 hover:text-foreground transition-colors focus:outline-none disabled:opacity-50"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/30 hover:text-foreground transition-colors focus:outline-none disabled:opacity-50 cursor-pointer"
                   >
                     {showPassword ? (
-                      <EyeOff className="w-4.5 h-4.5" />
+                      <EyeOff className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                     ) : (
-                      <Eye className="w-4.5 h-4.5" />
+                      <Eye className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                     )}
                   </button>
                 </div>
@@ -182,21 +182,21 @@ export default function Home() {
 
             {/* Error Message / Offline Status */}
             {isOffline ? (
-              <p className="text-xs text-destructive bg-destructive/5 border border-destructive/10 p-3 rounded-md font-semibold leading-relaxed text-center">
+              <p className="text-xs text-destructive bg-destructive/5 border border-destructive/10 p-2.5 sm:p-3 rounded-md font-semibold leading-relaxed text-center">
                 You are currently offline. Please check your internet connection.
               </p>
             ) : (submitError || error) ? (
-              <p className="text-xs text-destructive bg-destructive/5 border border-destructive/10 p-3 rounded-md font-semibold leading-relaxed text-center">
+              <p className="text-xs text-destructive bg-destructive/5 border border-destructive/10 p-2.5 sm:p-3 rounded-md font-semibold leading-relaxed text-center">
                 {submitError ?? error}
               </p>
             ) : null}
 
             {/* Submit Button */}
-            <div className="pt-2">
+            <div className="pt-1 sm:pt-2">
               <button
                 type="submit"
                 disabled={loading || isOffline}
-                className="w-full h-12 flex justify-center items-center bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+                className="w-full h-10 sm:h-11 flex justify-center items-center bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm"
               >
                 {loading ? (
                   <>
@@ -214,7 +214,7 @@ export default function Home() {
           </form>
 
           {/* Footer links */}
-          <footer className="flex items-center justify-between pt-10 border-t border-border/10">
+          <footer className="flex items-center justify-between pt-6 sm:pt-8 border-t border-border/10">
             <div className="flex gap-5">
               <button
                 onClick={async () => {
