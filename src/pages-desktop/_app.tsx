@@ -21,6 +21,34 @@ export default function App() {
     }
   }, []);
 
+  useEffect(() => {
+    // Disable right-click browser context menu (Back, Reload, Inspect, etc.)
+    const handleContextMenu = (e: MouseEvent) => e.preventDefault();
+
+    // Disable browser zoom keyboard shortcuts: Ctrl + / -, Ctrl + 0, Ctrl + =
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && (e.key === "+" || e.key === "-" || e.key === "=" || e.key === "0")) {
+        e.preventDefault();
+      }
+    };
+
+    // Disable Ctrl+scroll zoom
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) e.preventDefault();
+    };
+
+    document.addEventListener("contextmenu", handleContextMenu);
+    document.addEventListener("keydown", handleKeyDown);
+    // passive: false is required so we can call preventDefault on wheel
+    document.addEventListener("wheel", handleWheel, { passive: false });
+
+    return () => {
+      document.removeEventListener("contextmenu", handleContextMenu);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("wheel", handleWheel);
+    };
+  }, []);
+
   return (
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
       <NoInternetOverlay isOnline={isOnline} />
