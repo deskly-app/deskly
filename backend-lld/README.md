@@ -15,6 +15,7 @@ Deskly bridges modern desktop user interfaces (React + TypeScript) with the lega
 | [**03. Singleflight Mutex & Concurrency**](./03-singleflight-mutex-and-concurrency.md) | Thundering Herd Solution | Detailed analysis of `relogin_mutex`, double-checked locking, token age validation (`age_ms < 30_000`), and deadlock prevention across concurrent resource fetches. |
 | [**04. Design Patterns**](./04-design-patterns.md) | Enterprise Design Patterns | Decorator, Singleflight, Factory, Adapter, Strategy, Observer, and Singleton patterns implemented in idiomatic Rust. |
 | [**05. Extensibility Guide**](./05-extensibility-guide.md) | Developer Guide | Step-by-step manual for adding new VTOP endpoints, custom parsers, IPC commands, and error mappers following SOLID principles. |
+| [**06. Native Notifications & Scheduling**](./06-native-notifications-and-scheduling-lld.md) | Notifications & Reminders LLD | Low-level design for native OS notifications, download alert workflows, upcoming class reminder scheduler, deduplication, and user preferences. |
 
 ---
 

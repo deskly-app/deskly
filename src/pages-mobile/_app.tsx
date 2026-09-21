@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { useClassReminders } from "@/hooks/use-class-reminders";
 
 declare global {
   interface Window {
@@ -10,6 +11,7 @@ declare global {
 }
 
 export default function MobileApp() {
+  useClassReminders();
   useEffect(() => {
     const splash = document.getElementById("mobile-boot-splash");
     if (!splash) return;
