@@ -3,7 +3,10 @@ import { useParams } from "@/router";
 import { useAuth } from "@/hooks/useAuth";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
-import { sendNotification } from "@tauri-apps/plugin-notification";
+import {
+  notifyDownloadCompleted,
+  notifyDownloadFailed,
+} from "@/lib/notifications";
 import {
   getCurriculumCategoryCourses,
   downloadCurriculumSyllabus,
@@ -151,14 +154,9 @@ export default function CategoryCoursesPage() {
       }));
       
       // Native notification feedback
-      try {
-        sendNotification({
-          title: "Syllabus Saved",
-          body: `Syllabus successfully saved!`
-        });
-      } catch (err) {
-        console.error("Failed to trigger native notification", err);
-      }
+      notifyDownloadCompleted("Syllabus", `${courseCode}.pdf`).catch((err) => {
+        console.error("Failed to trigger download notification:", err);
+      });
 
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
@@ -166,6 +164,9 @@ export default function CategoryCoursesPage() {
         ...prev,
         [courseCode]: { success: false, message: errMsg }
       }));
+      notifyDownloadFailed("Syllabus", errMsg).catch((err) => {
+        console.error("Failed to trigger download failed notification:", err);
+      });
     } finally {
       setDownloading((prev) => ({ ...prev, [courseCode]: false }));
     }

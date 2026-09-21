@@ -1,4 +1,5 @@
 // ─── Timetable Calendar Export Utilities ────────────────────────────────────────
+import { notifyDownloadCompleted } from "./notifications";
 
 export interface ScheduleEntry {
   day: string;
@@ -235,6 +236,7 @@ export function downloadBlob(content: string, filename: string, mimeType: string
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  notifyDownloadCompleted("Calendar File", filename).catch(() => {});
 }
 
 // ─── Exam Calendar Export Utilities ───────────────────────────────────────────

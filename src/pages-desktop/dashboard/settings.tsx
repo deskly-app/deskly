@@ -25,16 +25,70 @@ import {
   ArrowUpCircle, 
   Scale,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  Bell,
+  BellRing,
+  Download,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
 } from "lucide-react";
 import { getVersion } from "@tauri-apps/api/app";
 import { check } from "@tauri-apps/plugin-updater";
-import { showNotification } from "@/lib/notifications";
+import {
+  showNotification,
+  getNotificationSettings,
+  saveNotificationSettings,
+  isPermissionGranted,
+  requestPermission,
+  sendTestNotification,
+  NotificationSettings,
+} from "@/lib/notifications";
 import { invoke } from "@tauri-apps/api/core";
+
+function ToggleSwitch({
+  checked,
+  onChange,
+  disabled = false,
+}: {
+  checked: boolean;
+  onChange: (val: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`
+        relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent 
+        transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 
+        focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background
+        ${disabled ? "opacity-50 cursor-not-allowed" : ""}
+        ${checked ? "bg-primary" : "bg-muted"}
+      `}
+    >
+      <span
+        className={`
+          pointer-events-none inline-block h-4 w-4 rounded-full bg-background shadow-xs ring-0 
+          transition duration-200 ease-in-out
+          ${checked ? "translate-x-4" : "translate-x-0"}
+        `}
+      />
+    </button>
+  );
+}
 
 export default function SettingsPage() {
   const { isLoggedIn, loading: authLoading, logout } = useAuth();
   const navigate = useNavigate();
+
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(getNotificationSettings);
+  const [hasNotificationPermission, setHasNotificationPermission] = useState<boolean | null>(null);
+  const [isTestingNotification, setIsTestingNotification] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
 
   const [semesters, setSemesters] = useState<Semester[]>(() => {
     try {
@@ -78,8 +132,17 @@ export default function SettingsPage() {
         setInstallFormat("unknown");
       }
     }
+    async function checkNotificationPerm() {
+      try {
+        const granted = await isPermissionGranted();
+        setHasNotificationPermission(granted);
+      } catch (err) {
+        console.warn("Failed to check notification permission:", err);
+      }
+    }
     loadVersion();
     detectInstallFormat();
+    checkNotificationPerm();
   }, []);
 
   const handleUpdateCheck = async () => {
@@ -177,6 +240,51 @@ export default function SettingsPage() {
     }
   };
 
+  const handleToggleMaster = async (enabled: boolean) => {
+    if (enabled && !hasNotificationPermission) {
+      const granted = await requestPermission();
+      setHasNotificationPermission(granted);
+    }
+    const updated = saveNotificationSettings({ enabled });
+    setNotificationSettings(updated);
+  };
+
+  const handleToggleClassReminders = (classRemindersEnabled: boolean) => {
+    const updated = saveNotificationSettings({ classRemindersEnabled });
+    setNotificationSettings(updated);
+  };
+
+  const handleChangeLeadMins = (minsStr: string) => {
+    const mins = parseInt(minsStr, 10) || 10;
+    const updated = saveNotificationSettings({ classReminderLeadMins: mins });
+    setNotificationSettings(updated);
+  };
+
+  const handleToggleDownloadAlerts = (downloadAlertsEnabled: boolean) => {
+    const updated = saveNotificationSettings({ downloadAlertsEnabled });
+    setNotificationSettings(updated);
+  };
+
+  const handleTestNotification = async () => {
+    setIsTestingNotification(true);
+    setTestResult(null);
+    try {
+      const ok = await sendTestNotification();
+      const granted = await isPermissionGranted();
+      setHasNotificationPermission(granted);
+      if (ok) {
+        setTestResult("Test notification sent successfully!");
+      } else {
+        setTestResult("Permission denied or blocked by OS.");
+      }
+    } catch {
+      setTestResult("Failed to send test notification.");
+    } finally {
+      setIsTestingNotification(false);
+      setTimeout(() => setTestResult(null), 4000);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -257,6 +365,136 @@ export default function SettingsPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+            </div>
+          </div>
+
+          {/* Notifications Section */}
+          <div className="pt-2">
+            <div className="flex items-center justify-between border-b border-border/10 pb-2 mb-2">
+              <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground/50">
+                Notifications
+              </h2>
+              <div className="flex items-center gap-1.5">
+                {hasNotificationPermission === true && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-500">
+                    <CheckCircle2 className="w-3 h-3" />
+                    OS Allowed
+                  </span>
+                )}
+                {hasNotificationPermission === false && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-500">
+                    <AlertCircle className="w-3 h-3" />
+                    Permission Needed
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="divide-y divide-border/10">
+              
+              {/* Master Notification Toggle */}
+              <div className="py-4 flex items-center justify-between gap-6">
+                <div className="flex items-start gap-3">
+                  <Bell className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div>
+                    <h3 className="text-xs font-semibold text-foreground">Native Notifications</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                      Enable system banners for classes, downloads, and alerts.
+                    </p>
+                  </div>
+                </div>
+                <ToggleSwitch
+                  checked={notificationSettings.enabled}
+                  onChange={handleToggleMaster}
+                />
+              </div>
+
+              {/* Class Reminders */}
+              <div className={`py-4 space-y-3 transition-opacity duration-200 ${!notificationSettings.enabled ? "opacity-40 pointer-events-none" : ""}`}>
+                <div className="flex items-center justify-between gap-6">
+                  <div className="flex items-start gap-3">
+                    <BellRing className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                    <div>
+                      <h3 className="text-xs font-semibold text-foreground">Upcoming Class Reminders</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                        Alert before classes begin with classroom venue and faculty.
+                      </p>
+                    </div>
+                  </div>
+                  <ToggleSwitch
+                    checked={notificationSettings.classRemindersEnabled}
+                    onChange={handleToggleClassReminders}
+                    disabled={!notificationSettings.enabled}
+                  />
+                </div>
+
+                {notificationSettings.classRemindersEnabled && (
+                  <div className="ml-7 flex items-center justify-between gap-4 pt-1">
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
+                      <span className="text-[11px] text-muted-foreground">Reminder Lead Time</span>
+                    </div>
+                    <Select
+                      value={String(notificationSettings.classReminderLeadMins)}
+                      onValueChange={handleChangeLeadMins}
+                      disabled={!notificationSettings.enabled}
+                    >
+                      <SelectTrigger className="w-[140px] h-7 rounded-md bg-muted/20 hover:bg-muted/30 border-border/20 text-xs focus:ring-1 focus:ring-primary/20">
+                        <SelectValue placeholder="Lead Time" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-md border-border/20 bg-popover/95 backdrop-blur-md">
+                        <SelectItem value="5" className="rounded-md text-xs">5 mins before</SelectItem>
+                        <SelectItem value="10" className="rounded-md text-xs">10 mins before</SelectItem>
+                        <SelectItem value="15" className="rounded-md text-xs">15 mins before</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              {/* Download Alerts */}
+              <div className={`py-4 flex items-center justify-between gap-6 transition-opacity duration-200 ${!notificationSettings.enabled ? "opacity-40 pointer-events-none" : ""}`}>
+                <div className="flex items-start gap-3">
+                  <Download className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div>
+                    <h3 className="text-xs font-semibold text-foreground">Download Alerts</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                      Notify when syllabus PDFs or calendar files finish downloading.
+                    </p>
+                  </div>
+                </div>
+                <ToggleSwitch
+                  checked={notificationSettings.downloadAlertsEnabled}
+                  onChange={handleToggleDownloadAlerts}
+                  disabled={!notificationSettings.enabled}
+                />
+              </div>
+
+              {/* Test Notification Action */}
+              <div className="py-3.5 flex items-center justify-between gap-6">
+                <div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Test system notification delivery and permissions.
+                  </p>
+                  {testResult && (
+                    <p className="text-[11px] text-primary mt-1 font-medium">
+                      {testResult}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleTestNotification}
+                  disabled={isTestingNotification}
+                  className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-medium rounded-md transition-colors cursor-pointer border border-border/20 shrink-0"
+                >
+                  {isTestingNotification && (
+                    <Loader2 className="w-3 h-3 animate-spin inline mr-1.5" />
+                  )}
+                  Test Alert
+                </button>
               </div>
 
             </div>

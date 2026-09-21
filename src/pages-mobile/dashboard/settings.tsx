@@ -21,12 +21,61 @@ import {
   Shield,
   ShieldCheck,
   Info,
+  Bell,
+  BellRing,
+  Download,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  Loader2,
 } from "lucide-react";
 import { DrawerSelect } from "@/components/ui/drawer-select";
 import { Drawer, DrawerContent, DrawerClose } from "@/components/ui/drawer";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { isNetworkError } from "@/lib/utils";
 import settingsImg from "@/assets/settings.png";
+import {
+  getNotificationSettings,
+  saveNotificationSettings,
+  isPermissionGranted,
+  requestPermission,
+  sendTestNotification,
+  NotificationSettings,
+} from "@/lib/notifications";
+
+function ToggleSwitch({
+  checked,
+  onChange,
+  disabled = false,
+}: {
+  checked: boolean;
+  onChange: (val: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`
+        relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent 
+        transition-colors duration-200 ease-in-out focus:outline-none 
+        ${disabled ? "opacity-50 cursor-not-allowed" : ""}
+        ${checked ? "bg-primary" : "bg-muted"}
+      `}
+    >
+      <span
+        className={`
+          pointer-events-none inline-block h-4 w-4 rounded-full bg-background shadow-xs ring-0 
+          transition duration-200 ease-in-out
+          ${checked ? "translate-x-4" : "translate-x-0"}
+        `}
+      />
+    </button>
+  );
+}
 
 // ─── Skeleton Helper ──────────────────────────────────────────────────────────
 
@@ -105,6 +154,61 @@ export default function MobileSettings() {
     if (!semester) return;
     await setSemester(semester);
   }
+
+  // Notification Preferences States
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(getNotificationSettings);
+  const [hasNotificationPermission, setHasNotificationPermission] = useState<boolean | null>(null);
+  const [isTestingNotification, setIsTestingNotification] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
+
+  useEffect(() => {
+    isPermissionGranted().then(setHasNotificationPermission).catch(() => {});
+  }, []);
+
+  const handleToggleMaster = async (enabled: boolean) => {
+    if (enabled && !hasNotificationPermission) {
+      const granted = await requestPermission();
+      setHasNotificationPermission(granted);
+    }
+    const updated = saveNotificationSettings({ enabled });
+    setNotificationSettings(updated);
+  };
+
+  const handleToggleClassReminders = (classRemindersEnabled: boolean) => {
+    const updated = saveNotificationSettings({ classRemindersEnabled });
+    setNotificationSettings(updated);
+  };
+
+  const handleChangeLeadMins = (minsStr: string) => {
+    const mins = parseInt(minsStr, 10) || 10;
+    const updated = saveNotificationSettings({ classReminderLeadMins: mins });
+    setNotificationSettings(updated);
+  };
+
+  const handleToggleDownloadAlerts = (downloadAlertsEnabled: boolean) => {
+    const updated = saveNotificationSettings({ downloadAlertsEnabled });
+    setNotificationSettings(updated);
+  };
+
+  const handleTestNotification = async () => {
+    setIsTestingNotification(true);
+    setTestResult(null);
+    try {
+      const ok = await sendTestNotification();
+      const granted = await isPermissionGranted();
+      setHasNotificationPermission(granted);
+      if (ok) {
+        setTestResult("Test alert sent!");
+      } else {
+        setTestResult("Permission needed or blocked by OS.");
+      }
+    } catch {
+      setTestResult("Failed to send test alert.");
+    } finally {
+      setIsTestingNotification(false);
+      setTimeout(() => setTestResult(null), 4000);
+    }
+  };
 
   const credItems = [
     {
@@ -249,6 +353,135 @@ export default function MobileSettings() {
                 options={semesters.map((semester) => ({ value: semester.id, label: semester.name }))}
               />
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Notifications Section ───────────────────────────────────────────── */}
+      <section className="relative z-10 space-y-2.5">
+        <div className="flex items-center justify-between px-1">
+          <h2 className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none">
+            Notifications
+          </h2>
+          {hasNotificationPermission === true && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-500">
+              <CheckCircle2 className="w-3 h-3" />
+              OS Allowed
+            </span>
+          )}
+          {hasNotificationPermission === false && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-500">
+              <AlertCircle className="w-3 h-3" />
+              Permission Needed
+            </span>
+          )}
+        </div>
+
+        <div className="bg-card/80 border border-border/40 p-4 rounded-2xl shadow-sm backdrop-blur-md space-y-4">
+          {/* Master Toggle */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <Bell className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div className="min-w-0 space-y-0.5">
+                <h3 className="text-sm font-bold text-foreground leading-snug">Native Notifications</h3>
+                <p className="text-xs text-muted-foreground/60 leading-relaxed">
+                  Enable device alerts for classes, downloads, and updates.
+                </p>
+              </div>
+            </div>
+
+            <ToggleSwitch
+              checked={notificationSettings.enabled}
+              onChange={handleToggleMaster}
+            />
+          </div>
+
+          {/* Class Reminders */}
+          <div className={`border-t border-border/15 pt-4 space-y-3 transition-opacity duration-200 ${!notificationSettings.enabled ? "opacity-40 pointer-events-none" : ""}`}>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-start gap-3 min-w-0 flex-1">
+                <BellRing className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                <div className="min-w-0 space-y-0.5">
+                  <h3 className="text-sm font-bold text-foreground leading-snug">Class Reminders</h3>
+                  <p className="text-xs text-muted-foreground/60 leading-relaxed">
+                    Alert before each class starts with room and faculty.
+                  </p>
+                </div>
+              </div>
+
+              <ToggleSwitch
+                checked={notificationSettings.classRemindersEnabled}
+                onChange={handleToggleClassReminders}
+                disabled={!notificationSettings.enabled}
+              />
+            </div>
+
+            {notificationSettings.classRemindersEnabled && (
+              <div className="ml-8 flex items-center justify-between gap-3 pt-1">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Clock className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
+                  <span className="text-xs text-muted-foreground/70 font-medium">Lead Time</span>
+                </div>
+
+                <DrawerSelect
+                  value={String(notificationSettings.classReminderLeadMins)}
+                  onValueChange={handleChangeLeadMins}
+                  disabled={!notificationSettings.enabled}
+                  title="Reminder Lead Time"
+                  triggerClassName="w-[125px] h-8 rounded-lg text-xs"
+                  options={[
+                    { value: "5", label: "5 mins before" },
+                    { value: "10", label: "10 mins before" },
+                    { value: "15", label: "15 mins before" },
+                  ]}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Download Alerts */}
+          <div className={`border-t border-border/15 pt-4 flex items-center justify-between gap-3 transition-opacity duration-200 ${!notificationSettings.enabled ? "opacity-40 pointer-events-none" : ""}`}>
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <Download className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div className="min-w-0 space-y-0.5">
+                <h3 className="text-sm font-bold text-foreground leading-snug">Download Alerts</h3>
+                <p className="text-xs text-muted-foreground/60 leading-relaxed">
+                  Notify when syllabus or calendar exports finish.
+                </p>
+              </div>
+            </div>
+
+            <ToggleSwitch
+              checked={notificationSettings.downloadAlertsEnabled}
+              onChange={handleToggleDownloadAlerts}
+              disabled={!notificationSettings.enabled}
+            />
+          </div>
+
+          {/* Test Notification Row */}
+          <div className="border-t border-border/15 pt-3.5 flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] text-muted-foreground/60 leading-relaxed">
+                Test OS notification delivery and permissions.
+              </p>
+              {testResult && (
+                <p className="text-[11px] text-primary mt-0.5 font-semibold">
+                  {testResult}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleTestNotification}
+              disabled={isTestingNotification}
+              className="px-3 py-1.5 bg-muted/60 hover:bg-muted text-foreground text-xs font-semibold rounded-lg transition-colors cursor-pointer border border-border/20 shrink-0 active:scale-95"
+            >
+              {isTestingNotification && (
+                <Loader2 className="w-3 h-3 animate-spin inline mr-1.5" />
+              )}
+              Test Alert
+            </button>
           </div>
         </div>
       </section>
