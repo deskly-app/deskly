@@ -33,6 +33,38 @@ pub fn run() {
         .setup(|app| {
             let auth_store = auth::init_auth_store(&app.handle());
             app.manage(auth_store);
+
+            // Disable browser-like behaviours that have no place in a desktop app:
+            //   - Right-click context menu  (Back, Reload, Inspect, Save As, Print…)
+            //   - Ctrl+scroll wheel zoom    (keyboard shortcuts already blocked via
+            //     zoomHotkeysEnabled:false in tauri.conf.json)
+            //
+            // initialization_script is the Tauri v2 native mechanism: the script is
+            // injected by the Rust WebviewWindowBuilder at the WebView process level,
+            // before any page or React code ever runs, on every navigation.
+            #[cfg(desktop)]
+            {
+                use tauri::webview::WebviewWindowBuilder;
+
+                WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?
+                    .initialization_script(
+                        r#"
+                        (function () {
+                            // Block right-click context menu
+                            document.addEventListener('contextmenu', function (e) {
+                                e.preventDefault();
+                            }, true);
+
+                            // Block Ctrl+scroll wheel zoom
+                            document.addEventListener('wheel', function (e) {
+                                if (e.ctrlKey) { e.preventDefault(); }
+                            }, { passive: false, capture: true });
+                        })();
+                        "#,
+                    )
+                    .build()?;
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
