@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, Link } from "@/router";
 import { useAuth } from "@/hooks/useAuth";
 import { useSemester } from "@/hooks/useSemester";
@@ -160,18 +160,26 @@ export default function MobileSettings() {
   const [hasNotificationPermission, setHasNotificationPermission] = useState<boolean | null>(null);
   const [isTestingNotification, setIsTestingNotification] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
+  const testResultTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     isPermissionGranted().then(setHasNotificationPermission).catch(() => {});
   }, []);
 
   const handleToggleMaster = async (enabled: boolean) => {
-    if (enabled && !hasNotificationPermission) {
-      const granted = await requestPermission();
-      setHasNotificationPermission(granted);
+    const prev = notificationSettings.enabled;
+    try {
+      if (enabled && !hasNotificationPermission) {
+        const granted = await requestPermission();
+        setHasNotificationPermission(granted);
+        if (!granted) return; // Don't enable if OS denied permission
+      }
+      const updated = saveNotificationSettings({ enabled });
+      setNotificationSettings(updated);
+    } catch {
+      // Revert toggle to previous state on unexpected failure
+      setNotificationSettings((s) => ({ ...s, enabled: prev }));
     }
-    const updated = saveNotificationSettings({ enabled });
-    setNotificationSettings(updated);
   };
 
   const handleToggleClassReminders = (classRemindersEnabled: boolean) => {
@@ -206,9 +214,17 @@ export default function MobileSettings() {
       setTestResult("Failed to send test alert.");
     } finally {
       setIsTestingNotification(false);
-      setTimeout(() => setTestResult(null), 4000);
+      if (testResultTimeoutRef.current) clearTimeout(testResultTimeoutRef.current);
+      testResultTimeoutRef.current = setTimeout(() => setTestResult(null), 4000);
     }
   };
+
+  // Cleanup test-result timeout on unmount to prevent state update on unmounted component
+  useEffect(() => {
+    return () => {
+      if (testResultTimeoutRef.current) clearTimeout(testResultTimeoutRef.current);
+    };
+  }, []);
 
   const credItems = [
     {
@@ -364,13 +380,13 @@ export default function MobileSettings() {
             Notifications
           </h2>
           {hasNotificationPermission === true && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-500">
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-green-600 dark:text-green-400">
               <CheckCircle2 className="w-3 h-3" />
               OS Allowed
             </span>
           )}
           {hasNotificationPermission === false && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-500">
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-yellow-600 dark:text-yellow-400">
               <AlertCircle className="w-3 h-3" />
               Permission Needed
             </span>
@@ -475,7 +491,7 @@ export default function MobileSettings() {
               type="button"
               onClick={handleTestNotification}
               disabled={isTestingNotification}
-              className="px-3 py-1.5 bg-muted/60 hover:bg-muted text-foreground text-xs font-semibold rounded-lg transition-colors cursor-pointer border border-border/20 shrink-0 active:scale-95"
+              className="px-3 py-1.5 bg-muted/60 hover:bg-muted text-foreground text-xs font-semibold rounded-lg transition-colors cursor-pointer border border-border/20 shrink-0"
             >
               {isTestingNotification && (
                 <Loader2 className="w-3 h-3 animate-spin inline mr-1.5" />

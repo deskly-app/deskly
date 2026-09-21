@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, Link } from "@/router";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -89,6 +89,7 @@ export default function SettingsPage() {
   const [hasNotificationPermission, setHasNotificationPermission] = useState<boolean | null>(null);
   const [isTestingNotification, setIsTestingNotification] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
+  const testResultTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [semesters, setSemesters] = useState<Semester[]>(() => {
     try {
@@ -241,12 +242,19 @@ export default function SettingsPage() {
   };
 
   const handleToggleMaster = async (enabled: boolean) => {
-    if (enabled && !hasNotificationPermission) {
-      const granted = await requestPermission();
-      setHasNotificationPermission(granted);
+    const prev = notificationSettings.enabled;
+    try {
+      if (enabled && !hasNotificationPermission) {
+        const granted = await requestPermission();
+        setHasNotificationPermission(granted);
+        if (!granted) return; // Don't enable if OS denied permission
+      }
+      const updated = saveNotificationSettings({ enabled });
+      setNotificationSettings(updated);
+    } catch {
+      // Revert toggle to previous state on unexpected failure
+      setNotificationSettings((s) => ({ ...s, enabled: prev }));
     }
-    const updated = saveNotificationSettings({ enabled });
-    setNotificationSettings(updated);
   };
 
   const handleToggleClassReminders = (classRemindersEnabled: boolean) => {
@@ -281,9 +289,17 @@ export default function SettingsPage() {
       setTestResult("Failed to send test notification.");
     } finally {
       setIsTestingNotification(false);
-      setTimeout(() => setTestResult(null), 4000);
+      if (testResultTimeoutRef.current) clearTimeout(testResultTimeoutRef.current);
+      testResultTimeoutRef.current = setTimeout(() => setTestResult(null), 4000);
     }
   };
+
+  // Cleanup test-result timeout on unmount to prevent state update on unmounted component
+  useEffect(() => {
+    return () => {
+      if (testResultTimeoutRef.current) clearTimeout(testResultTimeoutRef.current);
+    };
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -378,13 +394,13 @@ export default function SettingsPage() {
               </h2>
               <div className="flex items-center gap-1.5">
                 {hasNotificationPermission === true && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-500">
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-green-600 dark:text-green-400">
                     <CheckCircle2 className="w-3 h-3" />
                     OS Allowed
                   </span>
                 )}
                 {hasNotificationPermission === false && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-500">
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-yellow-600 dark:text-yellow-400">
                     <AlertCircle className="w-3 h-3" />
                     Permission Needed
                   </span>

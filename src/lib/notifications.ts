@@ -109,7 +109,7 @@ export async function showNotification(
     }
 
     if (granted) {
-      sendNotification({ title, body });
+      await sendNotification({ title, body });
       return true;
     } else {
       console.warn("Notification permission not granted. Message suppressed:", title);
@@ -174,7 +174,10 @@ export async function notifyUpcomingClass(
   const slot = entry.slot ? ` [${entry.slot}]` : "";
   const faculty = entry.faculty ? ` (${entry.faculty})` : "";
 
-  const title = `Class in ${minutesRemaining} min${minutesRemaining === 1 ? "" : "s"}`;
+  const title =
+    minutesRemaining === 0
+      ? "Class starting now"
+      : `Class in ${minutesRemaining} min${minutesRemaining === 1 ? "" : "s"}`;
   const body = `${course}${slot}${venue}${faculty} at ${entry.startTime}.`;
 
   return await showNotification(title, body);

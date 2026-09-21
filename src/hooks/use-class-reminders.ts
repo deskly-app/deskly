@@ -54,6 +54,8 @@ function getTodayDateKey(): string {
 export function useClassReminders(): void {
   // Set of class keys notified today: `${todayKey}_${courseCode}_${slot}_${startTime}`
   const notifiedSetRef = useRef<Set<string>>(new Set());
+  // Track the last date we evaluated — used to prune stale dedup keys on rollover
+  const lastPruneDateRef = useRef<string>("");
 
   useEffect(() => {
     function evaluateSchedule(): void {
@@ -88,19 +90,26 @@ export function useClassReminders(): void {
       const todayDateKey = getTodayDateKey();
       const leadMinutes = settings.classReminderLeadMins || 10;
 
+      // Prune stale dedup keys when the date rolls over (prevents unbounded Set growth)
+      if (lastPruneDateRef.current !== todayDateKey) {
+        notifiedSetRef.current.clear();
+        lastPruneDateRef.current = todayDateKey;
+      }
+
       for (const entry of todayClasses) {
         if (!entry.startTime || !entry.courseCode) continue;
 
         const startMinutes = parseTimeToMinutes(entry.startTime);
         const minutesUntilStart = startMinutes - currentMinutes;
 
-        // Check if class is within the reminder window (e.g. within leadMinutes and hasn't started yet)
-        if (minutesUntilStart <= leadMinutes && minutesUntilStart >= 0) {
+        // Fire if within the reminder window. Lower bound is -1 to catch classes that
+        // started between two 30-second ticks (prevents a missed notification).
+        if (minutesUntilStart <= leadMinutes && minutesUntilStart >= -1) {
           const dedupKey = `${todayDateKey}_${entry.courseCode}_${entry.slot || "NOSLOT"}_${entry.startTime}`;
 
           if (!notifiedSetRef.current.has(dedupKey)) {
             notifiedSetRef.current.add(dedupKey);
-            const remaining = Math.max(1, minutesUntilStart);
+            const remaining = Math.max(0, minutesUntilStart);
             notifyUpcomingClass(entry, remaining).catch((err) => {
               console.error("[useClassReminders] Failed to dispatch class reminder:", err);
             });
