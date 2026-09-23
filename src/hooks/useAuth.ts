@@ -96,12 +96,20 @@ export function useAuth(): UseAuthReturn {
         if (restored) {
           updateStore({ authState: restored });
         } else {
-          updateStore({ authState: await authGetState() });
+          // restore_session returned null — the backend wiped the session because
+          // auto-relogin failed with invalid credentials. Mirror the full logout
+          // cleanup on the frontend: clear cached data and the semester selection
+          // so stale data from the previous user session doesn't persist.
+          await authClearSemester().catch(() => {});
+          localStorage.clear();
+          updateStore({ authState: null, hasTokens: false });
         }
-        
-        // Sync token existence
-        const tokens = await authGetTokens();
-        updateStore({ hasTokens: tokens !== null });
+
+        // Sync token existence (only relevant when restored !== null)
+        if (restored) {
+          const tokens = await authGetTokens();
+          updateStore({ hasTokens: tokens !== null });
+        }
       } catch (_err) {
         const state = await authGetState().catch(() => null);
         updateStore({ authState: state, error: null });

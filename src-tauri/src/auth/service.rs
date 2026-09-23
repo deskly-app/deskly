@@ -428,16 +428,11 @@ impl AuthService {
             match Self::perform_auto_relogin(app, store).await {
                 Ok(_) => {}
                 Err(BackendError::AuthFailed(_)) => {
-                    // Password changed or credentials invalid on VTOP -> wipe credentials and force login screen
-                    let mut guard = store
-                        .inner
-                        .lock()
-                        .map_err(|_| BackendError::StorageError("failed to lock auth store".to_string()))?;
-                    guard.state = None;
-                    guard.tokens = None;
-                    guard.semester = None;
-                    guard.password_encrypted = None;
-                    let _ = save_to_disk(app, &guard);
+                    // Credentials are invalid on VTOP (password changed, account locked, etc.)
+                    // Call the full logout path: clears in-memory state, fires the LoggedOut
+                    // event through the observer chain (which deletes the stale keyring entry
+                    // via KeyringSyncObserver), and persists the cleared state to disk.
+                    let _ = Self::logout(app, store);
                     return Ok(None);
                 }
                 Err(BackendError::Network(_)) => {
