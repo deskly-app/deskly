@@ -289,7 +289,7 @@ export default function MobileSettings() {
       try {
         currentVer = await getVersion();
       } catch {
-        currentVer = "7.0.0";
+        currentVer = "7.1.0";
       }
     }
 
