@@ -1,4 +1,7 @@
 <resources>
     <string name="app_name">Deskly</string>
     <string name="main_activity_title">Deskly</string>
+    <string name="widget_attendance_name">Attendance</string>
+    <string name="widget_attendance_description">Track your overall attendance percentage and attended classes.</string>
+    <string name="widget_attendance_label">AVERAGE ATTENDANCE</string>
 </resources>

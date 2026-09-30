@@ -93,6 +93,7 @@ pub fn run() {
             attendance::attendance_get_semesters,
             attendance::attendance_get_current,
             attendance::attendance_get_detail,
+            attendance::attendance_sync_widget,
             marks::marks_get_student_mark_view,
             features::academic_calendar_get,
             features::academic_calendar_get_view,

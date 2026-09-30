@@ -35,3 +35,12 @@ pub async fn attendance_get_semesters(
         .await
         .map_err(Into::into)
 }
+
+#[tauri::command]
+pub fn attendance_sync_widget(
+    app: AppHandle,
+    records: Vec<crate::attendance::types::AttendanceRecord>,
+) -> Result<(), String> {
+    crate::attendance::widget::sync_attendance_widget(&app, &records);
+    Ok(())
+}

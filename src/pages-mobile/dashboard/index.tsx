@@ -499,6 +499,12 @@ export default function MobileDashboardHome() {
     return null;
   }, [data?.attendanceData]);
 
+  useEffect(() => {
+    if (attendanceData && attendanceData.length > 0) {
+      invoke("attendance_sync_widget", { records: attendanceData }).catch(() => {});
+    }
+  }, [attendanceData]);
+
   const attendanceStats = useMemo(() => {
     if (!attendanceData || attendanceData.length === 0) return null;
 

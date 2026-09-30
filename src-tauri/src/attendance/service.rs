@@ -41,6 +41,8 @@ impl AttendanceService {
         )
         .await?;
 
+        crate::attendance::widget::sync_attendance_widget(app, &data);
+
         Ok(AttendanceResponse {
             success: true,
             data: Some(data),
