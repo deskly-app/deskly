@@ -11,13 +11,15 @@ import {
   MessageCircle,
   GraduationCap,
   TrendingUp,
-  ChevronRight,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { OfflineDisplay } from "@/components/offline-display";
 import { isNetworkError } from "@/lib/utils";
 import { useOfflineData } from "@/hooks/use-offline-data";
+import { usePrivacySettings } from "@/hooks/use-privacy-settings";
 import dashboardImg from "@/assets/dashboard.png";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -137,7 +139,15 @@ function DashboardSkeleton() {
   );
 }
 
-function GpaTrendGraph({ points }: { points: GpaTrendPoint[] }) {
+function GpaTrendGraph({
+  points,
+  hideGpa = false,
+  toggleHideGpa,
+}: {
+  points: GpaTrendPoint[];
+  hideGpa?: boolean;
+  toggleHideGpa?: () => void;
+}) {
   const [activePointIndex, setActivePointIndex] = useState<number | null>(points.length - 1);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -191,24 +201,55 @@ function GpaTrendGraph({ points }: { points: GpaTrendPoint[] }) {
             GPA History
           </h3>
         </div>
-        <span className="text-xs font-semibold text-muted-foreground bg-muted/40 border border-border/30 rounded-full px-2 py-0.5">
-          {points.length} Semesters
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-muted-foreground bg-muted/40 border border-border/30 rounded-full px-2 py-0.5">
+            {points.length} Semesters
+          </span>
+          {toggleHideGpa && (
+            <button
+              type="button"
+              onClick={toggleHideGpa}
+              className="p-1.5 -mr-1.5 rounded-md text-muted-foreground/45 hover:text-foreground transition-colors cursor-pointer border-0 bg-transparent flex items-center justify-center"
+              aria-label={hideGpa ? "Show GPA History" : "Hide GPA History"}
+              title={hideGpa ? "Show GPA History" : "Hide GPA History"}
+            >
+              {hideGpa ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Hero Metrics Row */}
       <div className="grid grid-cols-3 gap-2 p-3 bg-muted/30 border border-border/30 rounded-lg">
         <div className="text-center space-y-0.5">
           <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Latest</span>
-          <span className="text-sm font-black text-foreground">{latestGpa.toFixed(2)}</span>
+          <span className="text-sm font-black text-foreground">
+            {hideGpa ? (
+              <span className="font-mono text-muted-foreground/50 tracking-wider">••••</span>
+            ) : (
+              latestGpa.toFixed(2)
+            )}
+          </span>
         </div>
         <div className="text-center space-y-0.5 border-x border-border/30">
           <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Peak</span>
-          <span className="text-sm font-black text-primary">{highestGpa.toFixed(2)}</span>
+          <span className="text-sm font-black text-primary">
+            {hideGpa ? (
+              <span className="font-mono text-muted-foreground/50 tracking-wider">••••</span>
+            ) : (
+              highestGpa.toFixed(2)
+            )}
+          </span>
         </div>
         <div className="text-center space-y-0.5">
           <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Average</span>
-          <span className="text-sm font-black text-foreground">{avgGpa.toFixed(2)}</span>
+          <span className="text-sm font-black text-foreground">
+            {hideGpa ? (
+              <span className="font-mono text-muted-foreground/50 tracking-wider">••••</span>
+            ) : (
+              avgGpa.toFixed(2)
+            )}
+          </span>
         </div>
       </div>
 
@@ -217,18 +258,41 @@ function GpaTrendGraph({ points }: { points: GpaTrendPoint[] }) {
         <div className="flex items-center justify-between px-1 text-xs">
           <span className="font-semibold text-muted-foreground truncate">{active.pt.name}</span>
           <div className="flex items-center gap-2 font-bold shrink-0">
-            <span className="text-foreground">{active.pt.gpa.toFixed(2)} GPA</span>
-            {active.diff !== null && (
-              <span className={active.diff >= 0 ? "text-emerald-500" : "text-rose-500"}>
-                {active.diff >= 0 ? `(+${active.diff.toFixed(2)})` : `(${active.diff.toFixed(2)})`}
-              </span>
+            {hideGpa ? (
+              <span className="font-mono text-muted-foreground/50">•••• GPA</span>
+            ) : (
+              <>
+                <span className="text-foreground">{active.pt.gpa.toFixed(2)} GPA</span>
+                {active.diff !== null && (
+                  <span className={active.diff >= 0 ? "text-emerald-500" : "text-rose-500"}>
+                    {active.diff >= 0 ? `(+${active.diff.toFixed(2)})` : `(${active.diff.toFixed(2)})`}
+                  </span>
+                )}
+              </>
             )}
           </div>
         </div>
       )}
 
-      {/* Horizontally Scrollable SVG Graph */}
-      <div ref={scrollContainerRef} className="relative w-full pt-1 px-1 overflow-x-auto no-scrollbar scroll-smooth">
+      {/* Graph Display or Hidden State */}
+      {hideGpa ? (
+        <div
+          onClick={toggleHideGpa}
+          className="h-[150px] w-full flex flex-col items-center justify-center gap-2 rounded-2xl bg-muted/20 border border-dashed border-border/40 select-none cursor-pointer hover:bg-muted/30 transition-colors"
+          role="button"
+          tabIndex={0}
+          aria-label="Reveal GPA Trend"
+        >
+          <div className="w-9 h-9 rounded-full bg-muted/40 flex items-center justify-center text-muted-foreground/60">
+            <EyeOff className="w-4 h-4" />
+          </div>
+          <div className="text-center space-y-0.5">
+            <p className="text-xs font-bold text-muted-foreground/70">GPA Trend Hidden</p>
+            <p className="text-[11px] font-medium text-muted-foreground/40">Tap to reveal trend</p>
+          </div>
+        </div>
+      ) : (
+        <div ref={scrollContainerRef} className="relative w-full pt-1 px-1 overflow-x-auto no-scrollbar scroll-smooth">
         <div style={{ width: `${width}px` }} className="h-[150px]">
           <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} className="w-full h-full overflow-visible">
             {/* Dashed Gridlines */}
@@ -314,6 +378,7 @@ function GpaTrendGraph({ points }: { points: GpaTrendPoint[] }) {
           </svg>
         </div>
       </div>
+      )}
     </div>
   );
 }
@@ -323,6 +388,14 @@ function GpaTrendGraph({ points }: { points: GpaTrendPoint[] }) {
 export default function MobileDashboardHome() {
   const { isLoggedIn, loading: authLoading } = useAuth();
   const isOnline = useOnlineStatus();
+  const {
+    hideCgpa,
+    hideAttendance,
+    hideGpa,
+    toggleHideCgpa,
+    toggleHideAttendance,
+    toggleHideGpa,
+  } = usePrivacySettings();
 
   type DashboardData = {
     cgpaData: CgpaData | null;
@@ -532,11 +605,24 @@ export default function MobileDashboardHome() {
               <span className="text-xs font-bold tracking-wider text-muted-foreground/50 uppercase leading-none">
                 Cumulative GPA
               </span>
+              <button
+                type="button"
+                onClick={toggleHideCgpa}
+                className="p-1.5 -mr-1.5 rounded-md text-muted-foreground/45 hover:text-foreground transition-colors cursor-pointer border-0 bg-transparent flex items-center justify-center"
+                aria-label={hideCgpa ? "Show CGPA" : "Hide CGPA"}
+                title={hideCgpa ? "Show CGPA" : "Hide CGPA"}
+              >
+                {hideCgpa ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
             
             <div className="flex items-baseline gap-1.5">
               <span className="text-5xl font-extrabold text-foreground leading-none tracking-tight">
-                {cgpaData.currentCgpa.toFixed(2)}
+                {hideCgpa ? (
+                  <span className="tracking-widest text-muted-foreground/50 select-none font-mono text-4xl inline-block leading-none">••••</span>
+                ) : (
+                  cgpaData.currentCgpa.toFixed(2)
+                )}
               </span>
               <span className="text-sm font-medium text-muted-foreground/45 leading-none">/ 10.00</span>
             </div>
@@ -608,37 +694,37 @@ export default function MobileDashboardHome() {
               <span className="text-xs font-bold tracking-wider text-muted-foreground/50 uppercase leading-none">
                 Average Attendance
               </span>
-              <div className="flex items-center gap-1 text-xs font-semibold text-muted-foreground/45 group-hover:text-foreground transition-colors">
-                <span>View Attendance</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleHideAttendance();
+                }}
+                className="p-1.5 -mr-1.5 rounded-md text-muted-foreground/45 hover:text-foreground transition-colors cursor-pointer border-0 bg-transparent flex items-center justify-center"
+                aria-label={hideAttendance ? "Show Attendance" : "Hide Attendance"}
+                title={hideAttendance ? "Show Attendance" : "Hide Attendance"}
+              >
+                {hideAttendance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
 
-            <div className="flex items-baseline justify-between gap-4">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-5xl font-extrabold text-foreground leading-none tracking-tight">
-                  {attendanceStats.formattedPct}
-                </span>
-                <span className="text-sm font-medium text-muted-foreground/45 leading-none">%</span>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-semibold text-foreground leading-none tabular-nums">
-                  {attendanceStats.totalAttended}{" "}
-                  <span className="text-muted-foreground/45 text-xs font-normal">
-                    / {attendanceStats.totalClasses} classes
-                  </span>
-                </p>
-                <p className="text-[11px] text-muted-foreground/40 mt-1 font-medium">
-                  {attendanceStats.totalCourses} {attendanceStats.totalCourses === 1 ? "course" : "courses"}
-                </p>
-              </div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-5xl font-extrabold text-foreground leading-none tracking-tight">
+                {hideAttendance ? (
+                  <span className="tracking-widest text-muted-foreground/50 select-none font-mono text-4xl inline-block leading-none">••••</span>
+                ) : (
+                  attendanceStats.formattedPct
+                )}
+              </span>
+              <span className="text-sm font-medium text-muted-foreground/45 leading-none">%</span>
             </div>
 
             <div className="space-y-2.5 pt-1">
               <div className="flex items-center justify-between text-xs font-semibold">
-                <span className="text-muted-foreground/60">Overall Completion</span>
+                <span className="text-muted-foreground/60">Classes Attended</span>
                 <span className="text-foreground tracking-tight">
-                  {attendanceStats.totalAttended} of {attendanceStats.totalClasses} classes attended
+                  {attendanceStats.totalAttended} / {attendanceStats.totalClasses}
                 </span>
               </div>
               <div className="h-1.5 w-full bg-muted/20 rounded-full overflow-hidden">
@@ -657,7 +743,11 @@ export default function MobileDashboardHome() {
       {/* ── GPA Trend Graph ─────────────────────────────────────────────────── */}
       {gpaTrend && gpaTrend.length > 0 && (
         <section className="relative z-10">
-          <GpaTrendGraph points={gpaTrend} />
+          <GpaTrendGraph
+            points={gpaTrend}
+            hideGpa={hideGpa}
+            toggleHideGpa={toggleHideGpa}
+          />
         </section>
       )}
 
