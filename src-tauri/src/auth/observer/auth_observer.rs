@@ -58,6 +58,24 @@ impl AuthObserver for KeyringSyncObserver {
     }
 }
 
+/// Observer that emits Tauri events to the frontend so the UI can react
+/// immediately to auth lifecycle changes without polling.
+pub struct FrontendEventObserver;
+
+impl AuthObserver for FrontendEventObserver {
+    fn on_auth_event(&self, event: &AuthEvent, app: &AppHandle, _data: &PersistedAuth) {
+        use tauri::Emitter;
+        match event {
+            AuthEvent::LoggedOut { .. } => {
+                // Notify the frontend so useAuth can clear state and redirect to login.
+                // Fire-and-forget: if the WebView is not ready, the event is silently dropped.
+                let _ = app.emit("auth://logged-out", ());
+            }
+            _ => {}
+        }
+    }
+}
+
 /// Subject that manages observers and dispatches events.
 pub struct AuthSubject {
     observers: Vec<Box<dyn AuthObserver>>,
@@ -69,6 +87,7 @@ impl Default for AuthSubject {
             observers: vec![
                 Box::new(DiskPersistenceObserver),
                 Box::new(KeyringSyncObserver),
+                Box::new(FrontendEventObserver),
             ],
         }
     }

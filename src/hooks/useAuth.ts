@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import {
   authClearSemester,
   authClearTokens,
@@ -65,6 +66,19 @@ function updateStore(updates: Partial<AuthStoreState>) {
 
 // Keep track of the active refresh promise to avoid duplicate concurrent calls to the backend
 let refreshPromise: Promise<void> | null = null;
+
+// Listen for the auth://logged-out Tauri event emitted by FrontendEventObserver whenever
+// the Rust backend calls AuthService::logout() — including mid-session forced logouts
+// caused by invalid credentials detected during a live API call (executor.rs).
+// This is module-level so it fires regardless of which components are mounted.
+listen<void>("auth://logged-out", async () => {
+  await authClearSemester().catch(() => {});
+  localStorage.clear();
+  updateStore({ authState: null, hasTokens: false, loading: false, initialized: true });
+}).catch(() => {
+  // listen() can fail if called outside a Tauri WebView context (e.g. tests/browser).
+  // Safe to ignore.
+});
 
 /**
  * Standalone hook for all auth operations.

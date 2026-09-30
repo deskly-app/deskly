@@ -243,7 +243,19 @@ impl<'a, E: VtopExecutor> AutoReloginRetryDecorator<'a, E> {
             eprintln!("[decorator] Session expired detected. Triggering auto-relogin...");
             let fresh_tokens =
                 crate::auth::service::AuthService::perform_auto_relogin(self.app, self.store)
-                    .await?;
+                    .await
+                    .map_err(|e| {
+                        // If credentials are invalid (password changed, account locked),
+                        // perform a full logout before surfacing the error. This wipes the
+                        // in-memory store, fires LoggedOut through the observer chain
+                        // (deletes stale keyring entry), and persists the cleared state to
+                        // disk. The AuthFailed error then propagates to the frontend which
+                        // sees authState become null and redirects to the login screen.
+                        if matches!(e, BackendError::AuthFailed(_)) {
+                            let _ = crate::auth::service::AuthService::logout(self.app, self.store);
+                        }
+                        e
+                    })?;
 
             let retry_req = build_req(&fresh_tokens);
             let retry_res = match self.inner.execute(&retry_req).await {
