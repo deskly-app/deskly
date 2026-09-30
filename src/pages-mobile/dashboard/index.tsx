@@ -1,7 +1,9 @@
 import { useEffect, useState, useMemo, useRef } from "react";
+import { Link } from "@/router";
 import { useAuth } from "@/hooks/useAuth";
 import { invoke } from "@tauri-apps/api/core";
 import { getStudentProfile, getFeedbackStatus, getStudentGradeView, ProfileData } from "@/lib/features";
+import { getCurrentAttendance, AttendanceRecord } from "@/lib/attendance";
 import {
   BookOpen,
   Clock,
@@ -9,6 +11,7 @@ import {
   MessageCircle,
   GraduationCap,
   TrendingUp,
+  ChevronRight,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOnlineStatus } from "@/hooks/use-online-status";
@@ -124,6 +127,9 @@ function DashboardSkeleton() {
           <Skeleton className="h-24 rounded-lg" />
         </div>
       </div>
+
+      {/* Attendance Skeleton */}
+      <Skeleton className="h-36 w-full rounded-[30px]" />
 
       {/* Graph Skeleton */}
       <Skeleton className="h-44 w-full rounded-[28px]" />
@@ -323,16 +329,29 @@ export default function MobileDashboardHome() {
     feedbackData: FeedbackStatus[] | null;
     profile: ProfileData | null;
     gpaTrend: GpaTrendPoint[];
+    attendanceData: AttendanceRecord[] | null;
   };
 
   const fetchDashboardData = async (): Promise<{ success: boolean; data?: DashboardData; error?: string }> => {
     try {
-      const [cgpaRes, feedbackRes, profileRes, gradeRes] = await Promise.all([
+      const [cgpaRes, feedbackRes, profileRes, gradeRes, attendanceRes] = await Promise.all([
         getCgpaPage(),
         getFeedbackStatus(),
         getStudentProfile().catch(() => null),
         getStudentGradeView().catch(() => null),
+        getCurrentAttendance().catch(() => null),
       ]);
+
+      if (attendanceRes?.success && attendanceRes.data) {
+        try {
+          localStorage.setItem("deskly::cache::attendance", JSON.stringify(attendanceRes.data));
+          if (attendanceRes.semesterId) {
+            localStorage.setItem("deskly::cache::attendance_semester", attendanceRes.semesterId);
+          }
+        } catch {
+          // ignore cache errors
+        }
+      }
 
       let gpaTrend: GpaTrendPoint[] = [];
       if (gradeRes?.success && gradeRes.data) {
@@ -369,6 +388,7 @@ export default function MobileDashboardHome() {
           feedbackData: feedbackRes.success ? feedbackRes.data || null : null,
           profile: profileRes?.success ? profileRes.data || null : null,
           gpaTrend,
+          attendanceData: attendanceRes?.success && attendanceRes.data ? attendanceRes.data : null,
         }
       };
     } catch (e) {
@@ -391,6 +411,43 @@ export default function MobileDashboardHome() {
   const cgpaData = data?.cgpaData ?? null;
   const feedbackData = data?.feedbackData ?? null;
   const gpaTrend = data?.gpaTrend ?? [];
+
+  const attendanceData = useMemo(() => {
+    if (data?.attendanceData && data.attendanceData.length > 0) {
+      return data.attendanceData;
+    }
+    try {
+      const cached = localStorage.getItem("deskly::cache::attendance");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return null;
+  }, [data?.attendanceData]);
+
+  const attendanceStats = useMemo(() => {
+    if (!attendanceData || attendanceData.length === 0) return null;
+
+    let totalAttended = 0;
+    let totalClasses = 0;
+
+    for (const item of attendanceData) {
+      totalAttended += item.attendedClasses ?? 0;
+      totalClasses += item.totalClasses ?? 0;
+    }
+
+    const percentage = totalClasses > 0 ? (totalAttended / totalClasses) * 100 : 0;
+    const formattedPct = percentage.toFixed(1);
+
+    return {
+      percentage,
+      formattedPct,
+      totalAttended,
+      totalClasses,
+      totalCourses: attendanceData.length,
+    };
+  }, [attendanceData]);
 
   const studentName = formatStudentName(profile?.student?.name);
 
@@ -537,6 +594,63 @@ export default function MobileDashboardHome() {
               </div>
             </div>
           </div>
+        </section>
+      )}
+
+      {/* ── Attendance Overview ─────────────────────────────────────────────── */}
+      {attendanceStats && (
+        <section className="relative z-10">
+          <Link
+            to="/dashboard/attendance"
+            className="block bg-gradient-to-br from-card/90 to-card/45 border border-border/15 p-6 rounded-[30px] shadow-sm space-y-6 hover:border-border/30 transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold tracking-wider text-muted-foreground/50 uppercase leading-none">
+                Average Attendance
+              </span>
+              <div className="flex items-center gap-1 text-xs font-semibold text-muted-foreground/45 group-hover:text-foreground transition-colors">
+                <span>View Attendance</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </div>
+            </div>
+
+            <div className="flex items-baseline justify-between gap-4">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-5xl font-extrabold text-foreground leading-none tracking-tight">
+                  {attendanceStats.formattedPct}
+                </span>
+                <span className="text-sm font-medium text-muted-foreground/45 leading-none">%</span>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-semibold text-foreground leading-none tabular-nums">
+                  {attendanceStats.totalAttended}{" "}
+                  <span className="text-muted-foreground/45 text-xs font-normal">
+                    / {attendanceStats.totalClasses} classes
+                  </span>
+                </p>
+                <p className="text-[11px] text-muted-foreground/40 mt-1 font-medium">
+                  {attendanceStats.totalCourses} {attendanceStats.totalCourses === 1 ? "course" : "courses"}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2.5 pt-1">
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <span className="text-muted-foreground/60">Overall Completion</span>
+                <span className="text-foreground tracking-tight">
+                  {attendanceStats.totalAttended} of {attendanceStats.totalClasses} classes attended
+                </span>
+              </div>
+              <div className="h-1.5 w-full bg-muted/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-700"
+                  style={{
+                    width: `${Math.min(100, Math.max(0, attendanceStats.percentage))}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </Link>
         </section>
       )}
 
