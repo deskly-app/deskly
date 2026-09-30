@@ -5,6 +5,8 @@ import { useSemester } from "@/hooks/useSemester";
 import { useCredentialStatus } from "@/hooks/useCredentialStatus";
 import { authGetTokens } from "@/lib/tauri-auth";
 import { useTheme } from "@/components/theme-provider";
+import { getVersion } from "@tauri-apps/api/app";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   User,
   LogOut,
@@ -28,6 +30,8 @@ import {
   AlertCircle,
   Clock,
   Loader2,
+  Smartphone,
+  ArrowUpCircle,
 } from "lucide-react";
 import { DrawerSelect } from "@/components/ui/drawer-select";
 import { Drawer, DrawerContent, DrawerClose } from "@/components/ui/drawer";
@@ -77,6 +81,29 @@ function ToggleSwitch({
   );
 }
 
+// ─── Semver Helper ────────────────────────────────────────────────────────────
+
+function parseSemver(v: string): number[] {
+  return v
+    .replace(/^v/i, "")
+    .split("-")[0]
+    .split(".")
+    .map((n) => parseInt(n, 10) || 0);
+}
+
+function isNewerVersion(latest: string, current: string): boolean {
+  const l = parseSemver(latest);
+  const c = parseSemver(current);
+  const len = Math.max(l.length, c.length);
+  for (let i = 0; i < len; i++) {
+    const lPart = l[i] ?? 0;
+    const cPart = c[i] ?? 0;
+    if (lPart > cPart) return true;
+    if (lPart < cPart) return false;
+  }
+  return false;
+}
+
 // ─── Skeleton Helper ──────────────────────────────────────────────────────────
 
 function Sk({ className = "" }: { className?: string }) {
@@ -102,6 +129,21 @@ function SettingsSkeleton() {
         <Sk className="h-4 w-32" />
         <Sk className="h-56 w-full rounded-2xl" />
       </div>
+
+      {/* System & Updates Skeleton */}
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between px-1">
+          <Sk className="h-3.5 w-28" />
+          <Sk className="h-3.5 w-16 rounded-full" />
+        </div>
+        <Sk className="h-28 w-full rounded-2xl" />
+      </div>
+
+      {/* Legal & Privacy Skeleton */}
+      <Sk className="h-16 w-full rounded-2xl" />
+
+      {/* Sign Out Skeleton */}
+      <Sk className="h-12 w-full rounded-2xl" />
     </div>
   );
 }
@@ -225,6 +267,120 @@ export default function MobileSettings() {
       if (testResultTimeoutRef.current) clearTimeout(testResultTimeoutRef.current);
     };
   }, []);
+
+  // ── Update Checker State ──
+  const [updateState, setUpdateState] = useState<{
+    status: "idle" | "checking" | "upToDate" | "available" | "error";
+    currentVersion: string;
+    latestVersion?: string;
+    downloadUrl?: string;
+    error?: string | null;
+  }>({
+    status: "idle",
+    currentVersion: "",
+  });
+
+  const checkUpdatesRef = useRef(false);
+
+  const checkUpdates = async (verOverride?: string) => {
+    const startTime = Date.now();
+    let currentVer = verOverride || updateState.currentVersion;
+    if (!currentVer) {
+      try {
+        currentVer = await getVersion();
+      } catch {
+        currentVer = "7.0.0";
+      }
+    }
+
+    setUpdateState((prev) => ({
+      ...prev,
+      status: "checking",
+      currentVersion: currentVer,
+      error: null,
+    }));
+
+    try {
+      const res = await fetch("https://api.github.com/repos/deskly-app/deskly/releases/latest", {
+        headers: { Accept: "application/vnd.github.v3+json" },
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to fetch updates (${res.status})`);
+      }
+
+      const data = await res.json();
+      const latestTag = (data.tag_name || "").trim();
+      const cleanLatest = latestTag.replace(/^v/i, "");
+      const cleanCurrent = currentVer.replace(/^v/i, "");
+
+      const apkAsset = Array.isArray(data.assets)
+        ? data.assets.find((asset: { name?: string; browser_download_url?: string }) =>
+            asset.name?.toLowerCase().endsWith(".apk")
+          )
+        : null;
+
+      const downloadUrl =
+        apkAsset?.browser_download_url ||
+        data.html_url ||
+        "https://github.com/deskly-app/deskly/releases/latest";
+
+      const hasUpdate = isNewerVersion(cleanLatest, cleanCurrent);
+
+      // Keep smooth loading transition with at least 500ms delay
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 500) {
+        await new Promise((resolve) => setTimeout(resolve, 500 - elapsed));
+      }
+
+      setUpdateState({
+        status: hasUpdate ? "available" : "upToDate",
+        currentVersion: currentVer,
+        latestVersion: cleanLatest,
+        downloadUrl,
+        error: null,
+      });
+    } catch (err: any) {
+      console.warn("Update check failed:", err);
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 500) {
+        await new Promise((resolve) => setTimeout(resolve, 500 - elapsed));
+      }
+      setUpdateState((prev) => ({
+        ...prev,
+        status: "error",
+        error: err?.message || "Could not check for updates",
+      }));
+    }
+  };
+
+  useEffect(() => {
+    async function initVersion() {
+      let ver = "";
+      try {
+        ver = await getVersion();
+        setUpdateState((prev) => ({ ...prev, currentVersion: ver }));
+      } catch {
+        // fallback
+      }
+      if (isOnline && !checkUpdatesRef.current) {
+        checkUpdatesRef.current = true;
+        checkUpdates(ver);
+      }
+    }
+    initVersion();
+  }, [isOnline]);
+
+  const handleDownloadUpdate = async () => {
+    if (updateState.downloadUrl) {
+      try {
+        await openUrl(updateState.downloadUrl);
+      } catch (err) {
+        console.error("Failed to open update URL:", err);
+        window.open(updateState.downloadUrl, "_blank");
+      }
+    }
+  };
 
   const credItems = [
     {
@@ -553,6 +709,97 @@ export default function MobileSettings() {
             <p className="text-xs text-muted-foreground/60 leading-relaxed font-medium">
               Credentials are stored securely in your device's native keyring. Session cookies are held in memory and refreshed automatically.
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── System & Updates Section ────────────────────────────────────────── */}
+      <section className="relative z-10 space-y-2.5">
+        <div className="flex items-center justify-between px-1 min-h-[1.25rem]">
+          <h2 className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none">
+            System &amp; Updates
+          </h2>
+          <div className="flex items-center min-h-[1rem]">
+            {updateState.status === "checking" && (
+              <Sk className="h-3.5 w-16 rounded-full" />
+            )}
+            {updateState.status === "upToDate" && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="w-3 h-3" />
+                Up to date
+              </span>
+            )}
+            {updateState.status === "available" && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-500 dark:text-amber-400">
+                <ArrowUpCircle className="w-3 h-3" />
+                Update ready
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-card/80 border border-border/40 p-4 rounded-2xl shadow-sm backdrop-blur-md space-y-3.5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <Smartphone className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div className="min-w-0 space-y-1">
+                <h3 className="text-sm font-bold text-foreground leading-snug">Deskly Mobile</h3>
+                {updateState.currentVersion ? (
+                  <p className="text-xs text-muted-foreground/60 leading-none">
+                    Installed version: <span className="font-semibold text-foreground/80">v{updateState.currentVersion.replace(/^v/i, "")}</span>
+                  </p>
+                ) : (
+                  <Sk className="h-3 w-28 mt-0.5" />
+                )}
+              </div>
+            </div>
+
+            <button
+              onClick={() => checkUpdates()}
+              disabled={updateState.status === "checking" || !isOnline}
+              className="p-2 rounded-xl bg-muted/20 hover:bg-muted/30 border border-border/20 text-muted-foreground transition-colors cursor-pointer active:opacity-75 disabled:opacity-40"
+              title="Check for updates"
+              aria-label="Check for updates"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${updateState.status === "checking" ? "opacity-30" : ""}`} />
+            </button>
+          </div>
+
+          <div className="border-t border-border/15 pt-3">
+            {updateState.status === "checking" || updateState.status === "idle" ? (
+              <div className="flex items-center py-0.5">
+                <Sk className="h-3.5 w-44 rounded-md" />
+              </div>
+            ) : updateState.status === "available" ? (
+              <div className="flex items-center justify-between p-3 rounded-xl bg-primary/5 border border-primary/20 gap-3">
+                <div className="space-y-0.5 min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-foreground truncate">
+                      v{updateState.latestVersion} is available
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground/70 leading-tight">
+                    A newer release is ready to download.
+                  </p>
+                </div>
+                <button
+                  onClick={handleDownloadUpdate}
+                  className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm hover:opacity-90 active:opacity-80 transition-all cursor-pointer shrink-0"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Update</span>
+                </button>
+              </div>
+            ) : updateState.status === "error" ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground/70 py-0.5">
+                <AlertCircle className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
+                <span>{isOnline ? "Unable to check for updates. Tap refresh to retry." : "Connect to the internet to check for updates."}</span>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground/60 font-medium py-0.5">
+                You are running the latest version of Deskly.
+              </p>
+            )}
           </div>
         </div>
       </section>
