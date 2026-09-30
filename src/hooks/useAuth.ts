@@ -67,11 +67,11 @@ function updateStore(updates: Partial<AuthStoreState>) {
 // Keep track of the active refresh promise to avoid duplicate concurrent calls to the backend
 let refreshPromise: Promise<void> | null = null;
 
-// Listen for the auth://logged-out Tauri event emitted by FrontendEventObserver whenever
+// Listen for the auth-logged-out Tauri event emitted by FrontendEventObserver whenever
 // the Rust backend calls AuthService::logout() — including mid-session forced logouts
 // caused by invalid credentials detected during a live API call (executor.rs).
 // This is module-level so it fires regardless of which components are mounted.
-listen<void>("auth://logged-out", async () => {
+listen<null>("auth-logged-out", async () => {
   await authClearSemester().catch(() => {});
   localStorage.clear();
   updateStore({ authState: null, hasTokens: false, loading: false, initialized: true });
@@ -157,7 +157,7 @@ export function useAuth(): UseAuthReturn {
     updateStore({ loading: true, error: null });
     try {
       await authLogout();
-      await authClearSemester();
+      await authClearSemester().catch(() => {});
       updateStore({ authState: null, hasTokens: false });
       localStorage.clear();
     } catch (err) {

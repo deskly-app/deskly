@@ -69,7 +69,7 @@ impl AuthObserver for FrontendEventObserver {
             AuthEvent::LoggedOut { .. } => {
                 // Notify the frontend so useAuth can clear state and redirect to login.
                 // Fire-and-forget: if the WebView is not ready, the event is silently dropped.
-                let _ = app.emit("auth://logged-out", ());
+                let _ = app.emit("auth-logged-out", ());
             }
             _ => {}
         }
