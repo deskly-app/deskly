@@ -1,7 +1,10 @@
 <resources>
     <string name="app_name">Deskly</string>
     <string name="main_activity_title">Deskly</string>
-    <string name="widget_attendance_name">Attendance</string>
-    <string name="widget_attendance_description">Track your overall attendance percentage and attended classes.</string>
-    <string name="widget_attendance_label">AVERAGE ATTENDANCE</string>
+    <string name="widget_attendance_name">Attendance (2x3)</string>
+    <string name="widget_attendance_2x4_name">Attendance (2x4)</string>
+    <string name="widget_attendance_description">Track your overall attendance, classes attended, and OD hours.</string>
+    <string name="widget_attendance_label">ATTENDANCE</string>
+    <string name="widget_classes_label">CLASSES ATTENDED</string>
+    <string name="widget_od_label">OD HOURS</string>
 </resources>

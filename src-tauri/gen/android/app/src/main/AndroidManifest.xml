@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- AndroidTV support -->
     <uses-feature android:name="android.software.leanback" android:required="false" />
@@ -34,7 +35,7 @@
             android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- Attendance Home Screen Widget -->
+        <!-- Attendance Home Screen Widget (2x3 expandable to 2x4) -->
         <receiver
             android:name=".AttendanceWidgetProvider"
             android:label="@string/widget_attendance_name"
@@ -46,6 +47,20 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/attendance_widget_info" />
+        </receiver>
+
+        <!-- Attendance Home Screen Widget (2x4 expandable/shrinkable to 2x3) -->
+        <receiver
+            android:name=".AttendanceWidgetProvider2x4"
+            android:label="@string/widget_attendance_2x4_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.deskly.app.ACTION_UPDATE_WIDGET" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/attendance_widget_2x4_info" />
         </receiver>
     </application>
 </manifest>

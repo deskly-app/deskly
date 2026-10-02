@@ -40,7 +40,8 @@ pub async fn attendance_get_semesters(
 pub fn attendance_sync_widget(
     app: AppHandle,
     records: Vec<crate::attendance::types::AttendanceRecord>,
+    od_hours: Option<i32>,
 ) -> Result<(), String> {
-    crate::attendance::widget::sync_attendance_widget(&app, &records);
+    crate::attendance::widget::sync_attendance_widget(&app, &records, od_hours);
     Ok(())
 }
