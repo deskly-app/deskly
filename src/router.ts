@@ -19,6 +19,7 @@ export type Path =
   | `/dashboard/grades`
   | `/dashboard/hod-dean`
   | `/dashboard/marks`
+  | `/dashboard/od`
   | `/dashboard/payment-receipts`
   | `/dashboard/profile`
   | `/dashboard/settings`

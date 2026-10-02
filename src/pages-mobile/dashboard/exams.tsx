@@ -372,8 +372,8 @@ export default function ExamSchedulePage() {
               if (item.type === "gap") {
                 return (
                   <div key={`gap-${idx}`} className="flex justify-center py-1 select-none">
-                    <span className="bg-primary/10 text-primary text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full flex items-center gap-1 border border-primary/10">
-                      <Clock className="w-3.5 h-3.5" />
+                    <span className="text-muted-foreground/70 text-xs font-bold uppercase tracking-widest flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-muted-foreground/45" />
                       <span>{item.days} {item.days === 1 ? "Day" : "Days"} Gap</span>
                     </span>
                   </div>
@@ -412,8 +412,8 @@ export default function ExamSchedulePage() {
                           {exam.courseCode}
                         </span>
                         {exam.slot && (
-                          <span className="text-[10px] font-semibold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded leading-none">
-                            {exam.slot}
+                          <span className="text-[11px] font-medium text-muted-foreground/60 leading-none">
+                            • {exam.slot}
                           </span>
                         )}
                       </div>
@@ -460,14 +460,16 @@ export default function ExamSchedulePage() {
             {/* Drawer Header */}
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0 space-y-2">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-black uppercase bg-primary/10 text-primary border border-primary/10 tracking-wider">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider flex-wrap">
+                  <span className="text-primary font-black">
                     {selectedExam?.courseCode}
                   </span>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-black uppercase bg-muted text-muted-foreground tracking-wider">
+                  <span className="text-muted-foreground/30">•</span>
+                  <span className="text-muted-foreground font-semibold">
                     {selectedExam?.courseType.trim()}
                   </span>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-black uppercase bg-primary/10 text-primary border border-primary/10 tracking-wider">
+                  <span className="text-muted-foreground/30">•</span>
+                  <span className="text-muted-foreground font-semibold">
                     {selectedExam?.examType}
                   </span>
                 </div>
@@ -515,9 +517,7 @@ export default function ExamSchedulePage() {
                           {label}
                         </span>
                         <div className="flex items-center gap-2 pt-0.5">
-                          <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0 text-primary">
-                            <Icon className="w-4 h-4" />
-                          </div>
+                          <Icon className="w-4 h-4 text-muted-foreground/60 shrink-0" />
                           <span className="text-sm font-semibold text-foreground truncate">{value}</span>
                         </div>
                       </div>

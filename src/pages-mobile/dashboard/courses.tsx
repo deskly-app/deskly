@@ -37,8 +37,10 @@ function CourseDetailDrawer({
 
   const displayType = item.courseType.toLowerCase().includes("lab") ? "Lab Only" : "Theory Only";
 
+  const totalCredits = item.credits?.total ?? 0;
   const headerMeta = [
     item.code,
+    `${totalCredits} ${totalCredits === 1 ? "Credit" : "Credits"}`,
     displayType,
     item.category ? item.category : null,
     item.status ? item.status : null,
@@ -124,9 +126,14 @@ function CourseDetailDrawer({
 
           {/* 2. Credit Breakdown Widget */}
           <div className="space-y-3">
-            <h3 className="text-[10px] font-bold tracking-widest text-muted-foreground/50 uppercase leading-none pl-1">
-              Credit Breakdown
-            </h3>
+            <div className="flex items-center justify-between pl-1">
+              <h3 className="text-[10px] font-bold tracking-widest text-muted-foreground/50 uppercase leading-none">
+                Credit Breakdown
+              </h3>
+              <span className="text-xs font-bold text-primary uppercase tracking-wider leading-none">
+                {totalCredits} Credits
+              </span>
+            </div>
             <div className="grid grid-cols-4 divide-x divide-border/10 text-center py-2 bg-muted/10 rounded-lg border border-border/5">
               {[
                 { label: "Lecture (L)", val: item.credits?.lecture ?? 0 },
@@ -240,6 +247,10 @@ function MobileCourseCard({
             </div>
           )}
           <span>{typeStyle.label}</span>
+          <div className="flex items-center gap-2">
+            <div className="w-0.5 h-0.5 rounded-full bg-border/50" />
+            <span className="text-foreground/70">{item.credits?.total ?? 0} Credits</span>
+          </div>
           {item.category && (
             <div className="flex items-center gap-2">
               <div className="w-0.5 h-0.5 rounded-full bg-border/50" />
