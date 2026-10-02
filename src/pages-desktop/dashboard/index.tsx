@@ -5,7 +5,6 @@ import { Link } from "react-router-dom";
 import { useOfflineData } from "@/hooks/use-offline-data";
 import { ErrorDisplay } from "@/components/error-display";
 import { getStudentProfile, getStudentGradeView, ProfileData } from "@/lib/features";
-import { usePrivacySettings } from "@/hooks/use-privacy-settings";
 import { getCurrentAttendance, AttendanceRecord } from "@/lib/attendance";
 import { getStudentOdDetails, StudentOdDetails } from "@/lib/od";
 import {
@@ -16,8 +15,6 @@ import {
   Clock,
   Settings,
   ChevronRight,
-  Eye,
-  EyeOff,
   Award,
 } from "lucide-react";
 
@@ -95,7 +92,6 @@ function getCubicBezierPath(pts: { x: number; y: number }[]) {
 const QUICK_LINKS = [
   { label: "Timetable", path: "/dashboard/timetable", icon: Calendar },
   { label: "Attendance", path: "/dashboard/attendance", icon: BookOpen },
-  { label: "On Duty (OD)", path: "/dashboard/od", icon: Award },
   { label: "My Marks", path: "/dashboard/marks", icon: FileText },
   { label: "Academic Calendar", path: "/dashboard/academic-calendar", icon: Clock },
   { label: "Settings", path: "/dashboard/settings", icon: Settings },
@@ -105,12 +101,8 @@ const QUICK_LINKS = [
 
 function GpaTrendGraph({
   points,
-  hideGpa = false,
-  toggleHideGpa,
 }: {
   points: GpaTrendPoint[];
-  hideGpa?: boolean;
-  toggleHideGpa?: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerW, setContainerW] = useState(0);
@@ -155,7 +147,7 @@ function GpaTrendGraph({
   return (
     <div className="space-y-3">
       {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">
             Semester Performance
@@ -164,21 +156,10 @@ function GpaTrendGraph({
             <h2 className="text-sm sm:text-base font-bold text-foreground tracking-tight">
               GPA History
             </h2>
-            {toggleHideGpa && (
-              <button
-                type="button"
-                onClick={toggleHideGpa}
-                className="p-0.5 text-muted-foreground/35 hover:text-foreground transition-colors rounded focus:outline-none"
-                title={hideGpa ? "Show GPA History" : "Hide GPA History"}
-                aria-label="Toggle GPA history privacy"
-              >
-                {hideGpa ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              </button>
-            )}
           </div>
         </div>
         {/* Compact metrics */}
-        <div className="flex divide-x divide-border/20 border border-border/20 rounded-lg overflow-hidden shrink-0">
+        <div className="flex divide-x divide-border/20 border border-border/20 rounded-lg overflow-hidden shrink-0 self-start sm:self-auto">
           {[
             { label: "Latest", val: latest, primary: false },
             { label: "Peak", val: peak, primary: true },
@@ -188,8 +169,8 @@ function GpaTrendGraph({
               <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">
                 {m.label}
               </p>
-              <p className={`text-sm sm:text-base font-bold leading-none mt-0.5 ${m.primary ? "text-primary" : "text-foreground"} ${hideGpa ? "font-mono" : ""}`}>
-                {hideGpa ? "••••" : m.val.toFixed(2)}
+              <p className={`text-sm sm:text-base font-bold leading-none mt-0.5 ${m.primary ? "text-primary" : "text-foreground"}`}>
+                {m.val.toFixed(2)}
               </p>
             </div>
           ))}
@@ -202,10 +183,10 @@ function GpaTrendGraph({
           <span className="text-xs sm:text-sm text-muted-foreground/50 truncate max-w-[200px]">
             {active.pt.name}
           </span>
-          <span className={`text-xs sm:text-sm font-bold text-foreground ${hideGpa ? "font-mono" : ""}`}>
-            {hideGpa ? "••••" : `${active.pt.gpa.toFixed(2)} GPA`}
+          <span className="text-xs sm:text-sm font-bold text-foreground">
+            {active.pt.gpa.toFixed(2)} GPA
           </span>
-          {!hideGpa && active.diff !== null && (
+          {active.diff !== null && (
             <span className={`text-xs sm:text-sm font-semibold ${active.diff >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
               {active.diff >= 0 ? `+${active.diff.toFixed(2)}` : active.diff.toFixed(2)}
             </span>
@@ -214,22 +195,7 @@ function GpaTrendGraph({
       )}
 
       {/* Chart */}
-      {hideGpa ? (
-        <div className="h-[180px] w-full rounded-lg border border-dashed border-border/20 flex flex-col items-center justify-center text-center p-4">
-          <EyeOff className="w-5 h-5 text-muted-foreground/30 mb-2" />
-          <p className="text-xs text-muted-foreground/50">GPA Trend Hidden</p>
-          {toggleHideGpa && (
-            <button
-              type="button"
-              onClick={toggleHideGpa}
-              className="text-[11px] font-medium text-primary hover:underline mt-1 focus:outline-none"
-            >
-              Click to reveal trend
-            </button>
-          )}
-        </div>
-      ) : (
-        <div ref={containerRef} className="w-full">
+      <div ref={containerRef} className="w-full">
           {containerW > 0 && (
             <svg width={containerW} height={H} className="block overflow-visible">
               {gridVals.map((v) => {
@@ -274,7 +240,6 @@ function GpaTrendGraph({
             </svg>
           )}
         </div>
-      )}
     </div>
   );
 }
@@ -295,7 +260,7 @@ function DashboardSkeleton() {
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_260px] items-start">
         <div className="pr-0 xl:pr-12 space-y-8 sm:space-y-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 xl:gap-12">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 xl:gap-12">
             <div className="space-y-5">
               <div className="space-y-2">
                 <Sk className="h-3 w-24" />
@@ -307,14 +272,14 @@ function DashboardSkeleton() {
               </div>
               <div className="grid grid-cols-3 pt-4 sm:pt-5 border-t border-border/10 gap-2">
                 {[...Array(3)].map((_, i) => (
-                  <div key={i} className="space-y-1.5">
+                  <div key={i} className={`space-y-1.5 ${i > 0 ? "pl-3 border-l border-border/10" : ""}`}>
                     <Sk className="h-2.5 w-12" /><Sk className="h-6 w-8" /><Sk className="h-2.5 w-10" />
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="space-y-5">
+            <div className="space-y-5 border-t xl:border-t-0 border-border/10 pt-8 xl:pt-0">
               <div className="space-y-2">
                 <Sk className="h-3 w-24" />
                 <Sk className="h-12 sm:h-16 w-36 sm:w-44" />
@@ -325,10 +290,27 @@ function DashboardSkeleton() {
               </div>
               <div className="grid grid-cols-3 pt-4 sm:pt-5 border-t border-border/10 gap-2">
                 {[...Array(3)].map((_, i) => (
-                  <div key={i} className="space-y-1.5">
+                  <div key={i} className={`space-y-1.5 ${i > 0 ? "pl-3 border-l border-border/10" : ""}`}>
                     <Sk className="h-2.5 w-12" /><Sk className="h-6 w-8" /><Sk className="h-2.5 w-10" />
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+          {/* OD skeleton with separators */}
+          <div className="border-t border-border/10 pt-6 sm:pt-8 space-y-4">
+            <div className="flex justify-between items-center">
+              <Sk className="h-3 w-20" />
+              <Sk className="h-3 w-16" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-0 pt-1">
+              <div className="space-y-1.5 pr-0 sm:pr-8">
+                <Sk className="h-7 sm:h-8 w-16" />
+                <Sk className="h-3 w-24" />
+              </div>
+              <div className="space-y-1.5 pl-0 sm:pl-8 border-t sm:border-t-0 sm:border-l border-border/10 pt-4 sm:pt-0">
+                <Sk className="h-7 sm:h-8 w-16" />
+                <Sk className="h-3 w-24" />
               </div>
             </div>
           </div>
@@ -358,14 +340,6 @@ function DashboardSkeleton() {
 
 export default function DashboardHomePage() {
   const { isLoggedIn, loading: authLoading } = useAuth();
-  const {
-    hideCgpa,
-    hideAttendance,
-    hideGpa,
-    toggleHideCgpa,
-    toggleHideAttendance,
-    toggleHideGpa,
-  } = usePrivacySettings();
 
   const { data: combinedData, loading, error, retry: loadData } = useOfflineData<{
     cgpaData: CgpaData | null;
@@ -543,7 +517,7 @@ export default function DashboardHomePage() {
 
           {/* Academic Overview: CGPA & Attendance */}
           {(cgpaData || attendanceStats) && (
-            <div className={`grid grid-cols-1 ${attendanceStats ? "md:grid-cols-2 gap-8 xl:gap-12" : "max-w-xl gap-8"}`}>
+            <div className={`grid grid-cols-1 ${attendanceStats ? "xl:grid-cols-2 gap-8 xl:gap-12" : "max-w-xl gap-8"}`}>
               {/* CGPA */}
               {cgpaData && (
                 <div className="space-y-5 sm:space-y-6">
@@ -553,19 +527,10 @@ export default function DashboardHomePage() {
                       <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/35">
                         Cumulative GPA
                       </p>
-                      <button
-                        type="button"
-                        onClick={toggleHideCgpa}
-                        className="p-0.5 text-muted-foreground/35 hover:text-foreground transition-colors rounded focus:outline-none"
-                        title={hideCgpa ? "Show CGPA" : "Hide CGPA"}
-                        aria-label="Toggle CGPA privacy"
-                      >
-                        {hideCgpa ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                      </button>
                     </div>
                     <div className="flex items-baseline gap-3 sm:gap-4 flex-wrap">
-                      <span className={`text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tighter text-foreground leading-none ${hideCgpa ? "font-mono" : ""}`}>
-                        {hideCgpa ? "••••" : cgpaData.currentCgpa.toFixed(2)}
+                      <span className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tighter text-foreground leading-none">
+                        {cgpaData.currentCgpa.toFixed(2)}
                       </span>
                       <span className="text-base sm:text-lg font-medium text-muted-foreground/40">/ 10.00</span>
                     </div>
@@ -596,8 +561,8 @@ export default function DashboardHomePage() {
                       { label: "Earned", value: cgpaData.earnedCredits, sub: "credits" },
                       { label: "Required", value: cgpaData.totalCreditsRequired, sub: "for degree" },
                       { label: "Non-graded", value: cgpaData.nonGradedCore, sub: "core" },
-                    ].map((s) => (
-                      <div key={s.label} className="space-y-0.5 sm:space-y-1">
+                    ].map((s, idx) => (
+                      <div key={s.label} className={`space-y-0.5 sm:space-y-1 ${idx > 0 ? "pl-3 sm:pl-4 border-l border-border/10" : ""}`}>
                         <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/30">
                           {s.label}
                         </p>
@@ -611,7 +576,7 @@ export default function DashboardHomePage() {
 
               {/* Attendance */}
               {attendanceStats && (
-                <div className="space-y-5 sm:space-y-6">
+                <div className={`space-y-5 sm:space-y-6 ${cgpaData ? "border-t xl:border-t-0 border-border/10 pt-8 xl:pt-0" : ""}`}>
                   {/* Number */}
                   <div>
                     <div className="flex items-center gap-2 mb-2 sm:mb-3">
@@ -621,22 +586,13 @@ export default function DashboardHomePage() {
                       >
                         Avg Attendance
                       </Link>
-                      <button
-                        type="button"
-                        onClick={toggleHideAttendance}
-                        className="p-0.5 text-muted-foreground/35 hover:text-foreground transition-colors rounded focus:outline-none"
-                        title={hideAttendance ? "Show Attendance" : "Hide Attendance"}
-                        aria-label="Toggle attendance privacy"
-                      >
-                        {hideAttendance ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                      </button>
                     </div>
                     <div className="flex items-baseline gap-3 sm:gap-4 flex-wrap">
-                      <span className={`text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tighter text-foreground leading-none ${hideAttendance ? "font-mono" : ""}`}>
-                        {hideAttendance ? "••••" : `${attendanceStats.formattedPct}%`}
+                      <span className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tighter text-foreground leading-none">
+                        {attendanceStats.formattedPct}%
                       </span>
                       <span className="text-base sm:text-lg font-medium text-muted-foreground/40">
-                        {hideAttendance ? "" : `${attendanceStats.totalAttended}/${attendanceStats.totalClasses} classes`}
+                        {attendanceStats.totalAttended}/{attendanceStats.totalClasses} classes
                       </span>
                     </div>
                   </div>
@@ -648,10 +604,7 @@ export default function DashboardHomePage() {
                         Attendance Standing
                       </span>
                       <span className="text-xs sm:text-sm font-semibold text-foreground/70">
-                        {hideAttendance ? "••••" : `${attendanceStats.percentage.toFixed(0)}% Overall`}
-                        <span className="text-muted-foreground/40 ml-1">
-                          {hideAttendance ? "" : attendanceStats.percentage >= 75 ? "(Target met)" : "(Shortage)"}
-                        </span>
+                        {attendanceStats.percentage.toFixed(0)}% Overall
                       </span>
                     </div>
                     <div className="relative w-full h-px bg-border/40 overflow-hidden rounded-full">
@@ -665,15 +618,15 @@ export default function DashboardHomePage() {
                   {/* 3 stats */}
                   <div className="grid grid-cols-3 border-t border-border/10 pt-5 sm:pt-6">
                     {[
-                      { label: "Attended", value: hideAttendance ? "••••" : attendanceStats.totalAttended, sub: "classes" },
-                      { label: "Conducted", value: hideAttendance ? "••••" : attendanceStats.totalClasses, sub: "total" },
+                      { label: "Attended", value: attendanceStats.totalAttended, sub: "classes" },
+                      { label: "Conducted", value: attendanceStats.totalClasses, sub: "total" },
                       { label: "Courses", value: attendanceStats.totalCourses, sub: "enrolled" },
-                    ].map((s) => (
-                      <div key={s.label} className="space-y-0.5 sm:space-y-1">
+                    ].map((s, idx) => (
+                      <div key={s.label} className={`space-y-0.5 sm:space-y-1 ${idx > 0 ? "pl-3 sm:pl-4 border-l border-border/10" : ""}`}>
                         <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/30">
                           {s.label}
                         </p>
-                        <p className={`text-xl sm:text-2xl lg:text-3xl font-bold text-foreground leading-none ${hideAttendance && s.label !== "Courses" ? "font-mono" : ""}`}>
+                        <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground leading-none">
                           {s.value}
                         </p>
                         <p className="text-[10px] sm:text-xs text-muted-foreground/40">{s.sub}</p>
@@ -685,13 +638,56 @@ export default function DashboardHomePage() {
             </div>
           )}
 
+          {/* On Duty (OD) */}
+          {odDetails && (
+            <div className="border-t border-border/10 pt-6 sm:pt-8 min-w-0">
+              <div className="flex items-center justify-between gap-3 pb-3 sm:pb-4">
+                <Link
+                  to="/dashboard/od"
+                  className="group flex items-center gap-1.5 text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/40 hover:text-foreground transition-colors"
+                >
+                  <Award className="w-4 h-4 text-primary shrink-0" />
+                  <span>On Duty</span>
+                </Link>
+                <Link
+                  to="/dashboard/od"
+                  className="text-xs font-semibold text-primary hover:underline flex items-center gap-0.5 shrink-0"
+                >
+                  <span>View Details</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+
+              {/* Stats: Vertical divider on sm+, vertical stack on smaller screens (single horizontal separator per section) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-0">
+                {/* Total OD Hours */}
+                <div className="flex flex-col gap-1 pr-0 sm:pr-8 min-w-0">
+                  <span className="text-2xl sm:text-3xl font-black text-foreground leading-none tabular-nums">
+                    {odDetails.totalCount}
+                  </span>
+                  <span className="text-xs sm:text-sm font-semibold text-muted-foreground/60 uppercase tracking-wider">
+                    Total OD Hours
+                  </span>
+                </div>
+
+                {/* Total Events */}
+                <div className="flex flex-col gap-1 pl-0 sm:pl-8 border-t sm:border-t-0 sm:border-l border-border/10 pt-4 sm:pt-0 min-w-0">
+                  <span className="text-2xl sm:text-3xl font-black text-foreground leading-none tabular-nums">
+                    {odDetails.records.length}
+                  </span>
+                  <span className="text-xs sm:text-sm font-semibold text-muted-foreground/60 uppercase tracking-wider">
+                    Total Events
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* GPA Graph */}
           {gpaTrend.length > 0 && (
             <div className="border-t border-border/10 pt-6 sm:pt-8 min-w-0">
               <GpaTrendGraph
                 points={gpaTrend}
-                hideGpa={hideGpa}
-                toggleHideGpa={toggleHideGpa}
               />
             </div>
           )}
@@ -705,7 +701,7 @@ export default function DashboardHomePage() {
           border-t xl:border-t-0 border-border/10
           xl:border-l xl:border-border/10 xl:pl-7
           xl:sticky xl:top-6
-          grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-6 xl:gap-5
+          flex flex-col gap-6 xl:gap-5
         ">
 
           {/* Quick Access */}
@@ -731,43 +727,6 @@ export default function DashboardHomePage() {
               })}
             </nav>
           </div>
-
-          {/* On Duty (OD) Quick Highlight */}
-          {odDetails && (
-            <div className="space-y-2 xl:pt-4 xl:border-t xl:border-border/10">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Award className="w-3.5 h-3.5 text-primary shrink-0" />
-                  <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/35">
-                    On Duty (OD)
-                  </p>
-                </div>
-                <Link
-                  to="/dashboard/od"
-                  className="text-[10px] font-bold text-primary hover:underline uppercase tracking-wider"
-                >
-                  View
-                </Link>
-              </div>
-
-              <Link
-                to="/dashboard/od"
-                className="group block p-3.5 rounded-lg border border-border/10 bg-muted/10 hover:border-border/30 hover:bg-muted/20 transition-all space-y-1.5"
-              >
-                <div className="flex items-baseline justify-between">
-                  <span className="text-xl sm:text-2xl font-bold text-foreground">
-                    {odDetails.totalCount}
-                  </span>
-                  <span className="text-xs text-muted-foreground/50">
-                    {odDetails.records.length} events
-                  </span>
-                </div>
-                <p className="text-[10px] text-muted-foreground/40 leading-tight">
-                  Approved attendance compensation hours/slots
-                </p>
-              </Link>
-            </div>
-          )}
 
           {/* Feedback */}
           {feedbackData && feedbackData.length > 0 && (
