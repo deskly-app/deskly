@@ -514,9 +514,12 @@ export default function MobileDashboardHome() {
 
   useEffect(() => {
     if (attendanceData && attendanceData.length > 0) {
-      invoke("attendance_sync_widget", { records: attendanceData }).catch(() => {});
+      invoke("attendance_sync_widget", {
+        records: attendanceData,
+        odHours: data?.odDetails?.totalCount ?? null,
+      }).catch(() => {});
     }
-  }, [attendanceData]);
+  }, [attendanceData, data?.odDetails?.totalCount]);
 
   const attendanceStats = useMemo(() => {
     if (!attendanceData || attendanceData.length === 0) return null;

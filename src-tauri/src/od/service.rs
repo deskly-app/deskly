@@ -40,6 +40,8 @@ impl OdService {
         )
         .await?;
 
+        crate::attendance::widget::sync_od_widget(app, data.total_count as i32);
+
         Ok(OdResponse {
             success: true,
             data: Some(data),

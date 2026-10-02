@@ -187,8 +187,22 @@ export async function notifyUpcomingClass(
  * Dispatches a test notification to verify OS integration.
  */
 export async function sendTestNotification(): Promise<boolean> {
-  return await showNotification(
-    "Deskly Notifications",
-    "Native OS notification system is active and functioning properly."
-  );
+  try {
+    let granted = await isPermissionGranted();
+    if (!granted) {
+      granted = await requestPermission();
+    }
+
+    if (granted) {
+      await sendNotification({
+        title: "Deskly Notifications",
+        body: "Native OS notification system is active and functioning properly.",
+      });
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.error("Failed to send test notification:", err);
+    return false;
+  }
 }

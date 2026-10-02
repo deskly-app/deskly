@@ -84,9 +84,9 @@ function ToggleSwitch({
 // ─── Semver Helper ────────────────────────────────────────────────────────────
 
 function parseSemver(v: string): number[] {
-  return v
-    .replace(/^v/i, "")
-    .split("-")[0]
+  const cleaned = v.replace(/^(android-)?v?/i, "").trim();
+  const verPart = cleaned.split("-")[0];
+  return verPart
     .split(".")
     .map((n) => parseInt(n, 10) || 0);
 }
@@ -301,7 +301,8 @@ export default function MobileSettings() {
     }));
 
     try {
-      const res = await fetch("https://api.github.com/repos/deskly-app/deskly/releases/latest", {
+      // Query recent releases to find the Android release with the APK asset
+      const res = await fetch("https://api.github.com/repos/deskly-app/deskly/releases?per_page=10", {
         headers: { Accept: "application/vnd.github.v3+json" },
       });
 
@@ -309,21 +310,33 @@ export default function MobileSettings() {
         throw new Error(`Failed to fetch updates (${res.status})`);
       }
 
-      const data = await res.json();
-      const latestTag = (data.tag_name || "").trim();
-      const cleanLatest = latestTag.replace(/^v/i, "");
-      const cleanCurrent = currentVer.replace(/^v/i, "");
+      const releases = await res.json();
+      if (!Array.isArray(releases) || releases.length === 0) {
+        throw new Error("No releases found");
+      }
 
-      const apkAsset = Array.isArray(data.assets)
-        ? data.assets.find((asset: { name?: string; browser_download_url?: string }) =>
+      // Prioritize Android release (tagged android-v* or containing an .apk asset)
+      const androidRelease =
+        releases.find(
+          (r: any) =>
+            r.tag_name?.startsWith("android-v") ||
+            (Array.isArray(r.assets) && r.assets.some((a: any) => a.name?.toLowerCase().endsWith(".apk")))
+        ) || releases[0];
+
+      const latestTag = (androidRelease.tag_name || "").trim();
+      const cleanLatest = latestTag.replace(/^(android-)?v?/i, "");
+      const cleanCurrent = currentVer.replace(/^(android-)?v?/i, "");
+
+      const apkAsset = Array.isArray(androidRelease.assets)
+        ? androidRelease.assets.find((asset: { name?: string; browser_download_url?: string }) =>
             asset.name?.toLowerCase().endsWith(".apk")
           )
         : null;
 
       const downloadUrl =
         apkAsset?.browser_download_url ||
-        data.html_url ||
-        "https://github.com/deskly-app/deskly/releases/latest";
+        androidRelease.html_url ||
+        "https://github.com/deskly-app/deskly/releases";
 
       const hasUpdate = isNewerVersion(cleanLatest, cleanCurrent);
 

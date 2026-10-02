@@ -4,94 +4,208 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_card_bg"
-    android:gravity="center_vertical"
     android:orientation="vertical"
-    android:padding="20dp">
+    android:padding="16dp">
 
-    <!-- Top Header: Label (No dot, clean uppercase tracking) -->
-    <TextView
-        android:id="@+id/tv_label"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:fontFamily="sans-serif-medium"
-        android:letterSpacing="0.08"
-        android:text="@string/widget_attendance_label"
-        android:textColor="@color/widget_text_muted"
-        android:textSize="9.5sp"
-        android:textStyle="bold" />
-
-    <!-- Percentage Metric Row (Number + % symbol) -->
+    <!-- Top Section: Attendance Overview (Unboxed) -->
     <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="12dp"
-        android:baselineAligned="true"
-        android:gravity="bottom"
-        android:orientation="horizontal">
+        android:id="@+id/section_attendance"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1.2"
+        android:gravity="center_vertical"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_attendance_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:letterSpacing="0.08"
+            android:text="@string/widget_attendance_label"
+            android:textAllCaps="true"
+            android:textColor="@color/widget_text_secondary"
+            android:textSize="9.5sp"
+            android:textStyle="bold" />
 
         <TextView
             android:id="@+id/tv_attendance_pct"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="8dp"
             android:fontFamily="sans-serif-black"
             android:includeFontPadding="false"
             android:text="--"
             android:textColor="@color/widget_text_primary"
-            android:textSize="38sp"
+            android:textSize="32sp"
             android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/tv_pct_symbol"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="2dp"
-            android:fontFamily="sans-serif-medium"
-            android:text="%"
-            android:textColor="@color/widget_text_muted"
-            android:textSize="17sp"
-            android:textStyle="bold" />
+        <ProgressBar
+            android:id="@+id/pb_attendance"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:max="100"
+            android:progress="0"
+            android:progressDrawable="@drawable/widget_progress_bar_safe" />
     </LinearLayout>
 
-    <!-- Classes Row: Label Left, Number Right -->
-    <LinearLayout
+    <!-- Clean 1dp Separator (ImageView is RemoteViews compliant) -->
+    <ImageView
+        android:id="@+id/sep_top_bottom"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="6dp"
+        android:layout_height="1dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="10dp"
+        android:background="@color/widget_border"
+        android:contentDescription="@null" />
+
+    <!-- Bottom Section: Classes Attended & OD Hours (Two Columns, Unboxed) -->
+    <LinearLayout
+        android:id="@+id/section_stats"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:baselineAligned="false"
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/tv_classes_label"
+        <!-- Column 1: Classes Attended -->
+        <LinearLayout
+            android:id="@+id/col_classes"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:ellipsize="end"
-            android:fontFamily="sans-serif"
-            android:maxLines="1"
-            android:text="Classes Attended"
-            android:textColor="@color/widget_text_secondary"
-            android:textSize="11sp" />
+            android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/tv_attendance_classes"
-            android:layout_width="wrap_content"
+            <TextView
+                android:id="@+id/tv_classes_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.04"
+                android:maxLines="1"
+                android:text="@string/widget_classes_label"
+                android:textAllCaps="true"
+                android:textColor="@color/widget_text_secondary"
+                android:textSize="9sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:layout_marginBottom="8dp"
+                android:baselineAligned="true"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tv_classes_attended"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-black"
+                    android:includeFontPadding="false"
+                    android:text="--"
+                    android:textColor="@color/widget_text_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_classes_total"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="2dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text=" / --"
+                    android:textColor="@color/widget_text_muted"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <ProgressBar
+                android:id="@+id/pb_classes"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:max="100"
+                android:progress="0"
+                android:progressDrawable="@drawable/widget_progress_bar_safe" />
+        </LinearLayout>
+
+        <!-- Vertical Divider (RemoteViews-compliant ImageView) -->
+        <ImageView
+            android:id="@+id/sep_classes_od"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="12dp"
+            android:background="@color/widget_border"
+            android:contentDescription="@null" />
+
+        <!-- Column 2: OD Hours -->
+        <LinearLayout
+            android:id="@+id/col_od"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-medium"
-            android:text="-- / --"
-            android:textColor="@color/widget_text_primary"
-            android:textSize="11.5sp"
-            android:textStyle="bold" />
-    </LinearLayout>
+            android:layout_weight="1"
+            android:orientation="vertical">
 
-    <!-- Progress Bar (Primary monochrome fill) -->
-    <ProgressBar
-        android:id="@+id/pb_attendance"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="match_parent"
-        android:layout_height="5dp"
-        android:max="100"
-        android:progress="0"
-        android:progressDrawable="@drawable/widget_progress_bar_safe" />
+            <TextView
+                android:id="@+id/tv_od_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.04"
+                android:maxLines="1"
+                android:text="@string/widget_od_label"
+                android:textAllCaps="true"
+                android:textColor="@color/widget_text_secondary"
+                android:textSize="9sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:layout_marginBottom="8dp"
+                android:baselineAligned="true"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tv_od_hours"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-black"
+                    android:includeFontPadding="false"
+                    android:text="--"
+                    android:textColor="@color/widget_text_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_od_unit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="3dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="hrs"
+                    android:textColor="@color/widget_text_muted"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <ProgressBar
+                android:id="@+id/pb_od"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:max="100"
+                android:progress="0"
+                android:progressDrawable="@drawable/widget_progress_bar_safe" />
+        </LinearLayout>
+    </LinearLayout>
 
 </LinearLayout>
