@@ -5,10 +5,12 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { TitleBar } from "@/components/TitleBar";
 import { NoInternetOverlay } from "@/components/NoInternetOverlay";
 import { useOnlineStatus } from "@/hooks/use-online-status";
+import { useClassReminders } from "@/hooks/use-class-reminders";
 import { checkForUpdates } from "@/lib/updater";
 
 export default function App() {
   const isOnline = useOnlineStatus();
+  useClassReminders();
 
   useEffect(() => {
     // Check for updates silently on startup
