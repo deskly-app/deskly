@@ -5,6 +5,7 @@ import {
   User,
   CalendarClock,
   UserCheck,
+  Award,
   BookOpen,
   Library,
   ClipboardList,
@@ -66,6 +67,12 @@ const DashboardSidebar = () => {
         href: "/dashboard/attendance",
         icon: <UserCheck className="w-5 h-5" />,
         description: "",
+      },
+      {
+        label: "On Duty (OD)",
+        href: "/dashboard/od",
+        icon: <Award className="w-5 h-5" />,
+        description: "Student OD details and compensation",
       },
       {
         label: "Courses",

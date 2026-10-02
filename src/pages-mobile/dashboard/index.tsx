@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { invoke } from "@tauri-apps/api/core";
 import { getStudentProfile, getFeedbackStatus, getStudentGradeView, ProfileData } from "@/lib/features";
 import { getCurrentAttendance, AttendanceRecord } from "@/lib/attendance";
+import { getStudentOdDetails, StudentOdDetails } from "@/lib/od";
 import {
   BookOpen,
   Clock,
@@ -13,6 +14,7 @@ import {
   TrendingUp,
   Eye,
   EyeOff,
+  ChevronRight,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOnlineStatus } from "@/hooks/use-online-status";
@@ -403,16 +405,18 @@ export default function MobileDashboardHome() {
     profile: ProfileData | null;
     gpaTrend: GpaTrendPoint[];
     attendanceData: AttendanceRecord[] | null;
+    odDetails: StudentOdDetails | null;
   };
 
   const fetchDashboardData = async (): Promise<{ success: boolean; data?: DashboardData; error?: string }> => {
     try {
-      const [cgpaRes, feedbackRes, profileRes, gradeRes, attendanceRes] = await Promise.all([
+      const [cgpaRes, feedbackRes, profileRes, gradeRes, attendanceRes, odRes] = await Promise.all([
         getCgpaPage(),
         getFeedbackStatus(),
         getStudentProfile().catch(() => null),
         getStudentGradeView().catch(() => null),
         getCurrentAttendance().catch(() => null),
+        getStudentOdDetails().catch(() => null),
       ]);
 
       if (attendanceRes?.success && attendanceRes.data) {
@@ -421,6 +425,14 @@ export default function MobileDashboardHome() {
           if (attendanceRes.semesterId) {
             localStorage.setItem("deskly::cache::attendance_semester", attendanceRes.semesterId);
           }
+        } catch {
+          // ignore cache errors
+        }
+      }
+
+      if (odRes?.success && odRes.data) {
+        try {
+          localStorage.setItem("deskly::cache::od", JSON.stringify(odRes.data));
         } catch {
           // ignore cache errors
         }
@@ -462,6 +474,7 @@ export default function MobileDashboardHome() {
           profile: profileRes?.success ? profileRes.data || null : null,
           gpaTrend,
           attendanceData: attendanceRes?.success && attendanceRes.data ? attendanceRes.data : null,
+          odDetails: odRes?.success && odRes.data ? odRes.data : null,
         }
       };
     } catch (e) {
@@ -527,6 +540,15 @@ export default function MobileDashboardHome() {
       totalCourses: attendanceData.length,
     };
   }, [attendanceData]);
+
+  const odDetails = useMemo(() => {
+    if (data?.odDetails) return data.odDetails;
+    try {
+      const cached = localStorage.getItem("deskly::cache::od");
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return null;
+  }, [data?.odDetails]);
 
   const studentName = formatStudentName(profile?.student?.name);
 
@@ -741,6 +763,34 @@ export default function MobileDashboardHome() {
                   }}
                 />
               </div>
+            </div>
+          </Link>
+        </section>
+      )}
+
+      {/* ── On Duty (OD) Overview ────────────────────────────────────────────── */}
+      {odDetails && (
+        <section className="relative z-10">
+          <Link
+            to="/dashboard/od"
+            className="block bg-gradient-to-br from-card/90 to-card/45 border border-border/15 p-6 rounded-[30px] shadow-sm space-y-4 hover:border-border/30 transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold tracking-wider text-muted-foreground/50 uppercase leading-none">
+                On Duty Hours
+              </span>
+              <span className="text-xs font-semibold text-primary flex items-center gap-0.5">
+                View all <ChevronRight className="w-3.5 h-3.5" />
+              </span>
+            </div>
+
+            <div className="flex items-baseline gap-2">
+              <span className="text-5xl font-extrabold text-foreground leading-none tracking-tight">
+                {odDetails.totalCount}
+              </span>
+              <span className="text-sm font-medium text-muted-foreground/50">
+                {odDetails.totalCount === 1 ? "hour approved" : "hours approved"}
+              </span>
             </div>
           </Link>
         </section>

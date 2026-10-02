@@ -5,6 +5,9 @@ import { Link } from "react-router-dom";
 import { useOfflineData } from "@/hooks/use-offline-data";
 import { ErrorDisplay } from "@/components/error-display";
 import { getStudentProfile, getStudentGradeView, ProfileData } from "@/lib/features";
+import { usePrivacySettings } from "@/hooks/use-privacy-settings";
+import { getCurrentAttendance, AttendanceRecord } from "@/lib/attendance";
+import { getStudentOdDetails, StudentOdDetails } from "@/lib/od";
 import {
   MessageSquare,
   Calendar,
@@ -13,6 +16,9 @@ import {
   Clock,
   Settings,
   ChevronRight,
+  Eye,
+  EyeOff,
+  Award,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -89,6 +95,7 @@ function getCubicBezierPath(pts: { x: number; y: number }[]) {
 const QUICK_LINKS = [
   { label: "Timetable", path: "/dashboard/timetable", icon: Calendar },
   { label: "Attendance", path: "/dashboard/attendance", icon: BookOpen },
+  { label: "On Duty (OD)", path: "/dashboard/od", icon: Award },
   { label: "My Marks", path: "/dashboard/marks", icon: FileText },
   { label: "Academic Calendar", path: "/dashboard/academic-calendar", icon: Clock },
   { label: "Settings", path: "/dashboard/settings", icon: Settings },
@@ -96,7 +103,15 @@ const QUICK_LINKS = [
 
 // ─── GPA Graph ────────────────────────────────────────────────────────────────
 
-function GpaTrendGraph({ points }: { points: GpaTrendPoint[] }) {
+function GpaTrendGraph({
+  points,
+  hideGpa = false,
+  toggleHideGpa,
+}: {
+  points: GpaTrendPoint[];
+  hideGpa?: boolean;
+  toggleHideGpa?: () => void;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerW, setContainerW] = useState(0);
   const [activeIdx, setActiveIdx] = useState(points.length - 1);
@@ -145,9 +160,22 @@ function GpaTrendGraph({ points }: { points: GpaTrendPoint[] }) {
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">
             Semester Performance
           </p>
-          <h2 className="text-sm sm:text-base font-bold text-foreground tracking-tight mt-0.5">
-            GPA History
-          </h2>
+          <div className="flex items-center gap-2 mt-0.5">
+            <h2 className="text-sm sm:text-base font-bold text-foreground tracking-tight">
+              GPA History
+            </h2>
+            {toggleHideGpa && (
+              <button
+                type="button"
+                onClick={toggleHideGpa}
+                className="p-0.5 text-muted-foreground/35 hover:text-foreground transition-colors rounded focus:outline-none"
+                title={hideGpa ? "Show GPA History" : "Hide GPA History"}
+                aria-label="Toggle GPA history privacy"
+              >
+                {hideGpa ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
+            )}
+          </div>
         </div>
         {/* Compact metrics */}
         <div className="flex divide-x divide-border/20 border border-border/20 rounded-lg overflow-hidden shrink-0">
@@ -160,8 +188,8 @@ function GpaTrendGraph({ points }: { points: GpaTrendPoint[] }) {
               <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">
                 {m.label}
               </p>
-              <p className={`text-sm sm:text-base font-bold leading-none mt-0.5 ${m.primary ? "text-primary" : "text-foreground"}`}>
-                {m.val.toFixed(2)}
+              <p className={`text-sm sm:text-base font-bold leading-none mt-0.5 ${m.primary ? "text-primary" : "text-foreground"} ${hideGpa ? "font-mono" : ""}`}>
+                {hideGpa ? "••••" : m.val.toFixed(2)}
               </p>
             </div>
           ))}
@@ -174,10 +202,10 @@ function GpaTrendGraph({ points }: { points: GpaTrendPoint[] }) {
           <span className="text-xs sm:text-sm text-muted-foreground/50 truncate max-w-[200px]">
             {active.pt.name}
           </span>
-          <span className="text-xs sm:text-sm font-bold text-foreground">
-            {active.pt.gpa.toFixed(2)} GPA
+          <span className={`text-xs sm:text-sm font-bold text-foreground ${hideGpa ? "font-mono" : ""}`}>
+            {hideGpa ? "••••" : `${active.pt.gpa.toFixed(2)} GPA`}
           </span>
-          {active.diff !== null && (
+          {!hideGpa && active.diff !== null && (
             <span className={`text-xs sm:text-sm font-semibold ${active.diff >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
               {active.diff >= 0 ? `+${active.diff.toFixed(2)}` : active.diff.toFixed(2)}
             </span>
@@ -186,51 +214,67 @@ function GpaTrendGraph({ points }: { points: GpaTrendPoint[] }) {
       )}
 
       {/* Chart */}
-      <div ref={containerRef} className="w-full">
-        {containerW > 0 && (
-          <svg width={containerW} height={H} className="block overflow-visible">
-            {gridVals.map((v) => {
-              const y = PT + CH - ((v - minG) / range) * CH;
-              return (
-                <g key={v}>
-                  <line x1={PX - 6} y1={y} x2={containerW - PX + 6} y2={y}
-                    stroke="var(--border)" strokeOpacity={0.25} strokeDasharray="4 5" strokeWidth={0.8} />
-                  <text x={PX - 10} y={y + 4} textAnchor="end" fontSize={10}
-                    fill="var(--muted-foreground)" opacity={0.7} fontFamily="system-ui">{v}</text>
-                </g>
-              );
-            })}
+      {hideGpa ? (
+        <div className="h-[180px] w-full rounded-lg border border-dashed border-border/20 flex flex-col items-center justify-center text-center p-4">
+          <EyeOff className="w-5 h-5 text-muted-foreground/30 mb-2" />
+          <p className="text-xs text-muted-foreground/50">GPA Trend Hidden</p>
+          {toggleHideGpa && (
+            <button
+              type="button"
+              onClick={toggleHideGpa}
+              className="text-[11px] font-medium text-primary hover:underline mt-1 focus:outline-none"
+            >
+              Click to reveal trend
+            </button>
+          )}
+        </div>
+      ) : (
+        <div ref={containerRef} className="w-full">
+          {containerW > 0 && (
+            <svg width={containerW} height={H} className="block overflow-visible">
+              {gridVals.map((v) => {
+                const y = PT + CH - ((v - minG) / range) * CH;
+                return (
+                  <g key={v}>
+                    <line x1={PX - 6} y1={y} x2={containerW - PX + 6} y2={y}
+                      stroke="var(--border)" strokeOpacity={0.25} strokeDasharray="4 5" strokeWidth={0.8} />
+                    <text x={PX - 10} y={y + 4} textAnchor="end" fontSize={10}
+                      fill="var(--muted-foreground)" opacity={0.7} fontFamily="system-ui">{v}</text>
+                  </g>
+                );
+              })}
 
-            {pathD && (
-              <path d={pathD} fill="none" stroke="var(--primary)"
-                strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-            )}
+              {pathD && (
+                <path d={pathD} fill="none" stroke="var(--primary)"
+                  strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+              )}
 
-            {coords.map((c, i) => {
-              const sel = activeIdx === i;
-              return (
-                <g key={c.pt.id} onClick={() => setActiveIdx(i)} style={{ cursor: "pointer" }}>
-                  {sel && <circle cx={c.x} cy={c.y} r={10} fill="var(--primary)" fillOpacity={0.08} />}
-                  <circle cx={c.x} cy={c.y} r={sel ? 4.5 : 3}
-                    fill={sel ? "var(--background)" : "var(--primary)"}
-                    stroke="var(--primary)" strokeWidth={sel ? 2 : 0} />
-                  <text x={c.x} y={c.y - 11} textAnchor="middle" fontSize={11}
-                    fontWeight={sel ? 700 : 500} fill="var(--foreground)"
-                    opacity={sel ? 1 : 0.75} fontFamily="system-ui">
-                    {c.pt.gpa.toFixed(2)}
-                  </text>
-                  <text x={c.x} y={H - 6} textAnchor="middle" fontSize={10}
-                    fontWeight={sel ? 600 : 400}
-                    fill={sel ? "var(--primary)" : "var(--muted-foreground)"}
-                    opacity={sel ? 0.9 : 0.65} fontFamily="system-ui">
-                    {c.pt.name.replace(/semester/gi, "").replace(/20\d\d/g, "").trim() || c.pt.name}
-                  </text>
-                </g>
-              );
-            })}
-          </svg>
-        )}
-      </div>
+              {coords.map((c, i) => {
+                const sel = activeIdx === i;
+                return (
+                  <g key={c.pt.id} onClick={() => setActiveIdx(i)} style={{ cursor: "pointer" }}>
+                    {sel && <circle cx={c.x} cy={c.y} r={10} fill="var(--primary)" fillOpacity={0.08} />}
+                    <circle cx={c.x} cy={c.y} r={sel ? 4.5 : 3}
+                      fill={sel ? "var(--background)" : "var(--primary)"}
+                      stroke="var(--primary)" strokeWidth={sel ? 2 : 0} />
+                    <text x={c.x} y={c.y - 11} textAnchor="middle" fontSize={11}
+                      fontWeight={sel ? 700 : 500} fill="var(--foreground)"
+                      opacity={sel ? 1 : 0.75} fontFamily="system-ui">
+                      {c.pt.gpa.toFixed(2)}
+                    </text>
+                    <text x={c.x} y={H - 6} textAnchor="middle" fontSize={10}
+                      fontWeight={sel ? 600 : 400}
+                      fill={sel ? "var(--primary)" : "var(--muted-foreground)"}
+                      opacity={sel ? 0.9 : 0.65} fontFamily="system-ui">
+                      {c.pt.name.replace(/semester/gi, "").replace(/20\d\d/g, "").trim() || c.pt.name}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -251,19 +295,41 @@ function DashboardSkeleton() {
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_260px] items-start">
         <div className="pr-0 xl:pr-12 space-y-8 sm:space-y-10">
-          <div className="space-y-5">
-            <Sk className="h-3 w-20" />
-            <Sk className="h-14 sm:h-20 w-40 sm:w-52" />
-            <div className="space-y-2 max-w-xl">
-              <div className="flex justify-between"><Sk className="h-3 w-24" /><Sk className="h-3 w-20" /></div>
-              <Sk className="h-px w-full" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 xl:gap-12">
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <Sk className="h-3 w-24" />
+                <Sk className="h-12 sm:h-16 w-36 sm:w-44" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between"><Sk className="h-3 w-24" /><Sk className="h-3 w-20" /></div>
+                <Sk className="h-px w-full" />
+              </div>
+              <div className="grid grid-cols-3 pt-4 sm:pt-5 border-t border-border/10 gap-2">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="space-y-1.5">
+                    <Sk className="h-2.5 w-12" /><Sk className="h-6 w-8" /><Sk className="h-2.5 w-10" />
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="grid grid-cols-3 max-w-xl pt-5 border-t border-border/10">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="space-y-1.5">
-                  <Sk className="h-2.5 w-14" /><Sk className="h-7 w-10" /><Sk className="h-2.5 w-12" />
-                </div>
-              ))}
+
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <Sk className="h-3 w-24" />
+                <Sk className="h-12 sm:h-16 w-36 sm:w-44" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between"><Sk className="h-3 w-24" /><Sk className="h-3 w-20" /></div>
+                <Sk className="h-px w-full" />
+              </div>
+              <div className="grid grid-cols-3 pt-4 sm:pt-5 border-t border-border/10 gap-2">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="space-y-1.5">
+                    <Sk className="h-2.5 w-12" /><Sk className="h-6 w-8" /><Sk className="h-2.5 w-10" />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
           <div className="space-y-4 border-t border-border/10 pt-6 sm:pt-8">
@@ -292,12 +358,22 @@ function DashboardSkeleton() {
 
 export default function DashboardHomePage() {
   const { isLoggedIn, loading: authLoading } = useAuth();
+  const {
+    hideCgpa,
+    hideAttendance,
+    hideGpa,
+    toggleHideCgpa,
+    toggleHideAttendance,
+    toggleHideGpa,
+  } = usePrivacySettings();
 
   const { data: combinedData, loading, error, retry: loadData } = useOfflineData<{
     cgpaData: CgpaData | null;
     feedbackData: FeedbackStatus[] | null;
     profile: ProfileData | null;
     gpaTrend: GpaTrendPoint[];
+    attendanceData: AttendanceRecord[] | null;
+    odDetails: StudentOdDetails | null;
   }>({
     cacheKey: "deskly::cache::dashboard",
     fetcher: async () => {
@@ -306,6 +382,25 @@ export default function DashboardHomePage() {
       const cgpaRes = await getCgpaPage().catch((e) => ({ success: false, error: String(e), cgpaData: undefined }));
       const feedbackRes = await getFeedbackStatus().catch((e) => ({ success: false, error: String(e), data: undefined }));
       const gradeRes = await getStudentGradeView().catch(() => null);
+      const attendanceRes = await getCurrentAttendance().catch(() => null);
+      const odRes = await getStudentOdDetails().catch(() => null);
+
+      if (attendanceRes?.success && attendanceRes.data) {
+        try {
+          localStorage.setItem("deskly::cache::attendance", JSON.stringify(attendanceRes.data));
+          if (attendanceRes.semesterId) {
+            localStorage.setItem("deskly::cache::attendance_semester", attendanceRes.semesterId);
+          }
+        } catch {
+          // ignore cache errors
+        }
+      }
+
+      if (odRes?.success && odRes.data) {
+        try {
+          localStorage.setItem("deskly::cache::od", JSON.stringify(odRes.data));
+        } catch {}
+      }
 
       let gpaTrend: GpaTrendPoint[] = [];
       if (gradeRes?.success && gradeRes.data) {
@@ -329,6 +424,8 @@ export default function DashboardHomePage() {
         feedbackData: feedbackRes.success && feedbackRes.data ? feedbackRes.data : null,
         profile: profileRes?.success && profileRes.data ? profileRes.data : null,
         gpaTrend,
+        attendanceData: attendanceRes?.success && attendanceRes.data ? attendanceRes.data : null,
+        odDetails: odRes?.success && odRes.data ? odRes.data : null,
       };
 
       // Only fail the entire screen if ALL critical fetches failed
@@ -344,6 +441,50 @@ export default function DashboardHomePage() {
   const feedbackData = combinedData?.feedbackData ?? null;
   const profile = combinedData?.profile ?? null;
   const gpaTrend = combinedData?.gpaTrend ?? [];
+
+  const attendanceData = useMemo(() => {
+    if (combinedData?.attendanceData && combinedData.attendanceData.length > 0) {
+      return combinedData.attendanceData;
+    }
+    try {
+      const cached = localStorage.getItem("deskly::cache::attendance");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return null;
+  }, [combinedData?.attendanceData]);
+
+  const attendanceStats = useMemo(() => {
+    if (!attendanceData || attendanceData.length === 0) return null;
+    let totalAttended = 0;
+    let totalClasses = 0;
+    for (const item of attendanceData) {
+      totalAttended += item.attendedClasses ?? 0;
+      totalClasses += item.totalClasses ?? 0;
+    }
+    const percentage = totalClasses > 0 ? (totalAttended / totalClasses) * 100 : 0;
+    const formattedPct = percentage.toFixed(1);
+    return {
+      percentage,
+      formattedPct,
+      totalAttended,
+      totalClasses,
+      totalCourses: attendanceData.length,
+    };
+  }, [attendanceData]);
+
+  const odDetails = useMemo(() => {
+    if (combinedData?.odDetails) {
+      return combinedData.odDetails;
+    }
+    try {
+      const cached = localStorage.getItem("deskly::cache::od");
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return null;
+  }, [combinedData?.odDetails]);
 
   const formattedDate = useMemo(
     () => new Date().toLocaleDateString("default", { weekday: "long", month: "long", day: "numeric", year: "numeric" }),
@@ -400,65 +541,158 @@ export default function DashboardHomePage() {
         {/* Left column */}
         <div className="pr-0 xl:pr-12 space-y-8 sm:space-y-10 min-w-0">
 
-          {/* CGPA */}
-          {cgpaData && (
-            <div className="space-y-5 sm:space-y-6">
-
-              {/* Number */}
-              <div>
-                <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/35 mb-2 sm:mb-3">
-                  Cumulative GPA
-                </p>
-                <div className="flex items-baseline gap-3 sm:gap-4 flex-wrap">
-                  <span className="text-6xl sm:text-7xl lg:text-8xl font-bold tracking-tighter text-foreground leading-none">
-                    {cgpaData.currentCgpa.toFixed(2)}
-                  </span>
-                  <span className="text-base sm:text-lg font-medium text-muted-foreground/40">/ 10.00</span>
-                </div>
-              </div>
-
-              {/* Progress */}
-              <div className="space-y-2 max-w-xl">
-                <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/35">
-                    Degree Progress
-                  </span>
-                  <span className="text-xs sm:text-sm font-semibold text-foreground/70">
-                    {cgpaData.earnedCredits} / {cgpaData.totalCreditsRequired} cr
-                    <span className="text-muted-foreground/40 ml-1">({progressPct.toFixed(0)}%)</span>
-                  </span>
-                </div>
-                <div className="relative w-full h-px bg-border/40 overflow-hidden rounded-full">
-                  <div
-                    className="absolute inset-y-0 left-0 bg-foreground/40 rounded-full transition-all duration-700"
-                    style={{ width: `${progressPct}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* 3 stats */}
-              <div className="grid grid-cols-3 max-w-xl border-t border-border/10 pt-5 sm:pt-6">
-                {[
-                  { label: "Earned", value: cgpaData.earnedCredits, sub: "credits" },
-                  { label: "Required", value: cgpaData.totalCreditsRequired, sub: "for degree" },
-                  { label: "Non-graded", value: cgpaData.nonGradedCore, sub: "core" },
-                ].map((s) => (
-                  <div key={s.label} className="space-y-0.5 sm:space-y-1">
-                    <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/30">
-                      {s.label}
-                    </p>
-                    <p className="text-2xl sm:text-3xl font-bold text-foreground leading-none">{s.value}</p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground/40">{s.sub}</p>
+          {/* Academic Overview: CGPA & Attendance */}
+          {(cgpaData || attendanceStats) && (
+            <div className={`grid grid-cols-1 ${attendanceStats ? "md:grid-cols-2 gap-8 xl:gap-12" : "max-w-xl gap-8"}`}>
+              {/* CGPA */}
+              {cgpaData && (
+                <div className="space-y-5 sm:space-y-6">
+                  {/* Number */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                      <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/35">
+                        Cumulative GPA
+                      </p>
+                      <button
+                        type="button"
+                        onClick={toggleHideCgpa}
+                        className="p-0.5 text-muted-foreground/35 hover:text-foreground transition-colors rounded focus:outline-none"
+                        title={hideCgpa ? "Show CGPA" : "Hide CGPA"}
+                        aria-label="Toggle CGPA privacy"
+                      >
+                        {hideCgpa ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    <div className="flex items-baseline gap-3 sm:gap-4 flex-wrap">
+                      <span className={`text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tighter text-foreground leading-none ${hideCgpa ? "font-mono" : ""}`}>
+                        {hideCgpa ? "••••" : cgpaData.currentCgpa.toFixed(2)}
+                      </span>
+                      <span className="text-base sm:text-lg font-medium text-muted-foreground/40">/ 10.00</span>
+                    </div>
                   </div>
-                ))}
-              </div>
+
+                  {/* Progress */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/35">
+                        Degree Progress
+                      </span>
+                      <span className="text-xs sm:text-sm font-semibold text-foreground/70">
+                        {cgpaData.earnedCredits} / {cgpaData.totalCreditsRequired} cr
+                        <span className="text-muted-foreground/40 ml-1">({progressPct.toFixed(0)}%)</span>
+                      </span>
+                    </div>
+                    <div className="relative w-full h-px bg-border/40 overflow-hidden rounded-full">
+                      <div
+                        className="absolute inset-y-0 left-0 bg-foreground/40 rounded-full transition-all duration-700"
+                        style={{ width: `${progressPct}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 3 stats */}
+                  <div className="grid grid-cols-3 border-t border-border/10 pt-5 sm:pt-6">
+                    {[
+                      { label: "Earned", value: cgpaData.earnedCredits, sub: "credits" },
+                      { label: "Required", value: cgpaData.totalCreditsRequired, sub: "for degree" },
+                      { label: "Non-graded", value: cgpaData.nonGradedCore, sub: "core" },
+                    ].map((s) => (
+                      <div key={s.label} className="space-y-0.5 sm:space-y-1">
+                        <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/30">
+                          {s.label}
+                        </p>
+                        <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground leading-none">{s.value}</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground/40">{s.sub}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Attendance */}
+              {attendanceStats && (
+                <div className="space-y-5 sm:space-y-6">
+                  {/* Number */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                      <Link
+                        to="/dashboard/attendance"
+                        className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/35 hover:text-foreground transition-colors"
+                      >
+                        Avg Attendance
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={toggleHideAttendance}
+                        className="p-0.5 text-muted-foreground/35 hover:text-foreground transition-colors rounded focus:outline-none"
+                        title={hideAttendance ? "Show Attendance" : "Hide Attendance"}
+                        aria-label="Toggle attendance privacy"
+                      >
+                        {hideAttendance ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    <div className="flex items-baseline gap-3 sm:gap-4 flex-wrap">
+                      <span className={`text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tighter text-foreground leading-none ${hideAttendance ? "font-mono" : ""}`}>
+                        {hideAttendance ? "••••" : `${attendanceStats.formattedPct}%`}
+                      </span>
+                      <span className="text-base sm:text-lg font-medium text-muted-foreground/40">
+                        {hideAttendance ? "" : `${attendanceStats.totalAttended}/${attendanceStats.totalClasses} classes`}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Progress */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/35">
+                        Attendance Standing
+                      </span>
+                      <span className="text-xs sm:text-sm font-semibold text-foreground/70">
+                        {hideAttendance ? "••••" : `${attendanceStats.percentage.toFixed(0)}% Overall`}
+                        <span className="text-muted-foreground/40 ml-1">
+                          {hideAttendance ? "" : attendanceStats.percentage >= 75 ? "(Target met)" : "(Shortage)"}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="relative w-full h-px bg-border/40 overflow-hidden rounded-full">
+                      <div
+                        className="absolute inset-y-0 left-0 bg-foreground/40 rounded-full transition-all duration-700"
+                        style={{ width: `${Math.min(100, attendanceStats.percentage)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 3 stats */}
+                  <div className="grid grid-cols-3 border-t border-border/10 pt-5 sm:pt-6">
+                    {[
+                      { label: "Attended", value: hideAttendance ? "••••" : attendanceStats.totalAttended, sub: "classes" },
+                      { label: "Conducted", value: hideAttendance ? "••••" : attendanceStats.totalClasses, sub: "total" },
+                      { label: "Courses", value: attendanceStats.totalCourses, sub: "enrolled" },
+                    ].map((s) => (
+                      <div key={s.label} className="space-y-0.5 sm:space-y-1">
+                        <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/30">
+                          {s.label}
+                        </p>
+                        <p className={`text-xl sm:text-2xl lg:text-3xl font-bold text-foreground leading-none ${hideAttendance && s.label !== "Courses" ? "font-mono" : ""}`}>
+                          {s.value}
+                        </p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground/40">{s.sub}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {/* GPA Graph */}
           {gpaTrend.length > 0 && (
             <div className="border-t border-border/10 pt-6 sm:pt-8 min-w-0">
-              <GpaTrendGraph points={gpaTrend} />
+              <GpaTrendGraph
+                points={gpaTrend}
+                hideGpa={hideGpa}
+                toggleHideGpa={toggleHideGpa}
+              />
             </div>
           )}
         </div>
@@ -497,6 +731,43 @@ export default function DashboardHomePage() {
               })}
             </nav>
           </div>
+
+          {/* On Duty (OD) Quick Highlight */}
+          {odDetails && (
+            <div className="space-y-2 xl:pt-4 xl:border-t xl:border-border/10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Award className="w-3.5 h-3.5 text-primary shrink-0" />
+                  <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/35">
+                    On Duty (OD)
+                  </p>
+                </div>
+                <Link
+                  to="/dashboard/od"
+                  className="text-[10px] font-bold text-primary hover:underline uppercase tracking-wider"
+                >
+                  View
+                </Link>
+              </div>
+
+              <Link
+                to="/dashboard/od"
+                className="group block p-3.5 rounded-lg border border-border/10 bg-muted/10 hover:border-border/30 hover:bg-muted/20 transition-all space-y-1.5"
+              >
+                <div className="flex items-baseline justify-between">
+                  <span className="text-xl sm:text-2xl font-bold text-foreground">
+                    {odDetails.totalCount}
+                  </span>
+                  <span className="text-xs text-muted-foreground/50">
+                    {odDetails.records.length} events
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted-foreground/40 leading-tight">
+                  Approved attendance compensation hours/slots
+                </p>
+              </Link>
+            </div>
+          )}
 
           {/* Feedback */}
           {feedbackData && feedbackData.length > 0 && (

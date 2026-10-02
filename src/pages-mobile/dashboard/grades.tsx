@@ -611,13 +611,13 @@ export default function GradesPage() {
               <h3 className="text-xs font-bold text-primary uppercase tracking-widest leading-none">
                 Grade Distribution
               </h3>
-              <div className="bg-card/80 border border-border/40 p-5 rounded-xl shadow-sm backdrop-blur-md">
+              <div className="bg-card/80 border border-border/40 p-5 rounded-none shadow-sm backdrop-blur-md">
                 <div className="grid grid-cols-3 gap-3">
                   {["S", "A", "B", "C", "D", "E", "F", "P", "N"].map((label) => {
                     const count = gradeCounts[label] ?? 0;
                     const pct = totalSubjects > 0 ? (count / totalSubjects) * 100 : 0;
                     return (
-                      <div key={label} className="bg-muted/15 border border-border/15 rounded-xl p-3 flex flex-col justify-between gap-2 relative overflow-hidden">
+                      <div key={label} className="bg-muted/15 border border-border/15 rounded-none p-3 flex flex-col justify-between gap-2 relative overflow-hidden">
                         <div 
                           className="absolute bottom-0 left-0 h-0.5 bg-primary/30 transition-all duration-500" 
                           style={{ width: `${pct}%` }} 

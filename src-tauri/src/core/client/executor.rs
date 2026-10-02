@@ -234,8 +234,18 @@ impl<'a, E: VtopExecutor> AutoReloginRetryDecorator<'a, E> {
         let result = self.inner.execute(&initial_req).await;
 
         let needs_retry = match &result {
-            Err(BackendError::SessionExpired(_)) => true,
-            Ok(VtopResponse::Text(html)) => VtopPayloadAdapter::is_session_expired(html),
+            Err(BackendError::SessionExpired(msg)) => {
+                eprintln!("[decorator] SessionExpired err: {}", msg);
+                true
+            }
+            Ok(VtopResponse::Text(html)) => {
+                let expired = VtopPayloadAdapter::is_session_expired(html);
+                if expired {
+                    let preview = if html.len() > 300 { &html[..300] } else { html };
+                    eprintln!("[decorator] is_session_expired=true! HTML preview: {}", preview.replace('\n', " "));
+                }
+                expired
+            }
             _ => false,
         };
 

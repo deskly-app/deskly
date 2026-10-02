@@ -24,6 +24,14 @@
           }
           document.documentElement.classList.remove('light', 'dark');
           document.documentElement.classList.add(theme);
+
+          // Disable browser context menu and Ctrl+scroll zoom
+          document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+          }, true);
+          document.addEventListener('wheel', function(e) {
+            if (e.ctrlKey) { e.preventDefault(); }
+          }, { passive: false, capture: true });
         } catch (e) {}
       })();
     </script>
