@@ -106,7 +106,7 @@ export default function Home() {
         >
           {/* Logo & Header */}
           <div className="space-y-4 sm:space-y-6 flex flex-col items-center sm:items-start text-center sm:text-left">
-            <img src="/logo.png" className="w-10 h-10 sm:w-12 sm:h-12 object-contain" alt="Deskly Logo" />
+            <img src="/logo.webp" className="w-10 h-10 sm:w-12 sm:h-12 object-contain" alt="Deskly Logo" />
             <div className="space-y-2 sm:space-y-2.5">
               <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-foreground leading-tight">
                 Sign In

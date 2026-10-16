@@ -22,7 +22,7 @@ import { OfflineDisplay } from "@/components/offline-display";
 import { isNetworkError } from "@/lib/utils";
 import { useOfflineData } from "@/hooks/use-offline-data";
 import { usePrivacySettings } from "@/hooks/use-privacy-settings";
-import dashboardImg from "@/assets/dashboard.png";
+import dashboardImg from "@/assets/dashboard.webp";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

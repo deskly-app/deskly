@@ -9,7 +9,7 @@ import { useOnlineStatus } from "@/hooks/use-online-status";
 import { OfflineDisplay } from "@/components/offline-display";
 import { isNetworkError } from "@/lib/utils";
 import { useOfflineData } from "@/hooks/use-offline-data";
-import courseImg from "@/assets/course.png";
+import courseImg from "@/assets/course.webp";
 import {
   Layers,
   Monitor,

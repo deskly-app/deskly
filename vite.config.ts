@@ -79,6 +79,35 @@ export default defineConfig(async () => ({
     },
   },
 
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("recharts") || id.includes("d3-") || id.includes("victory-vendor")) {
+              return "vendor-charts";
+            }
+            if (id.includes("lucide-react") || id.includes("@phosphor-icons")) {
+              return "vendor-icons";
+            }
+            if (id.includes("framer-motion") || id.includes("motion-dom") || id.includes("motion-utils")) {
+              return "vendor-motion";
+            }
+            if (id.includes("date-fns") || id.includes("react-day-picker")) {
+              return "vendor-date";
+            }
+            if (id.includes("@radix-ui") || id.includes("@base-ui")) {
+              return "vendor-ui";
+            }
+            if (id.includes("react") || id.includes("react-dom") || id.includes("react-router")) {
+              return "vendor-react";
+            }
+          }
+        },
+      },
+    },
+    chunkSizeWarningLimit: 800,
+  },
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent Vite from obscuring rust errors

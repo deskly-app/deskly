@@ -13,7 +13,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import loginImg from "@/assets/login_image.png";
+import loginImg from "@/assets/login_image.webp";
 
 export default function MobileHome() {
   const navigate = useNavigate();

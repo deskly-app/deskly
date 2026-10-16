@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { generateExamGroupIcs } from "@/lib/calendar-export-utils";
-import examsImg from "@/assets/exams.png";
+import examsImg from "@/assets/exams.webp";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

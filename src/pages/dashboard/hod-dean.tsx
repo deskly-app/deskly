@@ -6,7 +6,7 @@ import { useOfflineData } from "@/hooks/use-offline-data";
 import { ErrorDisplay } from "@/components/error-display";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { OfflineDisplay } from "@/components/offline-display";
-import profileImg from "@/assets/profile.png";
+import profileImg from "@/assets/profile.webp";
 import { Mail, MapPin, Phone, Building, Users } from "lucide-react";
 
 function getSrcFromPhoto(photo: string): string {

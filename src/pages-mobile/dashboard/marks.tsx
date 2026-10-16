@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { getMarks, StudentMarkEntry } from "@/lib/features";
-import marksImg from "@/assets/marks.png";
+import marksImg from "@/assets/marks.webp";
 import { Target, BookOpen } from "lucide-react";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { OfflineDisplay } from "@/components/offline-display";

@@ -28,7 +28,7 @@ import {
   X,
   Loader2,
 } from "lucide-react";
-import curriculumImg from "@/assets/curriculum.png";
+import curriculumImg from "@/assets/curriculum.webp";
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
