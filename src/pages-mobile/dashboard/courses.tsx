@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getTimetableCourses, TimetableCourse } from "@/lib/features";
-import { Separator } from "@/components/ui/separator";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 
 import { ErrorDisplay } from "@/components/error-display";
@@ -35,115 +34,84 @@ function CourseDetailDrawer({
 }) {
   if (!item) return null;
 
-  const displayType = item.courseType.toLowerCase().includes("lab") ? "Lab Only" : "Theory Only";
-
   const totalCredits = item.credits?.total ?? 0;
-  const headerMeta = [
-    item.code,
-    `${totalCredits} ${totalCredits === 1 ? "Credit" : "Credits"}`,
-    displayType,
-    item.category ? item.category : null,
-    item.status ? item.status : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+
+  const scheduleRows = [
+    { icon: LayoutGrid, label: "Class Slot", value: item.slot },
+    { icon: MapPin, label: "Classroom Venue", value: item.venue },
+    { icon: FileText, label: "Class ID", value: item.classId },
+    { icon: Monitor, label: "Class Group", value: item.classGroup },
+  ].filter((r) => r.value);
+
+  const academicRows = [
+    { label: "Course Code", value: item.code },
+    { label: "Course Type", value: item.courseType },
+    { label: "Category", value: item.category },
+    { label: "Status", value: item.status },
+    { label: "Registration Option", value: item.registrationOption },
+    { label: "Registration Date", value: item.registrationDate },
+  ].filter((r) => r.value);
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="pb-[calc(1.5rem+env(safe-area-inset-bottom))] max-h-[92vh] bg-background border-t border-border/10 rounded-t-[32px] flex flex-col">
-        <div className="overflow-y-auto no-scrollbar px-6 space-y-6 pt-6 flex-1">
-          
+        <div className="overflow-y-auto no-scrollbar px-6 space-y-6 pt-5 flex-1">
           {/* Header Row */}
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 min-w-0 space-y-1.5">
-              <div className="text-xs text-muted-foreground/60 font-semibold leading-relaxed uppercase break-words">
-                {headerMeta}
+          <div className="flex items-start justify-between gap-4 pb-4 border-b border-border/10">
+            <div className="flex-1 min-w-0 space-y-2">
+              <div className="flex flex-wrap items-center gap-2 text-xs leading-none">
+                <span className="font-mono text-xs font-bold text-primary uppercase tracking-wider">
+                  {item.code}
+                </span>
+                {item.courseType && (
+                  <>
+                    <span className="w-1 h-1 rounded-full bg-border/60 shrink-0" />
+                    <span className="text-xs font-semibold text-muted-foreground/60 uppercase">
+                      {item.courseType}
+                    </span>
+                  </>
+                )}
+                <span className="w-1 h-1 rounded-full bg-border/60 shrink-0" />
+                <span className="text-xs font-bold text-muted-foreground/80 font-mono">
+                  {totalCredits} {totalCredits === 1 ? "Credit" : "Credits"}
+                </span>
               </div>
-              <h2 className="text-xl font-extrabold text-foreground leading-snug tracking-tight break-words">
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground leading-snug tracking-tight break-words [overflow-wrap:anywhere]">
                 {item.title}
               </h2>
             </div>
-            
+
             {/* Close Button */}
             <button
               onClick={() => onOpenChange(false)}
-              className="p-2 rounded-full bg-muted/40 hover:bg-muted/60 text-muted-foreground hover:text-foreground active:opacity-75 transition-all border-none cursor-pointer shrink-0"
+              className="p-2 rounded-full bg-muted/20 hover:bg-muted/40 text-muted-foreground hover:text-foreground active:opacity-75 transition-colors border-none cursor-pointer shrink-0 mt-0.5"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          <Separator className="bg-border/10" />
-
-          {/* 1. Core Scheduling Information Box (2x2 Grid) */}
-          <div className="grid grid-cols-2 gap-y-5 gap-x-4 py-1">
-            {/* Slot */}
-            <div className="space-y-1">
-              <span className="text-[10px] font-bold text-muted-foreground/45 uppercase tracking-widest leading-none block">
-                Class Slot
-              </span>
-              <div className="flex items-center gap-2 pt-0.5">
-                <LayoutGrid className="w-4 h-4 text-primary shrink-0" />
-                <span className="text-sm font-semibold text-foreground">{item.slot || "—"}</span>
-              </div>
-            </div>
-
-            {/* Venue */}
-            <div className="space-y-1">
-              <span className="text-[10px] font-bold text-muted-foreground/45 uppercase tracking-widest leading-none block">
-                Classroom Venue
-              </span>
-              <div className="flex items-center gap-2 pt-0.5">
-                <MapPin className="w-4 h-4 text-primary shrink-0" />
-                <span className="text-sm font-semibold text-foreground truncate">{item.venue || "—"}</span>
-              </div>
-            </div>
-
-            {/* Class ID */}
-            <div className="space-y-1">
-              <span className="text-[10px] font-bold text-muted-foreground/45 uppercase tracking-widest leading-none block">
-                Class ID
-              </span>
-              <div className="flex items-center gap-2 pt-0.5">
-                <FileText className="w-4 h-4 text-primary shrink-0" />
-                <span className="text-sm font-semibold text-foreground truncate">{item.classId || "—"}</span>
-              </div>
-            </div>
-
-            {/* Class Group */}
-            <div className="space-y-1">
-              <span className="text-[10px] font-bold text-muted-foreground/45 uppercase tracking-widest leading-none block">
-                Group
-              </span>
-              <div className="flex items-center gap-2 pt-0.5">
-                <Monitor className="w-4 h-4 text-primary shrink-0" />
-                <span className="text-sm font-semibold text-foreground">{item.classGroup || "—"}</span>
-              </div>
-            </div>
-          </div>
-
-          <Separator className="bg-border/10" />
-
-          {/* 2. Credit Breakdown Widget */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between pl-1">
-              <h3 className="text-[10px] font-bold tracking-widest text-muted-foreground/50 uppercase leading-none">
+          {/* Credit Breakdown Section */}
+          <div className="py-4 border-b border-border/10 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold tracking-widest text-muted-foreground/50 uppercase leading-none">
                 Credit Breakdown
-              </h3>
-              <span className="text-xs font-bold text-primary uppercase tracking-wider leading-none">
-                {totalCredits} Credits
+              </span>
+              <span className="text-xs font-bold text-primary uppercase font-mono tracking-wider leading-none">
+                {totalCredits} Total
               </span>
             </div>
-            <div className="grid grid-cols-4 divide-x divide-border/10 text-center py-2 bg-muted/10 rounded-lg border border-border/5">
+            <div className="grid grid-cols-4 divide-x divide-border/10 text-center py-2">
               {[
-                { label: "Lecture (L)", val: item.credits?.lecture ?? 0 },
-                { label: "Tutorial (T)", val: item.credits?.tutorial ?? 0 },
-                { label: "Practical (P)", val: item.credits?.practical ?? 0 },
-                { label: "Project (J)", val: item.credits?.project ?? 0 },
+                { label: "Lecture", val: item.credits?.lecture ?? 0 },
+                { label: "Tutorial", val: item.credits?.tutorial ?? 0 },
+                { label: "Practical", val: item.credits?.practical ?? 0 },
+                { label: "Project", val: item.credits?.project ?? 0 },
               ].map(({ label, val }) => (
-                <div key={label} className="space-y-1">
-                  <p className="text-lg font-black text-foreground">{val}</p>
-                  <p className="text-[10px] font-bold text-muted-foreground/45 uppercase tracking-wider leading-none">
+                <div key={label} className="space-y-1 px-1">
+                  <p className="text-xl font-black text-foreground tabular-nums leading-none">
+                    {val}
+                  </p>
+                  <p className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-wider leading-none">
                     {label.split(" ")[0]}
                   </p>
                 </div>
@@ -151,55 +119,81 @@ function CourseDetailDrawer({
             </div>
           </div>
 
-          {/* 3. Registration Details */}
-          {(item.registrationOption || item.registrationDate) && (
-            <>
-              <Separator className="bg-border/10" />
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-muted-foreground/45 uppercase tracking-widest leading-none block">
-                    Registration Option
-                  </span>
-                  <span className="text-sm font-semibold text-foreground block pt-0.5">{item.registrationOption || "—"}</span>
-                </div>
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-muted-foreground/45 uppercase tracking-widest leading-none block">
-                    Registration Date
-                  </span>
-                  <span className="text-sm font-semibold text-foreground block pt-0.5">{item.registrationDate || "—"}</span>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* 4. Faculty Details */}
-          {(item.faculty?.name || item.faculty?.school) && (
-            <>
-              <Separator className="bg-border/10" />
-              <div className="space-y-3">
-                <h3 className="text-[10px] font-bold tracking-widest text-muted-foreground/50 uppercase leading-none pl-1">
-                  Faculty Instructor
-                </h3>
-                
-                <div className="flex items-center gap-3 py-1">
-                  <User className="w-5 h-5 text-primary shrink-0" />
-                  
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    <h4 className="text-sm font-bold text-foreground truncate leading-none">
-                      {item.faculty?.name || "—"}
-                    </h4>
-                    {item.faculty?.school && (
-                      <div className="flex items-center gap-1.5 leading-none">
-                        <School className="w-3.5 h-3.5 text-muted-foreground/45 shrink-0" />
-                        <span className="text-xs text-muted-foreground/75 truncate">{item.faculty.school}</span>
-                      </div>
-                    )}
+          {/* Schedule & Classroom Details */}
+          {scheduleRows.length > 0 && (
+            <div className="py-4 border-b border-border/10 space-y-2">
+              <span className="text-xs font-bold tracking-widest text-muted-foreground/50 uppercase leading-none block">
+                Schedule & Venue
+              </span>
+              <div className="divide-y divide-border/10">
+                {scheduleRows.map(({ icon: Icon, label, value }) => (
+                  <div
+                    key={label}
+                    className="flex flex-col min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between gap-1 min-[380px]:gap-4 py-3"
+                  >
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Icon className="w-4 h-4 text-primary shrink-0" />
+                      <span className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wide leading-none">
+                        {label}
+                      </span>
+                    </div>
+                    <span className="text-sm font-semibold text-foreground min-[380px]:text-right break-words [overflow-wrap:anywhere] min-w-0">
+                      {value}
+                    </span>
                   </div>
-                </div>
+                ))}
               </div>
-            </>
+            </div>
           )}
 
+          {/* Faculty Instructor */}
+          {(item.faculty?.name || item.faculty?.school) && (
+            <div className="py-4 border-b border-border/10 space-y-2">
+              <span className="text-xs font-bold tracking-widest text-muted-foreground/50 uppercase leading-none block">
+                Faculty Instructor
+              </span>
+              <div className="flex items-start gap-3 pt-1">
+                <User className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1 space-y-1">
+                  <h4 className="text-sm font-bold text-foreground break-words [overflow-wrap:anywhere] leading-snug">
+                    {item.faculty?.name || "—"}
+                  </h4>
+                  {item.faculty?.school && (
+                    <div className="flex items-center gap-1.5 leading-none pt-0.5">
+                      <School className="w-3.5 h-3.5 text-muted-foreground/45 shrink-0" />
+                      <span className="text-xs text-muted-foreground/75 break-words [overflow-wrap:anywhere]">
+                        {item.faculty.school}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Academic & Registration Information */}
+          {academicRows.length > 0 && (
+            <div className="py-4 space-y-2">
+              <span className="text-xs font-bold tracking-widest text-muted-foreground/50 uppercase leading-none block">
+                Course Details & Registration
+              </span>
+              <div className="divide-y divide-border/10">
+                {academicRows.map(({ label, value }) => (
+                  <div
+                    key={label}
+                    className="flex flex-col min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between gap-1 min-[380px]:gap-4 py-3"
+                  >
+                    <span className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wide leading-none shrink-0">
+                      {label}
+                    </span>
+                    <span className="text-sm font-semibold text-foreground min-[380px]:text-right break-words [overflow-wrap:anywhere] min-w-0">
+                      {value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </DrawerContent>
     </Drawer>
@@ -209,71 +203,52 @@ function CourseDetailDrawer({
 // ─── Course Card Component (Mobile version) ───────────────────────────────────
 function MobileCourseCard({
   item,
-  index,
   onClick,
 }: {
   item: TimetableCourse;
-  index: number;
   onClick: () => void;
 }) {
-  const typeStyle = getCourseTypeStyle(item.courseType);
-  const catStyle = getCategoryStyle(item.category);
+  const credits = item.credits?.total ?? 0;
 
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
-      className="group p-4 bg-muted/5 border border-border/10 rounded-[20px] transition-all duration-200 active:scale-[0.98] active:bg-muted/10 flex items-center justify-between gap-3 cursor-pointer"
+      aria-label={`Open details for ${item.code}: ${item.title}`}
+      className="w-full flex items-center justify-between gap-4 py-4 px-3 text-left border-none bg-transparent hover:bg-muted/5 active:bg-muted/15 rounded-md transition-colors cursor-pointer"
     >
-      <div className="flex-1 min-w-0 space-y-2.5">
-        <div className="flex items-center gap-2 text-[11px] leading-none">
-          <span className="font-black text-muted-foreground/30 tabular-nums">
-            {(index + 1).toString().padStart(2, "0")}
-          </span>
-          <div className="w-1 h-1 rounded-full bg-border/40" />
-          <span className="font-bold text-primary uppercase tracking-widest">
+      {/* Details column */}
+      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+        {/* First line: Course Code & Slot */}
+        <div className="flex items-center gap-2 leading-none flex-wrap">
+          <span className="text-sm font-semibold tracking-wide text-foreground uppercase">
             {item.code}
           </span>
-        </div>
-
-        <h3 className="text-sm font-bold text-foreground leading-snug break-words pr-2">
-          {item.title}
-        </h3>
-
-        <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground/60 uppercase font-bold tracking-widest leading-none">
           {item.slot && (
-            <div className="flex items-center gap-2">
-              <span className="text-foreground/70">{item.slot}</span>
-              <div className="w-0.5 h-0.5 rounded-full bg-border/50" />
-            </div>
-          )}
-          <span>{typeStyle.label}</span>
-          <div className="flex items-center gap-2">
-            <div className="w-0.5 h-0.5 rounded-full bg-border/50" />
-            <span className="text-foreground/70">{item.credits?.total ?? 0} Credits</span>
-          </div>
-          {item.category && (
-            <div className="flex items-center gap-2">
-              <div className="w-0.5 h-0.5 rounded-full bg-border/50" />
-              <span className="truncate max-w-[120px]">{catStyle.label}</span>
-            </div>
+            <span className="text-xs font-semibold text-muted-foreground/60 font-mono leading-none">
+              ({item.slot})
+            </span>
           )}
         </div>
+
+        {/* Second line: Course Title (responsive wrap, never breaks layout) */}
+        <p className="text-xs sm:text-sm font-medium text-muted-foreground break-words [overflow-wrap:anywhere] leading-snug">
+          {item.title}
+        </p>
       </div>
-      
-      <div className="shrink-0 text-muted-foreground/30 group-active:text-foreground/60 transition-colors pr-1">
-        <ChevronRight className="w-5 h-5" />
+
+      {/* Right: Credits & Chevron */}
+      <div className="flex items-center gap-2.5 shrink-0">
+        <span className="text-sm font-semibold text-foreground tabular-nums leading-none">
+          {credits}{" "}
+          <span className="text-xs font-normal text-muted-foreground/50">
+            {credits === 1 ? "Credit" : "Credits"}
+          </span>
+        </span>
+        <ChevronRight className="w-5 h-5 text-muted-foreground/35 shrink-0" />
       </div>
-    </div>
+    </button>
   );
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function getCourseTypeStyle(type: string): { label: string; className: string } {
-  return { label: type.trim(), className: "text-muted-foreground" };
-}
-
-function getCategoryStyle(category: string): { label: string; className: string } {
-  return { label: category.trim(), className: "text-muted-foreground" };
 }
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -297,21 +272,19 @@ function CoursesSkeleton() {
         ))}
       </div>
       <div className="space-y-3">
-        <Sk className="h-10 w-full rounded-md" />
         <div className="grid grid-cols-2 gap-3">
           <Sk className="h-10 rounded-md" />
           <Sk className="h-10 rounded-md" />
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-4">
+      <div className="divide-y divide-border/10">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="p-5 border border-border/10 rounded-xl space-y-4">
-            <div className="flex justify-between">
-              <Sk className="h-4 w-8" />
-              <Sk className="h-4 w-16" />
+          <div key={i} className="flex items-center justify-between gap-4 py-4 px-3">
+            <div className="flex-1 space-y-2">
+              <Sk className="h-4 w-28" />
+              <Sk className="h-3 w-48" />
             </div>
-            <Sk className="h-6 w-3/4" />
-            <Sk className="h-4 w-1/2" />
+            <Sk className="h-4 w-16 shrink-0" />
           </div>
         ))}
       </div>
@@ -420,7 +393,7 @@ export default function CoursesPage() {
       )}
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <header className="relative z-10 flex items-start gap-2 pb-3 border-b border-border/10">
+      <header className="relative z-10 flex items-start gap-2 pb-1">
         <Layers className="w-6 h-6 text-primary shrink-0" />
         <div className="space-y-1 min-w-0">
           <h1 className="text-xl font-bold tracking-tight text-foreground leading-none truncate">
@@ -484,12 +457,11 @@ export default function CoursesPage() {
           <p className="text-xs text-muted-foreground">Try modifying the type or category filters.</p>
         </div>
       ) : (
-        <div className="relative z-10 grid grid-cols-1 gap-4">
+        <div className="relative z-10 flex flex-col divide-y divide-border/10 border-y border-border/10">
           {filteredCourses.map((item, idx) => (
             <MobileCourseCard
               key={`${item.code}-${idx}`}
               item={item}
-              index={idx}
               onClick={() => {
                 setSelectedCourse(item);
                 setDrawerOpen(true);

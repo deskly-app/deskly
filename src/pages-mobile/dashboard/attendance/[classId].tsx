@@ -357,30 +357,30 @@ export default function AttendanceDetailPage() {
             {details.map((row, i) => (
               <div
                 key={`${row.serialNo}-${i}`}
-                className="flex items-center gap-3 py-3 px-1 rounded-md transition-colors hover:bg-muted/5 duration-150"
+                className="grid grid-cols-[1.25rem_minmax(0,1fr)_4rem_max-content] items-center gap-x-3 gap-y-1 py-3 px-1 rounded-md transition-colors hover:bg-muted/5 duration-150"
               >
                 {/* Serial */}
-                <span className="text-xs font-bold text-muted-foreground/35 tabular-nums w-5 shrink-0 leading-none">
+                <span className="text-xs font-bold text-muted-foreground/35 tabular-nums w-5 leading-none">
                   {row.serialNo ?? i + 1}
                 </span>
 
                 {/* Date & Time */}
-                <div className="min-w-0 flex-1 flex flex-col justify-center gap-1.5">
-                  <span className="text-[13px] font-bold text-foreground truncate leading-none">{row.date}</span>
+                <div className="min-w-0 flex flex-col justify-center gap-1">
+                  <span className="text-[13px] font-bold text-foreground break-words [overflow-wrap:anywhere] leading-tight">{row.date}</span>
                   {row.dayAndTime && (
-                    <span className="text-[10px] font-medium text-muted-foreground truncate leading-none">{row.dayAndTime.replace(",", ", ").replace("-", " - ")}</span>
+                    <span className="text-[10px] font-medium text-muted-foreground break-words [overflow-wrap:anywhere] leading-snug">{row.dayAndTime.replace(",", ", ").replace("-", " - ")}</span>
                   )}
                 </div>
 
                 {/* Slot */}
-                <div className="shrink-0 w-14 flex items-center">
-                  <span className="font-mono text-xs font-bold text-foreground/80 leading-none">
+                <div className="w-16 justify-self-center text-center">
+                  <span className="font-mono text-xs font-bold text-foreground/80 leading-none whitespace-nowrap">
                     {row.slot}
                   </span>
                 </div>
 
                 {/* Status badge */}
-                <div className="shrink-0 ml-auto flex items-center">
+                <div className="justify-self-end">
                   <StatusBadge status={row.status} />
                 </div>
               </div>

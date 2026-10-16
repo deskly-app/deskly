@@ -14,6 +14,23 @@ function Sk({ className = "" }: { className?: string }) {
   return <div className={`animate-pulse rounded-lg bg-muted/65 ${className}`} />;
 }
 
+function formatAssessmentTitle(title: string): string {
+  const trimmed = title.trim();
+  // Continuous Assessment Test - I / Continuous Assessment Test - 1 / Continuous Assessment Test I
+  if (/continuous\s+assessment\s+test\s*[-–—:]*\s*(?:i\b|1\b)/i.test(trimmed)) {
+    return "CAT 1";
+  }
+  // Continuous Assessment Test - II / Continuous Assessment Test - 2 / Continuous Assessment Test II
+  if (/continuous\s+assessment\s+test\s*[-–—:]*\s*(?:ii\b|2\b)/i.test(trimmed)) {
+    return "CAT 2";
+  }
+  // Continuous Assessment Test - III / 3
+  if (/continuous\s+assessment\s+test\s*[-–—:]*\s*(?:iii\b|3\b)/i.test(trimmed)) {
+    return "CAT 3";
+  }
+  return trimmed;
+}
+
 function MarksSkeleton() {
   return (
     <div className="w-full space-y-6 px-2 py-4 font-saira">
@@ -256,7 +273,9 @@ export default function MarksPage() {
                             Assessment
                           </span>
                         </div>
-                        <p className="text-sm font-bold text-foreground leading-snug truncate">{ass.markTitle}</p>
+                        <p className="text-sm font-bold text-foreground leading-snug truncate">
+                          {formatAssessmentTitle(ass.markTitle)}
+                        </p>
                       </div>
 
                       {/* Clean Score display */}

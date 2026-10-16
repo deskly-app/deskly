@@ -2,24 +2,41 @@ import { useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getCurrentAttendance, AttendanceRecord } from "@/lib/attendance";
 import { isNetworkError } from "@/lib/utils";
+import { useOfflineData } from "@/hooks/use-offline-data";
 import { ErrorDisplay } from "@/components/error-display";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { OfflineDisplay } from "@/components/offline-display";
+import { Separator } from "@/components/ui/separator";
+import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { Outlet, useMatch, useNavigate } from "react-router-dom";
-import { useOfflineData } from "@/hooks/use-offline-data";
 import {
   UserCheck,
   CalendarDays,
   User,
-  BookOpen,
+  School,
+  Hash,
+  LayoutGrid,
+  Trophy,
   TrendingUp,
+  Clock,
+  GraduationCap,
+  ArrowRight,
   ChevronRight,
-  ShieldCheck,
+  X,
 } from "lucide-react";
+import { DrawerSelect } from "@/components/ui/drawer-select";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+function getPercentageColor(pct: number) {
+  return pct >= 75 ? "text-emerald-500" : "text-destructive";
+}
+
 function getCircleStrokeColor(pct: number) {
   return pct >= 75 ? "stroke-emerald-500" : "stroke-destructive";
+}
+
+function getBarBgColor(pct: number) {
+  return pct >= 75 ? "bg-emerald-500" : "bg-destructive";
 }
 
 function formatCourseType(type: string) {
@@ -27,6 +44,52 @@ function formatCourseType(type: string) {
   if (t.includes("embedded theory") || t.includes("theory")) return "Theory";
   if (t.includes("embedded lab") || t.includes("lab")) return "Lab";
   return type.trim();
+}
+
+// ─── Circular Progress for stats ──────────────────────────────────────────────
+function StatCircularProgress({
+  percentage,
+  size = 56,
+  strokeWidth = 5,
+  icon: Icon,
+}: {
+  percentage: number;
+  size?: number;
+  strokeWidth?: number;
+  icon: React.ElementType;
+}) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (Math.min(percentage, 100) / 100) * circumference;
+
+  return (
+    <div className="relative flex items-center justify-center shrink-0 select-none" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90 block">
+        <circle
+          className="text-muted/20 stroke-current"
+          strokeWidth={strokeWidth}
+          fill="transparent"
+          r={radius}
+          cx={size / 2}
+          cy={size / 2}
+        />
+        <circle
+          className={`${getCircleStrokeColor(percentage)} transition-all duration-700 ease-out`}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          fill="transparent"
+          r={radius}
+          cx={size / 2}
+          cy={size / 2}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center text-primary pointer-events-none">
+        <Icon className="w-5 h-5" />
+      </div>
+    </div>
+  );
 }
 
 // ─── Circular Progress for list rows ──────────────────────────────────────────
@@ -74,7 +137,7 @@ function AttendanceHint({ attended, total, courseType }: { attended: number; tot
 
   if (need > 0) {
     return (
-      <span className="text-xs font-semibold text-destructive whitespace-nowrap">
+      <span className="text-xs font-semibold text-destructive">
         ↑ {need} more {need === 1 ? unit : unitPlural} to reach 75%
       </span>
     );
@@ -84,13 +147,13 @@ function AttendanceHint({ attended, total, courseType }: { attended: number; tot
       ? Math.ceil((3 * total - 4 * attended + 6) / 2)
       : (3 * total - 4 * attended + 3);
     return (
-      <span className="text-xs font-semibold text-emerald-500 whitespace-nowrap">
+      <span className="text-xs font-semibold text-emerald-500">
         Can skip 1 after {nextSkipNeed} {nextSkipNeed === 1 ? unit : unitPlural}
       </span>
     );
   }
   return (
-    <span className="text-xs font-semibold text-emerald-500 whitespace-nowrap">
+    <span className="text-xs font-semibold text-emerald-500">
       ↓ {canSkip} {canSkip === 1 ? unit : unitPlural} can skip
     </span>
   );
@@ -103,7 +166,7 @@ function Sk({ className = "" }: { className?: string }) {
 
 function AttendanceSkeleton() {
   return (
-    <div className="space-y-6 py-4 animate-pulse">
+    <div className="space-y-6 px-2 py-4 animate-pulse">
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
@@ -112,23 +175,18 @@ function AttendanceSkeleton() {
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 py-6 border-y border-border/10">
-        {[...Array(4)].map((_, i) => (
-          <Sk key={i} className="h-16 w-full rounded" />
-        ))}
-      </div>
+      <Sk className="h-28 w-full rounded" />
       <div className="space-y-3 pt-2">
         <Sk className="h-5 w-36" />
         {[...Array(5)].map((_, i) => (
-          <Sk key={i} className="h-16 w-full rounded" />
+          <Sk key={i} className="h-20 w-full rounded" />
         ))}
       </div>
     </div>
   );
 }
 
-// ─── Attendance Row / Card ────────────────────────────────────────────────────
-function AttendanceCard({
+function AttendanceRow({
   item,
   onSelect,
 }: {
@@ -136,50 +194,177 @@ function AttendanceCard({
   onSelect: () => void;
 }) {
   const pct = item.attendancePercentage;
-  const isLab = item.courseType.toLowerCase().includes("lab");
 
   return (
-    <div
+    <button
       onClick={onSelect}
-      className="py-4 px-3 rounded-md transition-colors duration-150 hover:bg-muted/10 cursor-pointer flex items-center justify-between gap-4"
+      className="w-full flex items-center gap-4 py-4 px-3 text-left border-none bg-transparent hover:bg-muted/5 active:bg-muted/15 rounded-md transition-all cursor-pointer"
     >
-      <div className="flex-1 min-w-0 flex items-center gap-4">
-        <ListCircularProgress percentage={pct} size={48} />
+      {/* Left: Circular progress */}
+      <ListCircularProgress percentage={pct} size={48} />
 
-        <div className="flex-1 min-w-0 space-y-1">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60 flex-wrap">
-            <span className="font-bold text-foreground uppercase tracking-wider leading-none">
-              {item.courseCode}
-            </span>
-            <span>·</span>
-            <span className="font-semibold uppercase tracking-wider leading-none text-foreground/80">{item.slot}</span>
-            <span>·</span>
-            <span className="uppercase leading-none">{formatCourseType(item.courseType)}</span>
-          </div>
-          <p className="text-base font-bold text-foreground tracking-tight leading-snug truncate">
-            {item.courseTitle}
-          </p>
-          {item.faculty?.name && (
-            <p className="text-xs text-muted-foreground/50 font-medium truncate flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5 text-muted-foreground/45 shrink-0" />
-              <span>{item.faculty.name}</span>
-            </p>
-          )}
+      {/* Middle: Spacious details column */}
+      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+        {/* First line: Course Code, Slot & Type */}
+        <div className="flex items-center gap-2 leading-none flex-wrap">
+          <span className="text-sm font-semibold tracking-wide text-foreground uppercase">
+            {item.courseCode}
+          </span>
+          <span className="text-xs font-semibold text-muted-foreground/60 font-mono leading-none">
+            ({item.slot})
+          </span>
         </div>
 
-        <div className="shrink-0 flex flex-col items-end gap-1 text-right">
-          <p className="text-sm sm:text-base font-bold text-foreground leading-none tabular-nums">
-            {isLab ? item.attendedClasses / 2 : item.attendedClasses}{" "}
-            <span className="text-muted-foreground/45 text-xs font-normal">
-              / {isLab ? item.totalClasses / 2 : item.totalClasses} {isLab ? "labs" : "classes"}
-            </span>
-          </p>
-          <AttendanceHint attended={item.attendedClasses} total={item.totalClasses} courseType={item.courseType} />
-        </div>
+        {/* Second line: Course Title */}
+        <p className="text-xs text-muted-foreground truncate leading-none">
+          {item.courseTitle}
+        </p>
       </div>
 
-      <ChevronRight className="w-4 h-4 text-muted-foreground/30 shrink-0" />
-    </div>
+      {/* Right: Attendance fraction details & Chevron */}
+      <div className="flex items-center gap-3 shrink-0">
+        <div className="text-right">
+          <p className="text-sm font-semibold text-foreground leading-none tabular-nums">
+            {item.courseType.toLowerCase().includes("lab") ? item.attendedClasses / 2 : item.attendedClasses}{" "}
+            <span className="text-muted-foreground/45 text-xs font-normal">
+              / {item.courseType.toLowerCase().includes("lab") ? item.totalClasses / 2 : item.totalClasses}
+            </span>
+          </p>
+          <div className="w-14 h-1 bg-muted/30 rounded-full overflow-hidden mt-1.5 ml-auto">
+            <div
+              className={`h-full rounded-full ${getBarBgColor(pct)}`}
+              style={{ width: `${Math.min(pct, 100)}%` }}
+            />
+          </div>
+        </div>
+        <ChevronRight className="w-5 h-5 text-muted-foreground/35 shrink-0" />
+      </div>
+    </button>
+  );
+}
+
+// ─── Detail Drawer Component ──────────────────────────────────────────────────
+function AttendanceDrawer({
+  item,
+  open,
+  onOpenChange,
+  onViewDetail,
+}: {
+  item: AttendanceRecord | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onViewDetail: () => void;
+}) {
+  if (!item) return null;
+
+  const pct = item.attendancePercentage;
+  const displayType = formatCourseType(item.courseType);
+
+  const details = [
+    { icon: Hash,          label: "Course Code",   value: item.courseCode },
+    { icon: LayoutGrid,    label: "Slot",          value: item.slot },
+    { icon: GraduationCap, label: "Course Type",   value: item.courseType },
+    { icon: User,          label: "Faculty",       value: item.faculty?.name ?? "—" },
+    { icon: School,        label: "School",        value: item.faculty?.school ?? "—" },
+    { icon: CalendarDays,  label: "Registered On", value: item.registrationDate || "—" },
+    { icon: Clock,         label: "Last Updated",  value: item.attendanceDate || "—" },
+  ];
+
+  return (
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className="pb-8 max-h-[92vh]">
+        <div className="overflow-y-auto no-scrollbar px-6 space-y-6 pt-6">
+          
+          {/* Header Row */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4 flex-1 min-w-0">
+              <ListCircularProgress percentage={pct} size={54} />
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className="flex items-center gap-1.5 leading-none flex-wrap text-xs text-muted-foreground/60">
+                  <span className="font-bold text-foreground uppercase tracking-wider">
+                    {item.courseCode}
+                  </span>
+                  <span>·</span>
+                  <span className="uppercase">
+                    {displayType}
+                  </span>
+                </div>
+                <h2 className="text-lg font-bold text-foreground leading-snug tracking-tight break-words">
+                  {item.courseTitle}
+                </h2>
+              </div>
+            </div>
+            
+            {/* Close Button */}
+            <button
+              onClick={() => onOpenChange(false)}
+              className="p-2 rounded-full bg-muted/40 hover:bg-muted/60 text-muted-foreground hover:text-foreground active:opacity-75 transition-all border-none cursor-pointer shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+  
+          {/* Attendance Status block */}
+          <div className="space-y-3 pt-1">
+            <p className="text-[10px] font-bold text-muted-foreground/45 uppercase tracking-widest leading-none">
+              Attendance Status
+            </p>
+            
+            <div className="flex items-center gap-4">
+              <span className={`text-3xl font-extrabold leading-none ${getPercentageColor(pct)}`}>
+                {pct}%
+              </span>
+              <div className="h-2 flex-1 bg-muted/30 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ${getBarBgColor(pct)}`}
+                  style={{ width: `${Math.min(pct, 100)}%` }}
+                />
+              </div>
+            </div>
+  
+            <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground leading-snug pt-0.5 flex-wrap">
+              <div className="flex-1 min-w-0">
+                <AttendanceHint attended={item.attendedClasses} total={item.totalClasses} courseType={item.courseType} />
+              </div>
+              <span className="font-mono tabular-nums whitespace-nowrap shrink-0 text-right text-muted-foreground/75">
+                {item.courseType.toLowerCase().includes("lab") ? item.attendedClasses / 2 : item.attendedClasses} /{" "}
+                {item.courseType.toLowerCase().includes("lab") ? item.totalClasses / 2 : item.totalClasses}{" "}
+                {item.courseType.toLowerCase().includes("lab") ? "labs" : "classes"}
+              </span>
+            </div>
+  
+            {/* View Full Details button */}
+            <button
+              onClick={onViewDetail}
+              className="w-full flex items-center justify-between mt-3 px-4 py-3 rounded-md bg-muted/10 text-xs font-bold text-foreground hover:bg-muted/15 active:opacity-85 transition-all cursor-pointer border border-border/10"
+            >
+              <span>View Detailed Session Log</span>
+              <ArrowRight className="w-4 h-4 text-primary" />
+            </button>
+          </div>
+  
+          {/* Course Information Details */}
+          <div className="space-y-3 pt-1">
+            <p className="text-[10px] font-bold text-muted-foreground/45 uppercase tracking-widest leading-none">
+              Course Information
+            </p>
+ 
+            <div className="divide-y divide-border/10 border-y border-border/10">
+              {details.map(({ icon: Icon, label, value }) => (
+                <div key={label} className="flex items-start justify-between gap-4 py-3">
+                  <div className="flex items-center gap-2 pt-0.5 shrink-0">
+                    <Icon className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0" />
+                    <span className="text-[10px] font-bold text-muted-foreground/45 uppercase tracking-wider leading-none">{label}</span>
+                  </div>
+                  <span className="text-sm font-semibold text-foreground text-right break-words min-w-0 max-w-[65%]">{value || "—"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+ 
+        </div>
+      </DrawerContent>
+    </Drawer>
   );
 }
 
@@ -190,24 +375,14 @@ export default function AttendancePage() {
   const isDetailRoute = useMatch("/dashboard/attendance/:classId");
   const isOnline = useOnlineStatus();
 
-  const {
-    data: attendanceRaw,
-    loading,
-    error,
-    retry,
-  } = useOfflineData<AttendanceRecord[]>({
+  const { data: rawData, loading, error, retry: load } = useOfflineData<AttendanceRecord[]>({
     cacheKey: "deskly::cache::attendance",
-    fetcher: async () => {
-      const res = await getCurrentAttendance();
-      if (res.success && res.semesterId) {
-        localStorage.setItem("deskly::cache::attendance_semester", res.semesterId);
-      }
-      return res;
-    },
+    fetcher: getCurrentAttendance,
     enabled: isLoggedIn && !authLoading,
   });
+  const attendance = rawData || [];
 
-  const attendance = useMemo(() => attendanceRaw || [], [attendanceRaw]);
+  const [selected, setSelected] = useState<AttendanceRecord | null>(null);
   const [filterType, setFilterType] = useState("all");
 
   const stats = useMemo(() => {
@@ -242,93 +417,92 @@ export default function AttendancePage() {
     return <Outlet />;
   }
 
-  const showOffline = attendance.length === 0 && (isOnline === false || isNetworkError(error, isOnline));
+  const showOffline = !rawData && !loading && (isOnline === false || isNetworkError(error, isOnline));
 
   if (showOffline) {
-    return <OfflineDisplay onRetry={retry} />;
+    return <OfflineDisplay onRetry={load} />;
   }
 
-  if (authLoading || (loading && attendance.length === 0)) {
+  if (authLoading || (loading && !rawData)) {
     return <AttendanceSkeleton />;
   }
 
-  if (error && attendance.length === 0) {
+  if (error && !rawData) {
     return (
       <div className="flex h-full items-center justify-center">
-        <ErrorDisplay message={error} onRetry={retry} />
+        <ErrorDisplay message={error} onRetry={load} />
       </div>
     );
   }
 
   return (
-    <div className="w-full space-y-6 py-4 select-none relative">
+    <div className="w-full space-y-6 px-2 py-4 select-none relative">
+      
       {/* Error banner */}
       {error && !isNetworkError(error, isOnline) && (
         <div className="flex items-center justify-between gap-4 px-4 py-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg">
           <p className="text-xs font-semibold truncate">Sync failed — {error}</p>
-          <button onClick={retry} className="text-xs font-bold uppercase tracking-wider shrink-0 border-0 bg-transparent text-destructive cursor-pointer">
+          <button onClick={load} className="text-xs font-bold uppercase tracking-wider shrink-0 border-0 bg-transparent text-destructive cursor-pointer">
             Retry
           </button>
         </div>
       )}
 
       {/* Header */}
-      <header className="flex items-center gap-2 pb-3 border-b border-border/10">
+      <header className="flex items-center gap-2 pb-1">
         <UserCheck className="w-6 h-6 text-primary shrink-0" />
         <h1 className="text-xl font-bold tracking-tight text-foreground leading-none">
           My Attendance
         </h1>
       </header>
 
-      {/* ── 4 Stats Grid Header (2 rows on mobile/tablet, 4 columns on desktop lg+) ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-y-6 lg:gap-y-0 py-6 border-y border-border/10">
+      {/* Stats Card (Clean borderless overview layout) */}
+      <div className="py-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
         
-        {/* Stat 1: Total Courses */}
-        <div className="flex flex-col gap-1.5 pl-2">
-          <span className="text-2xl font-black text-foreground leading-none">{stats.totalCourses}</span>
-          <div className="flex items-center gap-1.5 text-muted-foreground/50">
-            <BookOpen className="w-3.5 h-3.5 text-primary shrink-0 opacity-60" />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Courses</span>
+        {/* Left Stat - Attendance % */}
+        <div className="flex items-center justify-center gap-3 min-w-0">
+          <StatCircularProgress percentage={stats.overallPercentage} icon={TrendingUp} size={56} strokeWidth={5} />
+          <div className="flex flex-col items-center justify-center text-center min-w-0 flex-1">
+            <div className="flex items-baseline justify-center gap-0.5 min-w-0">
+              <span className="text-2xl font-black tracking-tight text-foreground tabular-nums leading-none">
+                {stats.overallPercentage}
+              </span>
+              <span className="text-sm font-bold text-foreground leading-none">%</span>
+            </div>
+            <span className="text-[10px] font-bold text-muted-foreground/45 uppercase tracking-wider mt-1.5 whitespace-nowrap">
+              Attendance
+            </span>
           </div>
         </div>
 
-        {/* Stat 2: Classes Attended */}
-        <div className="flex flex-col gap-1.5 pl-4 border-l border-border/10">
-          <div className="flex items-baseline gap-1 leading-none">
-            <span className="text-2xl font-black text-foreground leading-none">{stats.totalAttended}</span>
-            <span className="text-[10px] text-muted-foreground/50 font-bold uppercase tracking-wider">/ {stats.totalClasses}</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-muted-foreground/50">
-            <CalendarDays className="w-3.5 h-3.5 text-primary shrink-0 opacity-60" />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Attended</span>
-          </div>
-        </div>
+        {/* Vertical Separator Line */}
+        <Separator orientation="vertical" className="h-10 bg-border/10 shrink-0 self-center" />
 
-        {/* Stat 3: Overall Percentage */}
-        <div className="flex flex-col gap-1.5 pl-2 lg:pl-4 border-t lg:border-t-0 lg:border-l border-border/10 pt-4 lg:pt-0">
-          <span className={`text-2xl font-black leading-none ${stats.overallPercentage >= 75 ? "text-emerald-500" : "text-destructive"}`}>
-            {stats.overallPercentage}%
-          </span>
-          <div className="flex items-center gap-1.5 text-muted-foreground/50">
-            <TrendingUp className={`w-3.5 h-3.5 shrink-0 opacity-60 ${stats.overallPercentage >= 75 ? "text-emerald-500" : "text-destructive"}`} />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Overall</span>
-          </div>
-        </div>
-
-        {/* Stat 4: Min Required */}
-        <div className="flex flex-col gap-1.5 pl-4 border-t lg:border-t-0 border-l lg:border-l border-border/10 pt-4 lg:pt-0">
-          <span className="text-2xl font-black text-foreground leading-none">75%</span>
-          <div className="flex items-center gap-1.5 text-muted-foreground/50">
-            <ShieldCheck className="w-3.5 h-3.5 text-primary shrink-0 opacity-60" />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Required</span>
+        {/* Right Stat - Classes Attended */}
+        <div className="flex items-center justify-center gap-3 min-w-0">
+          <StatCircularProgress percentage={Math.round((stats.totalAttended / (stats.totalClasses || 1)) * 100)} icon={CalendarDays} size={56} strokeWidth={5} />
+          <div className="flex flex-col items-center justify-center text-center min-w-0 flex-1">
+            <div className="flex items-baseline justify-center gap-1 min-w-0">
+              <span className="text-2xl font-black tracking-tight text-foreground tabular-nums leading-none">
+                {stats.totalAttended}
+              </span>
+              <span className="text-xs font-semibold text-muted-foreground/60 tabular-nums leading-none">
+                / {stats.totalClasses}
+              </span>
+            </div>
+            <span className="text-[10px] font-bold text-muted-foreground/45 uppercase tracking-wider mt-1.5 whitespace-nowrap">
+              Attended
+            </span>
           </div>
         </div>
 
       </div>
+      
+      <Separator className="bg-border/10" />
 
       {/* Course List Section */}
-      <section className="space-y-3 pt-2">
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-border/10">
+      <section className="space-y-4 pt-1">
+        <div className="flex items-center justify-between gap-4 pb-1">
           <div className="space-y-0.5">
             <h2 className="text-xs font-bold text-primary uppercase tracking-widest leading-none">
               Course Attendance
@@ -336,29 +510,21 @@ export default function AttendancePage() {
             <p className="text-xs text-muted-foreground/60 font-semibold">{filteredAttendance.length} courses</p>
           </div>
 
-          <div className="flex gap-4">
-            {[
-              { id: "all", label: "All" },
-              { id: "theory", label: "Theory Only" },
-              { id: "lab", label: "Lab Only" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setFilterType(tab.id)}
-                className={`text-xs font-bold transition-all border-b-2 pb-1 cursor-pointer bg-transparent border-t-0 border-x-0 ${
-                  filterType === tab.id
-                    ? "text-primary border-primary"
-                    : "text-muted-foreground/60 border-transparent hover:text-foreground"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <DrawerSelect
+            value={filterType}
+            onValueChange={setFilterType}
+            title="Filter Courses"
+            triggerClassName="h-8 px-3 text-xs font-bold"
+            options={[
+              { value: "all", label: "All Courses" },
+              { value: "theory", label: "Theory Only" },
+              { value: "lab", label: "Lab Only" },
+            ]}
+          />
         </div>
 
         {filteredAttendance.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-3 text-center border-b border-border/10">
+          <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
             <UserCheck className="w-8 h-8 text-muted-foreground/20" />
             <p className="text-sm font-semibold text-foreground leading-none">No records found</p>
             <p className="text-xs text-muted-foreground">Check filter settings or reload.</p>
@@ -366,15 +532,57 @@ export default function AttendancePage() {
         ) : (
           <div className="flex flex-col divide-y divide-border/10">
             {filteredAttendance.map((item, idx) => (
-              <AttendanceCard
+              <AttendanceRow
                 key={`${item.classId}-${idx}`}
                 item={item}
-                onSelect={() => navigate(`/dashboard/attendance/${item.classId}`, { state: { record: item } })}
+                onSelect={() => setSelected(item)}
               />
             ))}
           </div>
         )}
       </section>
+
+      {/* Motivation Section */}
+      <div className="pt-2 border-t border-border/10">
+        <div className="py-2 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+              <Trophy className="w-4.5 h-4.5" />
+            </div>
+            <div className="min-w-0 space-y-0.5">
+              <p className="text-sm font-bold text-foreground leading-none">Keep it up!</p>
+              <p className="text-xs text-muted-foreground/50 font-medium leading-tight">
+                Maintain 75%+ overall attendance.
+              </p>
+            </div>
+          </div>
+          <div className="w-14 h-7 shrink-0 flex items-center justify-center opacity-70">
+            <svg width="50" height="20" viewBox="0 0 50 20" fill="none">
+              <path
+                d="M1 17 C 12 17, 12 4, 25 8 C 38 12, 38 2, 49 2"
+                stroke="currentColor"
+                className="text-primary"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              <circle cx="48" cy="2" r="2" fill="currentColor" className="text-primary" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Detail Drawer */}
+      {selected && (
+        <AttendanceDrawer
+          open={!!selected}
+          onOpenChange={(o) => !o && setSelected(null)}
+          item={selected}
+          onViewDetail={() => {
+            setSelected(null);
+            navigate(`/dashboard/attendance/${selected.classId}`, { state: { record: selected } });
+          }}
+        />
+      )}
     </div>
   );
 }

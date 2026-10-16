@@ -42,6 +42,7 @@ pub fn run() {
             system::test_backend,
             system::save_calendar_file,
             system::get_install_format,
+            system::check_mobile_update,
             auth::auth_login,
             auth::auth_logout,
             auth::auth_get_state,

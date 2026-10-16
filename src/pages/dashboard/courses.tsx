@@ -1,178 +1,290 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getTimetableCourses, TimetableCourse } from "@/lib/features";
-import { useOfflineData } from "@/hooks/use-offline-data";
-import { Separator } from "@/components/ui/separator";
+import { Drawer, DrawerContent } from "@/components/ui/drawer";
 
 import { ErrorDisplay } from "@/components/error-display";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { DrawerSelect } from "@/components/ui/drawer-select";
+import { useOnlineStatus } from "@/hooks/use-online-status";
+import { OfflineDisplay } from "@/components/offline-display";
+import { isNetworkError } from "@/lib/utils";
+import { useOfflineData } from "@/hooks/use-offline-data";
+import courseImg from "@/assets/course.png";
 import {
   Layers,
   Monitor,
-  Beaker,
-  Globe,
-  Users,
-  Search,
   FileText,
   User,
   MapPin,
+  LayoutGrid,
+  School,
   X,
+  ChevronRight,
 } from "lucide-react";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Drawer Component ─────────────────────────────────────────────────────────
+function CourseDetailDrawer({
+  item,
+  open,
+  onOpenChange,
+}: {
+  item: TimetableCourse | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  if (!item) return null;
 
-function getCourseTypeStyle(type: string): { label: string; className: string } {
-  return { label: type.trim(), className: "text-muted-foreground" };
-}
+  const totalCredits = item.credits?.total ?? 0;
 
-function getCategoryStyle(category: string): { label: string; className: string } {
-  return { label: category.trim(), className: "text-muted-foreground" };
-}
+  const scheduleRows = [
+    { icon: LayoutGrid, label: "Class Slot", value: item.slot },
+    { icon: MapPin, label: "Classroom Venue", value: item.venue },
+    { icon: FileText, label: "Class ID", value: item.classId },
+    { icon: Monitor, label: "Class Group", value: item.classGroup },
+  ].filter((r) => r.value);
 
-// ─── Course Card Component ─────────────────────────────────────────────────────
-
-function CourseCard({ item, index }: { item: TimetableCourse; index: number }) {
-  const typeStyle = getCourseTypeStyle(item.courseType);
-  const catStyle = getCategoryStyle(item.category);
+  const academicRows = [
+    { label: "Course Code", value: item.code },
+    { label: "Course Type", value: item.courseType },
+    { label: "Category", value: item.category },
+    { label: "Status", value: item.status },
+    { label: "Registration Option", value: item.registrationOption },
+    { label: "Registration Date", value: item.registrationDate },
+  ].filter((r) => r.value);
 
   return (
-    <div className="p-5 bg-transparent border border-border hover:border-foreground/30 rounded-xl transition-all flex flex-col justify-between gap-4 h-full">
-      <div className="space-y-3">
-        {/* Top: Serial & Code */}
-        <div className="flex items-center justify-between text-xs text-muted-foreground/60">
-          <span className="font-bold text-muted-foreground/35 tabular-nums">
-            #{(index + 1).toString().padStart(2, "0")}
-          </span>
-          <span className="font-bold text-primary uppercase tracking-wider">
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className="pb-[calc(1.5rem+env(safe-area-inset-bottom))] max-h-[92vh] bg-background border-t border-border/10 rounded-t-[32px] flex flex-col">
+        <div className="overflow-y-auto no-scrollbar px-6 space-y-6 pt-5 flex-1">
+          {/* Header Row */}
+          <div className="flex items-start justify-between gap-4 pb-4 border-b border-border/10">
+            <div className="flex-1 min-w-0 space-y-2">
+              <div className="flex flex-wrap items-center gap-2 text-xs leading-none">
+                <span className="font-mono text-xs font-bold text-primary uppercase tracking-wider">
+                  {item.code}
+                </span>
+                {item.courseType && (
+                  <>
+                    <span className="w-1 h-1 rounded-full bg-border/60 shrink-0" />
+                    <span className="text-xs font-semibold text-muted-foreground/60 uppercase">
+                      {item.courseType}
+                    </span>
+                  </>
+                )}
+                <span className="w-1 h-1 rounded-full bg-border/60 shrink-0" />
+                <span className="text-xs font-bold text-muted-foreground/80 font-mono">
+                  {totalCredits} {totalCredits === 1 ? "Credit" : "Credits"}
+                </span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground leading-snug tracking-tight break-words [overflow-wrap:anywhere]">
+                {item.title}
+              </h2>
+            </div>
+
+            {/* Close Button */}
+            <button
+              onClick={() => onOpenChange(false)}
+              className="p-2 rounded-full bg-muted/20 hover:bg-muted/40 text-muted-foreground hover:text-foreground active:opacity-75 transition-colors border-none cursor-pointer shrink-0 mt-0.5"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Credit Breakdown Section */}
+          <div className="py-4 border-b border-border/10 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold tracking-widest text-muted-foreground/50 uppercase leading-none">
+                Credit Breakdown
+              </span>
+              <span className="text-xs font-bold text-primary uppercase font-mono tracking-wider leading-none">
+                {totalCredits} Total
+              </span>
+            </div>
+            <div className="grid grid-cols-4 divide-x divide-border/10 text-center py-2">
+              {[
+                { label: "Lecture", val: item.credits?.lecture ?? 0 },
+                { label: "Tutorial", val: item.credits?.tutorial ?? 0 },
+                { label: "Practical", val: item.credits?.practical ?? 0 },
+                { label: "Project", val: item.credits?.project ?? 0 },
+              ].map(({ label, val }) => (
+                <div key={label} className="space-y-1 px-1">
+                  <p className="text-xl font-black text-foreground tabular-nums leading-none">
+                    {val}
+                  </p>
+                  <p className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-wider leading-none">
+                    {label.split(" ")[0]}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Schedule & Classroom Details */}
+          {scheduleRows.length > 0 && (
+            <div className="py-4 border-b border-border/10 space-y-2">
+              <span className="text-xs font-bold tracking-widest text-muted-foreground/50 uppercase leading-none block">
+                Schedule & Venue
+              </span>
+              <div className="divide-y divide-border/10">
+                {scheduleRows.map(({ icon: Icon, label, value }) => (
+                  <div
+                    key={label}
+                    className="flex flex-col min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between gap-1 min-[380px]:gap-4 py-3"
+                  >
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Icon className="w-4 h-4 text-primary shrink-0" />
+                      <span className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wide leading-none">
+                        {label}
+                      </span>
+                    </div>
+                    <span className="text-sm font-semibold text-foreground min-[380px]:text-right break-words [overflow-wrap:anywhere] min-w-0">
+                      {value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Faculty Instructor */}
+          {(item.faculty?.name || item.faculty?.school) && (
+            <div className="py-4 border-b border-border/10 space-y-2">
+              <span className="text-xs font-bold tracking-widest text-muted-foreground/50 uppercase leading-none block">
+                Faculty Instructor
+              </span>
+              <div className="flex items-start gap-3 pt-1">
+                <User className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1 space-y-1">
+                  <h4 className="text-sm font-bold text-foreground break-words [overflow-wrap:anywhere] leading-snug">
+                    {item.faculty?.name || "—"}
+                  </h4>
+                  {item.faculty?.school && (
+                    <div className="flex items-center gap-1.5 leading-none pt-0.5">
+                      <School className="w-3.5 h-3.5 text-muted-foreground/45 shrink-0" />
+                      <span className="text-xs text-muted-foreground/75 break-words [overflow-wrap:anywhere]">
+                        {item.faculty.school}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Academic & Registration Information */}
+          {academicRows.length > 0 && (
+            <div className="py-4 space-y-2">
+              <span className="text-xs font-bold tracking-widest text-muted-foreground/50 uppercase leading-none block">
+                Course Details & Registration
+              </span>
+              <div className="divide-y divide-border/10">
+                {academicRows.map(({ label, value }) => (
+                  <div
+                    key={label}
+                    className="flex flex-col min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between gap-1 min-[380px]:gap-4 py-3"
+                  >
+                    <span className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wide leading-none shrink-0">
+                      {label}
+                    </span>
+                    <span className="text-sm font-semibold text-foreground min-[380px]:text-right break-words [overflow-wrap:anywhere] min-w-0">
+                      {value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </DrawerContent>
+    </Drawer>
+  );
+}
+
+// ─── Course Card Component (Mobile version) ───────────────────────────────────
+function MobileCourseCard({
+  item,
+  onClick,
+}: {
+  item: TimetableCourse;
+  onClick: () => void;
+}) {
+  const credits = item.credits?.total ?? 0;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`Open details for ${item.code}: ${item.title}`}
+      className="w-full flex items-center justify-between gap-4 py-4 px-3 text-left border-none bg-transparent hover:bg-muted/5 active:bg-muted/15 rounded-md transition-colors cursor-pointer"
+    >
+      {/* Details column */}
+      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+        {/* First line: Course Code & Slot */}
+        <div className="flex items-center gap-2 leading-none flex-wrap">
+          <span className="text-sm font-semibold tracking-wide text-foreground uppercase">
             {item.code}
           </span>
-        </div>
-
-        {/* Title */}
-        <h3 className="text-base font-bold text-foreground leading-snug break-words">
-          {item.title}
-        </h3>
-
-        {/* Slot & Type Details */}
-        <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground/75 uppercase leading-none font-semibold">
           {item.slot && (
-            <>
-              <span>{item.slot}</span>
-              <span>·</span>
-            </>
-          )}
-          <span>{typeStyle.label}</span>
-          {item.category && (
-            <>
-              <span>·</span>
-              <span className="truncate max-w-[150px]" title={catStyle.label}>
-                {catStyle.label}
-              </span>
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-4 pt-1">
-        <Separator className="bg-border/5" />
-
-        {/* Faculty & Venue */}
-        <div className="space-y-2">
-          {item.faculty?.name ? (
-            <div className="flex items-center gap-2 min-w-0">
-              <User className="w-3.5 h-3.5 text-muted-foreground/45 shrink-0" />
-              <span className="text-xs font-semibold text-foreground truncate" title={item.faculty.name}>
-                {item.faculty.name}
-              </span>
-            </div>
-          ) : (
-            <span className="text-xs text-muted-foreground/40">—</span>
-          )}
-          {item.venue && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground/60 min-w-0">
-              <MapPin className="w-3.5 h-3.5 text-muted-foreground/45 shrink-0" />
-              <span className="font-medium truncate">{item.venue}</span>
-              {item.faculty?.school && (
-                <span className="text-[11px] text-muted-foreground/45 font-semibold uppercase">
-                  · {item.faculty.school}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-
-        <Separator className="bg-border/5" />
-
-        {/* Bottom footer: Credits details */}
-        <div className="flex items-center justify-between gap-3 pt-0.5">
-          <div className="space-y-0.5">
-            <span className="text-[9px] font-bold text-muted-foreground/45 uppercase tracking-widest leading-none block">
-              L-T-P-J Scheme
+            <span className="text-xs font-semibold text-muted-foreground/60 font-mono leading-none">
+              ({item.slot})
             </span>
-            <p className="font-mono text-[11px] text-muted-foreground/60 leading-none tabular-nums mt-1">
-              {item.credits?.lecture ?? 0}-{item.credits?.tutorial ?? 0}-{item.credits?.practical ?? 0}-{item.credits?.project ?? 0}
-            </p>
-          </div>
-          <div className="text-right shrink-0">
-            <div className="flex items-baseline justify-end gap-1">
-              <span className="text-lg font-black text-foreground tabular-nums leading-none">
-                {item.credits?.total ?? 0}
-              </span>
-              <span className="text-[10px] text-muted-foreground/50 font-semibold uppercase">Credits</span>
-            </div>
-          </div>
+          )}
         </div>
+
+        {/* Second line: Course Title (responsive wrap, never breaks layout) */}
+        <p className="text-xs sm:text-sm font-medium text-muted-foreground break-words [overflow-wrap:anywhere] leading-snug">
+          {item.title}
+        </p>
       </div>
-    </div>
+
+      {/* Right: Credits & Chevron */}
+      <div className="flex items-center gap-2.5 shrink-0">
+        <span className="text-sm font-semibold text-foreground tabular-nums leading-none">
+          {credits}{" "}
+          <span className="text-xs font-normal text-muted-foreground/50">
+            {credits === 1 ? "Credit" : "Credits"}
+          </span>
+        </span>
+        <ChevronRight className="w-5 h-5 text-muted-foreground/35 shrink-0" />
+      </div>
+    </button>
   );
 }
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
-
 function Sk({ className = "" }: { className?: string }) {
   return <div className={`animate-pulse rounded bg-muted/50 ${className}`} />;
 }
 
 function CoursesSkeleton() {
   return (
-    <div className="w-full space-y-6">
-      <div className="flex justify-between pb-4 border-b border-border/10">
-        <div className="space-y-2">
-          <Sk className="h-7 w-48" />
-          <Sk className="h-3 w-64" />
-        </div>
+    <div className="w-full space-y-6 px-2 py-4">
+      <div className="space-y-1">
+        <Sk className="h-7 w-44" />
+        <Sk className="h-3 w-56" />
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 border-y border-border/10 py-5">
-        {[...Array(6)].map((_, i) => (
-          <div key={i} className="flex items-center justify-start pr-4 border-r border-border/10 last:border-r-0 space-y-1.5">
-            <Sk className="h-3 w-16" />
-            <Sk className="h-6 w-12" />
+      <div className="grid grid-cols-3 py-5 border-y border-border/10 gap-4">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="pl-2 space-y-2 border-l border-border/10 first:border-0">
+            <Sk className="h-3 w-14" />
+            <Sk className="h-6 w-10" />
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Sk className="h-10 rounded-md" />
-        <Sk className="h-10 rounded-md" />
-        <Sk className="h-10 rounded-md" />
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <Sk className="h-10 rounded-md" />
+          <Sk className="h-10 rounded-md" />
+        </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="divide-y divide-border/10">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="p-5 border border-border rounded-xl space-y-4">
-            <div className="flex justify-between">
-              <Sk className="h-4 w-8" />
-              <Sk className="h-4 w-16" />
+          <div key={i} className="flex items-center justify-between gap-4 py-4 px-3">
+            <div className="flex-1 space-y-2">
+              <Sk className="h-4 w-28" />
+              <Sk className="h-3 w-48" />
             </div>
-            <Sk className="h-6 w-3/4" />
-            <Sk className="h-4 w-1/2" />
-            <Separator className="bg-border/5" />
-            <Sk className="h-4 w-2/3" />
-            <Sk className="h-4 w-1/2" />
+            <Sk className="h-4 w-16 shrink-0" />
           </div>
         ))}
       </div>
@@ -180,24 +292,21 @@ function CoursesSkeleton() {
   );
 }
 
-// ─── Main Page Component ──────────────────────────────────────────────────────
-
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function CoursesPage() {
   const { isLoggedIn, loading: authLoading } = useAuth();
-  const {
-    data: coursesRaw,
-    loading,
-    error,
-    retry: load,
-  } = useOfflineData<TimetableCourse[]>({
+  const isOnline = useOnlineStatus();
+
+  const { data: rawData, loading, error, retry: load } = useOfflineData<TimetableCourse[]>({
     cacheKey: "deskly::cache::courses",
     fetcher: getTimetableCourses,
     enabled: isLoggedIn && !authLoading,
   });
+  const courses = rawData || [];
 
-  const courses = useMemo(() => coursesRaw || [], [coursesRaw]);
+  const [selectedCourse, setSelectedCourse] = useState<TimetableCourse | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const [searchQuery, setSearchQuery] = useState("");
   const [selectedTypeFilter, setSelectedTypeFilter] = useState("ALL");
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("ALL");
 
@@ -208,35 +317,25 @@ export default function CoursesPage() {
       if (c.courseType) types.add(c.courseType.trim());
       if (c.category) categories.add(c.category.trim());
     });
-    return {
-      types: Array.from(types).sort(),
-      categories: Array.from(categories).sort(),
-    };
+    return { types: Array.from(types).sort(), categories: Array.from(categories).sort() };
   }, [courses]);
 
   const filteredCourses = useMemo(() => {
     return courses.filter((c) => {
-      const matchesSearch =
-        c.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.title.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesType =
-        selectedTypeFilter === "ALL" || c.courseType.trim() === selectedTypeFilter;
-      const matchesCategory =
-        selectedCategoryFilter === "ALL" || c.category.trim() === selectedCategoryFilter;
-      return matchesSearch && matchesType && matchesCategory;
+      const matchesType = selectedTypeFilter === "ALL" || c.courseType.trim() === selectedTypeFilter;
+      const matchesCategory = selectedCategoryFilter === "ALL" || c.category.trim() === selectedCategoryFilter;
+      return matchesType && matchesCategory;
     });
-  }, [courses, searchQuery, selectedTypeFilter, selectedCategoryFilter]);
+  }, [courses, selectedTypeFilter, selectedCategoryFilter]);
 
   const courseStats = useMemo(() => {
     let total = 0, theoryCount = 0, theoryCredits = 0, labCount = 0, labCredits = 0;
     let onlineCount = 0, onlineCredits = 0, softSkillCount = 0, softSkillCredits = 0, totalCredits = 0;
-
     courses.forEach((c) => {
       total++;
       const type = c.courseType.toLowerCase();
       const credits = c.credits.total;
       totalCredits += credits;
-
       if (type.includes("embedded theory")) { theoryCount++; theoryCredits += credits; }
       else if (type.includes("embedded lab")) { labCount++; labCredits += credits; }
       else if (type.includes("theory")) { theoryCount++; theoryCredits += credits; }
@@ -248,26 +347,20 @@ export default function CoursesPage() {
         else { theoryCount++; theoryCredits += credits; }
       }
     });
-
-    return {
-      total,
-      theory: { count: theoryCount, credits: theoryCredits },
-      lab: { count: labCount, credits: labCredits },
-      online: { count: onlineCount, credits: onlineCredits },
-      softSkill: { count: softSkillCount, credits: softSkillCredits },
-      totalCredits,
-    };
+    return { total, theory: { count: theoryCount, credits: theoryCredits }, lab: { count: labCount, credits: labCredits }, online: { count: onlineCount, credits: onlineCredits }, softSkill: { count: softSkillCount, credits: softSkillCredits }, totalCredits };
   }, [courses]);
 
-  const shell = (children: React.ReactNode) => (
-    <>{children}</>
-  );
+  const shell = (children: React.ReactNode) => <>{children}</>;
 
-  if (authLoading || (loading && courses.length === 0)) {
-    return shell(<CoursesSkeleton />);
+  const showOffline = !rawData && !loading && (isOnline === false || isNetworkError(error, isOnline));
+
+  if (showOffline) {
+    return shell(<OfflineDisplay onRetry={load} />);
   }
 
-  if (error && courses.length === 0) {
+  if (authLoading || (loading && !rawData)) return shell(<CoursesSkeleton />);
+
+  if (error && !rawData) {
     return shell(
       <div className="flex h-full items-center justify-center">
         <ErrorDisplay message={error} onRetry={load} />
@@ -275,159 +368,175 @@ export default function CoursesPage() {
     );
   }
 
-  const isLoading = authLoading || loading;
-
   return shell(
-    <div className="w-full space-y-6 select-none">
+    <div className="w-full space-y-6 px-2 py-4 select-none relative">
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <header className="pb-4 border-b border-border/10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
-        <div className="space-y-1">
-          <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Layers className="w-6 h-6 text-primary shrink-0" />
-            My Registered Courses
-          </h1>
-          <p className="text-xs text-muted-foreground/60 font-semibold">Courses you are registered for this semester</p>
+      {/* Illustration image absolute header */}
+      <div className="absolute -top-4 right-0 w-[200px] h-[160px] pointer-events-none select-none z-0">
+        <img
+          src={courseImg}
+          className="w-full h-full object-contain opacity-95 dark:opacity-75"
+          style={{
+            maskImage: "radial-gradient(ellipse at 30% 40%, #fff 30%, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0.2) 80%, transparent 95%)",
+            WebkitMaskImage: "radial-gradient(ellipse at 30% 40%, #fff 30%, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0.2) 80%, transparent 95%)"
+          }}
+          alt="Courses Illustration"
+        />
+      </div>
+
+      {/* Error banner */}
+      {error && !isNetworkError(error, isOnline) && (
+        <div className="relative z-10 flex items-center justify-between gap-4 px-4 py-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg">
+          <p className="text-xs font-semibold truncate">Sync failed — {error}</p>
+          <button onClick={load} className="text-xs font-bold uppercase tracking-wider shrink-0 border-0 bg-transparent text-destructive cursor-pointer">Retry</button>
         </div>
-        {!isLoading && courses.length > 0 && (
-          <span className="text-xs text-muted-foreground/60 font-semibold pb-0.5">
-            {filteredCourses.length} of {courses.length} courses
-          </span>
-        )}
+      )}
+
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <header className="relative z-10 flex items-start gap-2 pb-1">
+        <Layers className="w-6 h-6 text-primary shrink-0" />
+        <div className="space-y-1 min-w-0">
+          <h1 className="text-xl font-bold tracking-tight text-foreground leading-none truncate">
+            My Courses
+          </h1>
+        </div>
       </header>
 
-      {/* ── Top Stats Grid ──────────────────────────────────────────────────── */}
-      <div className="w-full grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 border-y border-border/10 py-5">
-        {[
-          { label: "Total Courses", value: courseStats.total, sub: "" },
-          { label: "Total Credits", value: courseStats.totalCredits, sub: "Cr" },
-          { label: "Theory", value: courseStats.theory.count, sub: `${courseStats.theory.credits} Cr` },
-          { label: "Lab", value: courseStats.lab.count, sub: `${courseStats.lab.credits} Cr` },
-          { label: "Online", value: courseStats.online.count, sub: `${courseStats.online.credits} Cr` },
-          { label: "Soft Skill", value: courseStats.softSkill.count, sub: `${courseStats.softSkill.credits} Cr` },
-        ].map((stat, idx) => (
-          <div
-            key={stat.label}
-            className={`flex items-center justify-start py-2.5 px-3 border-border/10 ${
-              idx % 2 === 0 ? "border-r md:border-r" : "md:border-r"
-            } ${idx === 5 ? "md:border-r-0 lg:border-r-0" : ""} ${
-              idx < 4 ? "border-b md:border-b-0" : ""
-            }`}
-          >
-            <div className="space-y-1 min-w-0">
-              <span className="text-[11px] font-bold text-muted-foreground/60 uppercase tracking-wider block truncate">{stat.label}</span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl lg:text-3xl font-black text-foreground leading-none tabular-nums">{stat.value}</span>
-                {stat.sub && <span className="text-xs text-muted-foreground/50 font-medium leading-none">{stat.sub}</span>}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Search & Filters ────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Search code or title..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            disabled={isLoading}
-            className="w-full h-10 pl-10 pr-10 rounded-lg border border-border/10 bg-muted/10 text-xs placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/30 transition-all disabled:opacity-50 text-foreground"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors cursor-pointer border-none bg-transparent"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
+      {/* ── Stats grid (flat, divider based) ── */}
+      <div className="relative z-10 py-5 border-y border-border/10 grid grid-cols-3 text-center">
+        <div>
+          <span className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest block leading-none mb-2">Total</span>
+          <span className="text-2xl font-black text-foreground leading-none">{courseStats.total}</span>
         </div>
-
-        <Select value={selectedTypeFilter} onValueChange={setSelectedTypeFilter}>
-          <SelectTrigger className="w-full h-10 rounded-lg bg-muted/10 border-border/10 text-xs">
-            <SelectValue placeholder="All Course Types" />
-          </SelectTrigger>
-          <SelectContent className="rounded-lg border-border/30 bg-card">
-            <SelectItem value="ALL">All Course Types</SelectItem>
-            {filterOptions.types.map((type) => (
-              <SelectItem key={type} value={type}>{type}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={selectedCategoryFilter} onValueChange={setSelectedCategoryFilter}>
-          <SelectTrigger className="w-full h-10 rounded-lg bg-muted/10 border-border/10 text-xs">
-            <SelectValue placeholder="All Categories" />
-          </SelectTrigger>
-          <SelectContent className="rounded-lg border-border/30 bg-card">
-            <SelectItem value="ALL">All Categories</SelectItem>
-            {filterOptions.categories.map((cat) => (
-              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="border-l border-border/10">
+          <span className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest block leading-none mb-2">Credits</span>
+          <span className="text-2xl font-black text-foreground leading-none">{courseStats.totalCredits}</span>
+        </div>
+        <div className="border-l border-border/10">
+          <span className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest block leading-none mb-2">Labs</span>
+          <span className="text-2xl font-black text-foreground leading-none">{courseStats.lab.count}</span>
+        </div>
       </div>
 
-      {/* ── Registered Courses Card Grid ───────────────────────────────────── */}
+      {/* ── Filters ─────────────────────────────────────────────────────────── */}
+      <div className="relative z-10 space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <DrawerSelect
+            value={selectedTypeFilter}
+            onValueChange={setSelectedTypeFilter}
+            title="Filter by Type"
+            triggerClassName="w-full h-10"
+            options={[
+              { value: "ALL", label: "All Types" },
+              ...filterOptions.types.map((type) => ({ value: type, label: type })),
+            ]}
+          />
+          <DrawerSelect
+            value={selectedCategoryFilter}
+            onValueChange={setSelectedCategoryFilter}
+            title="Filter by Category"
+            triggerClassName="w-full h-10"
+            options={[
+              { value: "ALL", label: "All Categories" },
+              ...filterOptions.categories.map((cat) => ({ value: cat, label: cat })),
+            ]}
+          />
+        </div>
+      </div>
+
+      {/* ── Section label ────────────────────────────────────────────────────── */}
+      <h2 className="relative z-10 text-xs font-bold text-primary uppercase tracking-widest leading-none">
+        Registered Courses
+      </h2>
+
+      {/* ── Course List (divided list, flat card design) ── */}
       {filteredCourses.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3 text-center border-b border-border/10">
+        <div className="relative z-10 flex flex-col items-center justify-center py-16 gap-3 text-center border border-border/10 rounded-lg">
           <FileText className="w-8 h-8 text-muted-foreground/20" />
-          <p className="text-sm font-bold text-foreground">No registered courses found</p>
-          <p className="text-xs text-muted-foreground">Try modifying your filters or search terms.</p>
+          <p className="text-sm font-semibold text-foreground leading-none">No courses found</p>
+          <p className="text-xs text-muted-foreground">Try modifying the type or category filters.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="relative z-10 flex flex-col divide-y divide-border/10 border-y border-border/10">
           {filteredCourses.map((item, idx) => (
-            <CourseCard key={`${item.code}-${idx}`} item={item} index={idx} />
+            <MobileCourseCard
+              key={`${item.code}-${idx}`}
+              item={item}
+              onClick={() => {
+                setSelectedCourse(item);
+                setDrawerOpen(true);
+              }}
+            />
           ))}
         </div>
       )}
 
-      {/* ── Footer Summary ──────────────────────────────────────────────────── */}
+      {/* ── Credit Distribution Section ── */}
       {courses.length > 0 && (
-        <footer className="pt-4 border-t border-border/10 mt-6">
-          <div className="flex items-center justify-between gap-3 mb-4">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
-                <FileText className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-foreground leading-none">Credit Summary</h3>
-                <p className="text-xs text-muted-foreground/60 font-semibold mt-1">Semester credit breakdown</p>
-              </div>
+        <section className="relative z-10 space-y-4 pt-2">
+          <h3 className="text-xs font-bold text-primary uppercase tracking-widest leading-none">
+            Credit Distribution
+          </h3>
+          <div className="py-5 border-y border-border/10 space-y-5">
+            {/* Segmented Progress Track */}
+            <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden flex">
+              {courseStats.theory.credits > 0 && (
+                <div 
+                  style={{ width: `${courseStats.totalCredits > 0 ? (courseStats.theory.credits / courseStats.totalCredits) * 100 : 0}%` }} 
+                  className="h-full bg-primary transition-all duration-500" 
+                />
+              )}
+              {courseStats.lab.credits > 0 && (
+                <div 
+                  style={{ width: `${courseStats.totalCredits > 0 ? (courseStats.lab.credits / courseStats.totalCredits) * 100 : 0}%` }} 
+                  className="h-full bg-primary/70 transition-all duration-500" 
+                />
+              )}
+              {courseStats.online.credits > 0 && (
+                <div 
+                  style={{ width: `${courseStats.totalCredits > 0 ? (courseStats.online.credits / courseStats.totalCredits) * 100 : 0}%` }} 
+                  className="h-full bg-primary/40 transition-all duration-500" 
+                />
+              )}
+              {courseStats.softSkill.credits > 0 && (
+                <div 
+                  style={{ width: `${courseStats.totalCredits > 0 ? (courseStats.softSkill.credits / courseStats.totalCredits) * 100 : 0}%` }} 
+                  className="h-full bg-primary/20 transition-all duration-500" 
+                />
+              )}
             </div>
-            <div className="flex items-baseline gap-1 text-right shrink-0">
-              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mr-1">Total:</span>
-              <span className="text-lg font-black text-foreground tabular-nums leading-none">{courseStats.totalCredits}</span>
-              <span className="text-[10px] font-bold text-muted-foreground uppercase leading-none">Credits</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
-              { icon: <Monitor className="w-3.5 h-3.5 text-primary" />, label: "Theory", count: courseStats.theory.count, credits: courseStats.theory.credits },
-              { icon: <Beaker className="w-3.5 h-3.5 text-primary" />, label: "Lab", count: courseStats.lab.count, credits: courseStats.lab.credits },
-              { icon: <Globe className="w-3.5 h-3.5 text-primary" />, label: "Online", count: courseStats.online.count, credits: courseStats.online.credits },
-              { icon: <Users className="w-3.5 h-3.5 text-primary" />, label: "Soft Skill", count: courseStats.softSkill.count, credits: courseStats.softSkill.credits },
-            ].map((row) => (
-              <div key={row.label} className="flex items-center gap-2 min-w-0">
-                <span className="shrink-0">{row.icon}</span>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/50 truncate leading-none">{row.label}</p>
-                  <p className="text-sm font-black text-foreground leading-none tabular-nums mt-1.5">
-                    {row.count}
-                    <span className="text-xs font-semibold text-muted-foreground/60 ml-1">({row.credits} Cr)</span>
-                  </p>
+
+            {/* Legend / Metrics Grid */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+              {[
+                { label: "Theory", count: courseStats.theory.count, credits: courseStats.theory.credits, pct: courseStats.totalCredits > 0 ? Math.round((courseStats.theory.credits / courseStats.totalCredits) * 100) : 0, colorClass: "bg-primary" },
+                { label: "Lab", count: courseStats.lab.count, credits: courseStats.lab.credits, pct: courseStats.totalCredits > 0 ? Math.round((courseStats.lab.credits / courseStats.totalCredits) * 100) : 0, colorClass: "bg-primary/70" },
+                { label: "Online", count: courseStats.online.count, credits: courseStats.online.credits, pct: courseStats.totalCredits > 0 ? Math.round((courseStats.online.credits / courseStats.totalCredits) * 100) : 0, colorClass: "bg-primary/40" },
+                { label: "Soft Skill", count: courseStats.softSkill.count, credits: courseStats.softSkill.credits, pct: courseStats.totalCredits > 0 ? Math.round((courseStats.softSkill.credits / courseStats.totalCredits) * 100) : 0, colorClass: "bg-primary/20" },
+              ].map(({ label, count, credits, pct, colorClass }) => (
+                <div key={label} className="flex items-center gap-2 min-w-0">
+                  <div className={`w-2 h-2 rounded-full ${colorClass} shrink-0`} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-1 leading-none mb-1">
+                      <span className="text-xs font-bold text-foreground truncate">{label}</span>
+                      <span className="text-xs font-black text-muted-foreground/60 shrink-0">{pct}%</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground/45 leading-none">
+                      {count} {count === 1 ? "course" : "courses"} · {credits} Cr
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </footer>
+        </section>
       )}
 
+      <CourseDetailDrawer
+        item={selectedCourse}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+      />
     </div>
   );
 }

@@ -1,29 +1,80 @@
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
+import { Link } from "@/router";
 import { useAuth } from "@/hooks/useAuth";
 import { invoke } from "@tauri-apps/api/core";
-import { Link } from "react-router-dom";
-import { useOfflineData } from "@/hooks/use-offline-data";
-import { ErrorDisplay } from "@/components/error-display";
-import { getStudentProfile, getStudentGradeView, ProfileData } from "@/lib/features";
+import { getStudentProfile, getFeedbackStatus, getStudentGradeView, ProfileData } from "@/lib/features";
 import { getCurrentAttendance, AttendanceRecord } from "@/lib/attendance";
 import { getStudentOdDetails, StudentOdDetails } from "@/lib/od";
 import {
-  MessageSquare,
-  Calendar,
   BookOpen,
-  FileText,
   Clock,
-  Settings,
+  MessageSquare,
+  MessageCircle,
+  GraduationCap,
+  TrendingUp,
+  Eye,
+  EyeOff,
   ChevronRight,
-  Award,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useOnlineStatus } from "@/hooks/use-online-status";
+import { OfflineDisplay } from "@/components/offline-display";
+import { isNetworkError } from "@/lib/utils";
+import { useOfflineData } from "@/hooks/use-offline-data";
+import { usePrivacySettings } from "@/hooks/use-privacy-settings";
+import dashboardImg from "@/assets/dashboard.png";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatStudentName(name: string | undefined) {
+  if (!name) return "Student";
+  const parts = name.trim().split(/\s+/);
+  return parts
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return "Good morning,";
+  if (hour >= 12 && hour < 17) return "Good afternoon,";
+  return "Good evening,";
+}
+
+function parseFeedbackText(text: string) {
+  const n = text.toLowerCase();
+  const isGiven =
+    (n.includes("given") && !n.includes("not given")) || n.includes("submitted");
+  return { isGiven };
+}
+
+function getCubicBezierPath(points: { x: number; y: number }[]): string {
+  if (points.length === 0) return "";
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i === 0 ? i : i - 1];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2 < points.length ? i + 2 : i + 1];
+
+    const cp1x = p1.x + (p2.x - p0.x) * 0.15;
+    const cp1y = p1.y + (p2.y - p0.y) * 0.15;
+    const cp2x = p2.x - (p3.x - p1.x) * 0.15;
+    const cp2y = p2.y - (p3.y - p1.y) * 0.15;
+
+    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  }
+  return d;
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type CgpaData = {
-  totalCreditsRequired: number;
-  earnedCredits: number;
   currentCgpa: number;
+  earnedCredits: number;
+  totalCreditsRequired: number;
   nonGradedCore: number;
 };
 
@@ -41,323 +92,332 @@ type GpaTrendPoint = {
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
-async function getCgpaPage() {
+async function getCgpaPage(): Promise<{ success: boolean; cgpaData?: CgpaData; error?: string }> {
   try {
-    return await invoke<{ success: boolean; cgpaData?: CgpaData; error?: string }>("get_cgpa_page");
-  } catch (e: unknown) {
-    return { success: false, error: String(e) };
+    return await invoke("get_cgpa_page");
+  } catch (err) {
+    return { success: false, error: String(err) };
   }
 }
 
-async function getFeedbackStatus() {
-  try {
-    return await invoke<{ success: boolean; data?: FeedbackStatus[]; error?: string }>("feedback_get_status");
-  } catch (e: unknown) {
-    return { success: false, error: String(e) };
-  }
-}
-
-// ─── Utils ────────────────────────────────────────────────────────────────────
-
-function formatStudentName(n: string | undefined) {
-  if (!n) return "";
-  return n.trim().toLowerCase().split(/\s+/).map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
-}
-
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h >= 5 && h < 12) return "Good morning";
-  if (h >= 12 && h < 17) return "Good afternoon";
-  return "Good evening";
-}
-
-function parseFeedbackText(text: string) {
-  const n = text.toLowerCase();
-  return { isGiven: (n.includes("given") && !n.includes("not given")) || n.includes("submitted") };
-}
-
-function getCubicBezierPath(pts: { x: number; y: number }[]) {
-  if (pts.length < 2) return "";
-  let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[Math.max(0, i - 1)];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[Math.min(pts.length - 1, i + 2)];
-    d += ` C ${(p1.x + (p2.x - p0.x) * 0.15).toFixed(1)} ${(p1.y + (p2.y - p0.y) * 0.15).toFixed(1)}, ${(p2.x - (p3.x - p1.x) * 0.15).toFixed(1)} ${(p2.y - (p3.y - p1.y) * 0.15).toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
-  }
-  return d;
-}
-
-const QUICK_LINKS = [
-  { label: "Timetable", path: "/dashboard/timetable", icon: Calendar },
-  { label: "Attendance", path: "/dashboard/attendance", icon: BookOpen },
-  { label: "My Marks", path: "/dashboard/marks", icon: FileText },
-  { label: "Academic Calendar", path: "/dashboard/academic-calendar", icon: Clock },
-  { label: "Settings", path: "/dashboard/settings", icon: Settings },
-];
-
-// ─── GPA Graph ────────────────────────────────────────────────────────────────
-
-function GpaTrendGraph({
-  points,
-}: {
-  points: GpaTrendPoint[];
-}) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [containerW, setContainerW] = useState(0);
-  const [activeIdx, setActiveIdx] = useState(points.length - 1);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    setContainerW(Math.floor(el.getBoundingClientRect().width));
-    const obs = new ResizeObserver(([e]) => setContainerW(Math.floor(e.contentRect.width)));
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
-  if (!points || points.length === 0) return null;
-
-  const H = 180;
-  const PX = 36;
-  const PT = 24;
-  const PB = 30;
-  const CW = Math.max(0, containerW - PX * 2);
-  const CH = H - PT - PB;
-
-  const gpas = points.map((p) => p.gpa);
-  const minG = Math.max(0, Math.floor(Math.min(...gpas) - 0.5));
-  const range = 10 - minG || 1;
-
-  const coords = points.map((pt, i) => ({
-    x: PX + (i / Math.max(1, points.length - 1)) * CW,
-    y: PT + CH - ((pt.gpa - minG) / range) * CH,
-    diff: i > 0 ? pt.gpa - points[i - 1].gpa : null,
-    pt,
-  }));
-
-  const pathD = getCubicBezierPath(coords.map((c) => ({ x: c.x, y: c.y })));
-  const active = coords[activeIdx] ?? coords[coords.length - 1];
-  const gridVals = [6, 7, 8, 9, 10].filter((v) => v >= minG);
-  const latest = points[points.length - 1].gpa;
-  const peak = Math.max(...gpas);
-  const avg = gpas.reduce((a, b) => a + b, 0) / gpas.length;
-
-  return (
-    <div className="space-y-3">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">
-            Semester Performance
-          </p>
-          <div className="flex items-center gap-2 mt-0.5">
-            <h2 className="text-sm sm:text-base font-bold text-foreground tracking-tight">
-              GPA History
-            </h2>
-          </div>
-        </div>
-        {/* Compact metrics */}
-        <div className="flex divide-x divide-border/20 border border-border/20 rounded-lg overflow-hidden shrink-0 self-start sm:self-auto">
-          {[
-            { label: "Latest", val: latest, primary: false },
-            { label: "Peak", val: peak, primary: true },
-            { label: "Avg", val: avg, primary: false },
-          ].map((m) => (
-            <div key={m.label} className="px-3 sm:px-4 py-2 text-center">
-              <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">
-                {m.label}
-              </p>
-              <p className={`text-sm sm:text-base font-bold leading-none mt-0.5 ${m.primary ? "text-primary" : "text-foreground"}`}>
-                {m.val.toFixed(2)}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Active semester info */}
-      {active && (
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-          <span className="text-xs sm:text-sm text-muted-foreground/50 truncate max-w-[200px]">
-            {active.pt.name}
-          </span>
-          <span className="text-xs sm:text-sm font-bold text-foreground">
-            {active.pt.gpa.toFixed(2)} GPA
-          </span>
-          {active.diff !== null && (
-            <span className={`text-xs sm:text-sm font-semibold ${active.diff >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-              {active.diff >= 0 ? `+${active.diff.toFixed(2)}` : active.diff.toFixed(2)}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Chart */}
-      <div ref={containerRef} className="w-full">
-          {containerW > 0 && (
-            <svg width={containerW} height={H} className="block overflow-visible">
-              {gridVals.map((v) => {
-                const y = PT + CH - ((v - minG) / range) * CH;
-                return (
-                  <g key={v}>
-                    <line x1={PX - 6} y1={y} x2={containerW - PX + 6} y2={y}
-                      stroke="var(--border)" strokeOpacity={0.25} strokeDasharray="4 5" strokeWidth={0.8} />
-                    <text x={PX - 10} y={y + 4} textAnchor="end" fontSize={10}
-                      fill="var(--muted-foreground)" opacity={0.7} fontFamily="system-ui">{v}</text>
-                  </g>
-                );
-              })}
-
-              {pathD && (
-                <path d={pathD} fill="none" stroke="var(--primary)"
-                  strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-              )}
-
-              {coords.map((c, i) => {
-                const sel = activeIdx === i;
-                return (
-                  <g key={c.pt.id} onClick={() => setActiveIdx(i)} style={{ cursor: "pointer" }}>
-                    {sel && <circle cx={c.x} cy={c.y} r={10} fill="var(--primary)" fillOpacity={0.08} />}
-                    <circle cx={c.x} cy={c.y} r={sel ? 4.5 : 3}
-                      fill={sel ? "var(--background)" : "var(--primary)"}
-                      stroke="var(--primary)" strokeWidth={sel ? 2 : 0} />
-                    <text x={c.x} y={c.y - 11} textAnchor="middle" fontSize={11}
-                      fontWeight={sel ? 700 : 500} fill="var(--foreground)"
-                      opacity={sel ? 1 : 0.75} fontFamily="system-ui">
-                      {c.pt.gpa.toFixed(2)}
-                    </text>
-                    <text x={c.x} y={H - 6} textAnchor="middle" fontSize={10}
-                      fontWeight={sel ? 600 : 400}
-                      fill={sel ? "var(--primary)" : "var(--muted-foreground)"}
-                      opacity={sel ? 0.9 : 0.65} fontFamily="system-ui">
-                      {c.pt.name.replace(/semester/gi, "").replace(/20\d\d/g, "").trim() || c.pt.name}
-                    </text>
-                  </g>
-                );
-              })}
-            </svg>
-          )}
-        </div>
-    </div>
-  );
-}
-
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
-
-function Sk({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded bg-muted/50 ${className}`} />;
-}
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function DashboardSkeleton() {
   return (
-    <div className="w-full space-y-8 sm:space-y-10">
-      <div className="pb-6 sm:pb-8 border-b border-border/10 space-y-3">
-        <Sk className="h-3 w-24" />
-        <Sk className="h-10 sm:h-14 w-48 sm:w-64" />
-        <Sk className="h-3 w-36" />
+    <div className="space-y-6 px-1 py-2 animate-pulse font-saira">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-3.5 w-36" />
+        </div>
+        <Skeleton className="h-6 w-6 rounded-full" />
       </div>
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_260px] items-start">
-        <div className="pr-0 xl:pr-12 space-y-8 sm:space-y-10">
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 xl:gap-12">
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <Sk className="h-3 w-24" />
-                <Sk className="h-12 sm:h-16 w-36 sm:w-44" />
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between"><Sk className="h-3 w-24" /><Sk className="h-3 w-20" /></div>
-                <Sk className="h-px w-full" />
-              </div>
-              <div className="grid grid-cols-3 pt-4 sm:pt-5 border-t border-border/10 gap-2">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className={`space-y-1.5 ${i > 0 ? "pl-3 border-l border-border/10" : ""}`}>
-                    <Sk className="h-2.5 w-12" /><Sk className="h-6 w-8" /><Sk className="h-2.5 w-10" />
-                  </div>
-                ))}
-              </div>
-            </div>
 
-            <div className="space-y-5 border-t xl:border-t-0 border-border/10 pt-8 xl:pt-0">
-              <div className="space-y-2">
-                <Sk className="h-3 w-24" />
-                <Sk className="h-12 sm:h-16 w-36 sm:w-44" />
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between"><Sk className="h-3 w-24" /><Sk className="h-3 w-20" /></div>
-                <Sk className="h-px w-full" />
-              </div>
-              <div className="grid grid-cols-3 pt-4 sm:pt-5 border-t border-border/10 gap-2">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className={`space-y-1.5 ${i > 0 ? "pl-3 border-l border-border/10" : ""}`}>
-                    <Sk className="h-2.5 w-12" /><Sk className="h-6 w-8" /><Sk className="h-2.5 w-10" />
-                  </div>
-                ))}
-              </div>
-            </div>
+      {/* CGPA block */}
+      <div className="space-y-5">
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="h-16 w-56" />
+        <div className="space-y-2">
+          <div className="flex justify-between">
+            <Skeleton className="h-3.5 w-28" />
+            <Skeleton className="h-3.5 w-32" />
           </div>
-          {/* OD skeleton with separators */}
-          <div className="border-t border-border/10 pt-6 sm:pt-8 space-y-4">
-            <div className="flex justify-between items-center">
-              <Sk className="h-3 w-20" />
-              <Sk className="h-3 w-16" />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-0 pt-1">
-              <div className="space-y-1.5 pr-0 sm:pr-8">
-                <Sk className="h-7 sm:h-8 w-16" />
-                <Sk className="h-3 w-24" />
-              </div>
-              <div className="space-y-1.5 pl-0 sm:pl-8 border-t sm:border-t-0 sm:border-l border-border/10 pt-4 sm:pt-0">
-                <Sk className="h-7 sm:h-8 w-16" />
-                <Sk className="h-3 w-24" />
-              </div>
-            </div>
-          </div>
-          <div className="space-y-4 border-t border-border/10 pt-6 sm:pt-8">
-            <div className="flex justify-between items-center">
-              <Sk className="h-5 w-24" /><Sk className="h-9 w-36 rounded-lg" />
-            </div>
-            <Sk className="h-3 w-44" />
-            <Sk className="h-[180px] w-full" />
-          </div>
+          <Skeleton className="h-1.5 w-full" />
         </div>
-        <div className="mt-8 xl:mt-0 pt-6 xl:pt-0 border-t xl:border-t-0 xl:border-l border-border/10 xl:pl-8 space-y-5">
-          <Sk className="h-3 w-20" />
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="flex items-center justify-between py-0.5">
-              <div className="flex items-center gap-3"><Sk className="h-4 w-4 rounded" /><Sk className="h-3.5 w-24" /></div>
-              <Sk className="h-3.5 w-3.5" />
-            </div>
-          ))}
+        <div className="grid grid-cols-3 gap-3">
+          <Skeleton className="h-24 rounded-lg" />
+          <Skeleton className="h-24 rounded-lg" />
+          <Skeleton className="h-24 rounded-lg" />
         </div>
       </div>
+
+      {/* Attendance Skeleton */}
+      <Skeleton className="h-36 w-full rounded-[30px]" />
+
+      {/* Graph Skeleton */}
+      <Skeleton className="h-44 w-full rounded-[28px]" />
     </div>
   );
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+function GpaTrendGraph({
+  points,
+  hideGpa = false,
+  toggleHideGpa,
+}: {
+  points: GpaTrendPoint[];
+  hideGpa?: boolean;
+  toggleHideGpa?: () => void;
+}) {
+  const [activePointIndex, setActivePointIndex] = useState<number | null>(points.length - 1);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-export default function DashboardHomePage() {
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      // Auto scroll to latest semester on mount/data change
+      scrollContainerRef.current.scrollLeft = scrollContainerRef.current.scrollWidth;
+    }
+  }, [points]);
+
+  if (!points || points.length === 0) return null;
+
+  const gpaValues = points.map((p) => p.gpa);
+  const highestGpa = Math.max(...gpaValues);
+  const avgGpa = gpaValues.reduce((a, b) => a + b, 0) / points.length;
+  const latestGpa = points[points.length - 1].gpa;
+
+  const minGpa = Math.max(0, Math.floor(Math.min(...gpaValues) - 0.8));
+  const maxGpa = 10;
+  const range = maxGpa - minGpa || 1;
+
+  const pointSpacing = 65;
+  const paddingX = 35;
+  const paddingY = 24;
+  
+  const width = Math.max(340, paddingX * 2 + (points.length - 1) * pointSpacing);
+  const height = 150;
+
+  const chartWidth = width - paddingX * 2;
+  const chartHeight = height - paddingY * 2 - 15; // reserve space for bottom label
+
+  const coords = points.map((pt, i) => {
+    const x = paddingX + (i / Math.max(1, points.length - 1)) * chartWidth;
+    const y = paddingY + chartHeight - ((pt.gpa - minGpa) / range) * chartHeight;
+    const prevGpa = i > 0 ? points[i - 1].gpa : null;
+    const diff = prevGpa !== null ? pt.gpa - prevGpa : null;
+    return { x, y, pt, diff };
+  });
+
+  const smoothLinePath = getCubicBezierPath(coords.map((c) => ({ x: c.x, y: c.y })));
+  const activeIdx = activePointIndex !== null && coords[activePointIndex] ? activePointIndex : coords.length - 1;
+  const active = coords[activeIdx];
+
+  return (
+    <div className="bg-gradient-to-br from-card/90 to-card/45 border border-border/15 p-5 rounded-[28px] shadow-sm space-y-4 font-saira">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="w-4.5 h-4.5 text-primary shrink-0" />
+          <h3 className="text-base font-bold text-foreground leading-none">
+            GPA History
+          </h3>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-muted-foreground bg-muted/40 border border-border/30 rounded-full px-2 py-0.5">
+            {points.length} Semesters
+          </span>
+          {toggleHideGpa && (
+            <button
+              type="button"
+              onClick={toggleHideGpa}
+              className="p-1.5 -mr-1.5 rounded-md text-muted-foreground/45 hover:text-foreground transition-colors cursor-pointer border-0 bg-transparent flex items-center justify-center"
+              aria-label={hideGpa ? "Show GPA History" : "Hide GPA History"}
+              title={hideGpa ? "Show GPA History" : "Hide GPA History"}
+            >
+              {hideGpa ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Hero Metrics Row */}
+      <div className="grid grid-cols-3 gap-2 p-3 bg-muted/30 border border-border/30 rounded-lg">
+        <div className="text-center space-y-0.5">
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Latest</span>
+          <span className="text-sm font-black text-foreground">
+            {hideGpa ? (
+              <span className="font-mono text-muted-foreground/50 tracking-wider">••••</span>
+            ) : (
+              latestGpa.toFixed(2)
+            )}
+          </span>
+        </div>
+        <div className="text-center space-y-0.5 border-x border-border/30">
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Peak</span>
+          <span className="text-sm font-black text-primary">
+            {hideGpa ? (
+              <span className="font-mono text-muted-foreground/50 tracking-wider">••••</span>
+            ) : (
+              highestGpa.toFixed(2)
+            )}
+          </span>
+        </div>
+        <div className="text-center space-y-0.5">
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Average</span>
+          <span className="text-sm font-black text-foreground">
+            {hideGpa ? (
+              <span className="font-mono text-muted-foreground/50 tracking-wider">••••</span>
+            ) : (
+              avgGpa.toFixed(2)
+            )}
+          </span>
+        </div>
+      </div>
+
+      {/* Selected Node Details Bar */}
+      {active && (
+        <div className="flex items-center justify-between px-1 text-xs">
+          <span className="font-semibold text-muted-foreground truncate">{active.pt.name}</span>
+          <div className="flex items-center gap-2 font-bold shrink-0">
+            {hideGpa ? (
+              <span className="font-mono text-muted-foreground/50">•••• GPA</span>
+            ) : (
+              <>
+                <span className="text-foreground">{active.pt.gpa.toFixed(2)} GPA</span>
+                {active.diff !== null && (
+                  <span className={active.diff >= 0 ? "text-emerald-500" : "text-rose-500"}>
+                    {active.diff >= 0 ? `(+${active.diff.toFixed(2)})` : `(${active.diff.toFixed(2)})`}
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Graph Display or Hidden State */}
+      {hideGpa ? (
+        <div
+          onClick={toggleHideGpa}
+          className="h-[150px] w-full flex flex-col items-center justify-center gap-2 rounded-2xl bg-muted/20 border border-dashed border-border/40 select-none cursor-pointer hover:bg-muted/30 transition-colors"
+          role="button"
+          tabIndex={0}
+          aria-label="Reveal GPA Trend"
+        >
+          <div className="w-9 h-9 rounded-full bg-muted/40 flex items-center justify-center text-muted-foreground/60">
+            <EyeOff className="w-4 h-4" />
+          </div>
+          <div className="text-center space-y-0.5">
+            <p className="text-xs font-bold text-muted-foreground/70">GPA Trend Hidden</p>
+            <p className="text-[11px] font-medium text-muted-foreground/40">Tap to reveal trend</p>
+          </div>
+        </div>
+      ) : (
+        <div ref={scrollContainerRef} className="relative w-full pt-1 px-1 overflow-x-auto no-scrollbar scroll-smooth">
+        <div style={{ width: `${width}px` }} className="h-[150px]">
+          <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} className="w-full h-full overflow-visible">
+            {/* Dashed Gridlines */}
+            {[10, 8, 6].filter((v) => v >= minGpa && v <= maxGpa).map((val) => {
+              const y = paddingY + chartHeight - ((val - minGpa) / range) * chartHeight;
+              return (
+                <g key={val}>
+                  <line
+                    x1={paddingX - 15}
+                    y1={y}
+                    x2={width - paddingX + 15}
+                    y2={y}
+                    stroke="var(--border)"
+                    strokeOpacity="0.4"
+                    strokeDasharray="3 3"
+                    strokeWidth="1"
+                  />
+                  <text x={paddingX - 18} y={y + 3} textAnchor="end" className="text-[10px] font-semibold fill-muted-foreground">
+                    {val}.0
+                  </text>
+                </g>
+              );
+            })}
+
+            {/* Clean Line Path (No gradient fill underneath) */}
+            <path
+              d={smoothLinePath}
+              fill="none"
+              stroke="var(--primary)"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+
+            {/* Point Nodes */}
+            {coords.map((c, i) => {
+              const isSelected = activeIdx === i;
+              return (
+                <g key={c.pt.id} onClick={() => setActivePointIndex(i)} className="cursor-pointer">
+                  {isSelected && (
+                    <circle
+                      cx={c.x}
+                      cy={c.y}
+                      r="8"
+                      fill="var(--primary)"
+                      fillOpacity="0.15"
+                    />
+                  )}
+                  <circle
+                    cx={c.x}
+                    cy={c.y}
+                    r={isSelected ? "4.5" : "3"}
+                    fill={isSelected ? "var(--background)" : "var(--primary)"}
+                    stroke="var(--primary)"
+                    strokeWidth={isSelected ? "2.5" : "0"}
+                    className="transition-all duration-150"
+                  />
+                  <text
+                    x={c.x}
+                    y={c.y - 9}
+                    textAnchor="middle"
+                    className={`text-xs font-bold transition-colors ${
+                      isSelected ? "fill-primary text-xs" : "fill-foreground/80"
+                    }`}
+                  >
+                    {c.pt.gpa.toFixed(2)}
+                  </text>
+                  
+                  {/* Inline Semester Label under each point */}
+                  <text
+                    x={c.x}
+                    y={height - 8}
+                    textAnchor="middle"
+                    className={`text-[8.5px] font-extrabold tracking-tight transition-colors ${
+                      isSelected ? "fill-primary font-black" : "fill-muted-foreground/45"
+                    }`}
+                  >
+                    {c.pt.name.replace("Semester", "").replace("20", "").trim()}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+      </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+export default function MobileDashboardHome() {
   const { isLoggedIn, loading: authLoading } = useAuth();
+  const isOnline = useOnlineStatus();
+  const {
+    hideCgpa,
+    hideAttendance,
+    hideGpa,
+    toggleHideCgpa,
+    toggleHideAttendance,
+    toggleHideGpa,
+  } = usePrivacySettings();
 
-  const { data: combinedData, loading, error, retry: loadData } = useOfflineData<{
+  type DashboardData = {
     cgpaData: CgpaData | null;
     feedbackData: FeedbackStatus[] | null;
     profile: ProfileData | null;
     gpaTrend: GpaTrendPoint[];
     attendanceData: AttendanceRecord[] | null;
     odDetails: StudentOdDetails | null;
-  }>({
-    cacheKey: "deskly::cache::dashboard",
-    fetcher: async () => {
-      // Stagger requests across the shared connection pool so VTOP isn't overwhelmed
-      const profileRes = await getStudentProfile().catch(() => null);
-      const cgpaRes = await getCgpaPage().catch((e) => ({ success: false, error: String(e), cgpaData: undefined }));
-      const feedbackRes = await getFeedbackStatus().catch((e) => ({ success: false, error: String(e), data: undefined }));
-      const gradeRes = await getStudentGradeView().catch(() => null);
-      const attendanceRes = await getCurrentAttendance().catch(() => null);
-      const odRes = await getStudentOdDetails().catch(() => null);
+  };
+
+  const fetchDashboardData = async (): Promise<{ success: boolean; data?: DashboardData; error?: string }> => {
+    try {
+      const [cgpaRes, feedbackRes, profileRes, gradeRes, attendanceRes, odRes] = await Promise.all([
+        getCgpaPage(),
+        getFeedbackStatus(),
+        getStudentProfile().catch(() => null),
+        getStudentGradeView().catch(() => null),
+        getCurrentAttendance().catch(() => null),
+        getStudentOdDetails().catch(() => null),
+      ]);
 
       if (attendanceRes?.success && attendanceRes.data) {
         try {
@@ -373,52 +433,74 @@ export default function DashboardHomePage() {
       if (odRes?.success && odRes.data) {
         try {
           localStorage.setItem("deskly::cache::od", JSON.stringify(odRes.data));
-        } catch {}
+        } catch {
+          // ignore cache errors
+        }
       }
 
       let gpaTrend: GpaTrendPoint[] = [];
       if (gradeRes?.success && gradeRes.data) {
-        const sems = gradeRes.data.semesters || [];
-        if (sems.length > 0) {
-          const results = [];
-          for (const sem of sems) {
-            if (sem.id === gradeRes.data?.semesterSubId) {
-              results.push({ id: sem.id, name: sem.name, gpa: gradeRes.data!.gpa ?? null });
-            } else {
-              const r = await getStudentGradeView(sem.id).catch(() => null);
-              results.push({ id: sem.id, name: sem.name, gpa: r?.success && r.data?.gpa !== undefined ? r.data.gpa : null });
-            }
-          }
-          gpaTrend = results.filter((r): r is GpaTrendPoint => r.gpa !== null).reverse();
+        const semesters = gradeRes.data.semesters || [];
+        if (semesters.length > 0) {
+          const semResults = await Promise.all(
+            semesters.map(async (sem) => {
+              if (sem.id === gradeRes.data?.semesterSubId) {
+                return { id: sem.id, name: sem.name, gpa: gradeRes.data.gpa ?? null };
+              }
+              const res = await getStudentGradeView(sem.id).catch(() => null);
+              return {
+                id: sem.id,
+                name: sem.name,
+                gpa: res?.success && res.data?.gpa !== undefined ? res.data.gpa : null,
+              };
+            })
+          );
+          gpaTrend = semResults
+            .filter((r): r is { id: string; name: string; gpa: number } => r.gpa !== null && r.gpa !== undefined)
+            .reverse();
         }
       }
 
-      const data = {
-        cgpaData: cgpaRes.success && cgpaRes.cgpaData ? cgpaRes.cgpaData : null,
-        feedbackData: feedbackRes.success && feedbackRes.data ? feedbackRes.data : null,
-        profile: profileRes?.success && profileRes.data ? profileRes.data : null,
-        gpaTrend,
-        attendanceData: attendanceRes?.success && attendanceRes.data ? attendanceRes.data : null,
-        odDetails: odRes?.success && odRes.data ? odRes.data : null,
-      };
-
-      // Only fail the entire screen if ALL critical fetches failed
-      if (!cgpaRes.success && !feedbackRes.success && !profileRes?.success) {
-        return { success: false, error: cgpaRes.error || feedbackRes.error || "Failed to load dashboard data." };
+      // Check if critical fetches failed
+      if (!cgpaRes.success && !feedbackRes.success) {
+        return { success: false, error: cgpaRes.error || feedbackRes.error };
       }
-      return { success: true, data };
-    },
+
+      return {
+        success: true,
+        data: {
+          cgpaData: cgpaRes.success ? cgpaRes.cgpaData || null : null,
+          feedbackData: feedbackRes.success ? feedbackRes.data || null : null,
+          profile: profileRes?.success ? profileRes.data || null : null,
+          gpaTrend,
+          attendanceData: attendanceRes?.success && attendanceRes.data ? attendanceRes.data : null,
+          odDetails: odRes?.success && odRes.data ? odRes.data : null,
+        }
+      };
+    } catch (e) {
+      return { success: false, error: String(e) };
+    }
+  };
+
+  const {
+    data,
+    loading,
+    error,
+    retry: loadData,
+  } = useOfflineData<DashboardData>({
+    cacheKey: "deskly::cache::dashboard",
+    fetcher: fetchDashboardData,
     enabled: isLoggedIn && !authLoading,
   });
 
-  const cgpaData = combinedData?.cgpaData ?? null;
-  const feedbackData = combinedData?.feedbackData ?? null;
-  const profile = combinedData?.profile ?? null;
-  const gpaTrend = combinedData?.gpaTrend ?? [];
+  const profile = data?.profile ?? null;
+  const cgpaData = data?.cgpaData ?? null;
+  const feedbackData = data?.feedbackData ?? null;
+  const gpaTrend = data?.gpaTrend ?? [];
 
   const attendanceData = useMemo(() => {
-    if (combinedData?.attendanceData && combinedData.attendanceData.length > 0) {
-      return combinedData.attendanceData;
+    if (data?.attendanceData && data.attendanceData.length > 0) {
+      return data.attendanceData;
     }
     try {
       const cached = localStorage.getItem("deskly::cache::attendance");
@@ -428,18 +510,31 @@ export default function DashboardHomePage() {
       }
     } catch {}
     return null;
-  }, [combinedData?.attendanceData]);
+  }, [data?.attendanceData]);
+
+  useEffect(() => {
+    if (attendanceData && attendanceData.length > 0) {
+      invoke("attendance_sync_widget", {
+        records: attendanceData,
+        odHours: data?.odDetails?.totalCount ?? null,
+      }).catch(() => {});
+    }
+  }, [attendanceData, data?.odDetails?.totalCount]);
 
   const attendanceStats = useMemo(() => {
     if (!attendanceData || attendanceData.length === 0) return null;
+
     let totalAttended = 0;
     let totalClasses = 0;
+
     for (const item of attendanceData) {
       totalAttended += item.attendedClasses ?? 0;
       totalClasses += item.totalClasses ?? 0;
     }
+
     const percentage = totalClasses > 0 ? (totalAttended / totalClasses) * 100 : 0;
     const formattedPct = percentage.toFixed(1);
+
     return {
       percentage,
       formattedPct,
@@ -450,323 +545,323 @@ export default function DashboardHomePage() {
   }, [attendanceData]);
 
   const odDetails = useMemo(() => {
-    if (combinedData?.odDetails) {
-      return combinedData.odDetails;
-    }
+    if (data?.odDetails) return data.odDetails;
     try {
       const cached = localStorage.getItem("deskly::cache::od");
       if (cached) return JSON.parse(cached);
     } catch {}
     return null;
-  }, [combinedData?.odDetails]);
+  }, [data?.odDetails]);
+
+  const studentName = formatStudentName(profile?.student?.name);
 
   const formattedDate = useMemo(
-    () => new Date().toLocaleDateString("default", { weekday: "long", month: "long", day: "numeric", year: "numeric" }),
-    [],
+    () =>
+      new Date().toLocaleDateString("default", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }),
+    []
   );
 
-  const studentName = profile?.student?.name ? formatStudentName(profile.student.name) : null;
+  const showOffline = !cgpaData && !feedbackData && !profile && (isOnline === false || isNetworkError(error, isOnline));
 
-  if (authLoading || (loading && !cgpaData && !feedbackData)) return <DashboardSkeleton />;
-
-  if (error && !cgpaData && !feedbackData) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <ErrorDisplay message={error} onRetry={loadData} />
-      </div>
-    );
+  if (showOffline && !loading) {
+    return <OfflineDisplay onRetry={loadData} />;
   }
 
-  const progressPct = cgpaData
-    ? Math.min(100, (cgpaData.earnedCredits / cgpaData.totalCreditsRequired) * 100)
-    : 0;
+  if (authLoading || (loading && !cgpaData && !feedbackData)) {
+    return <DashboardSkeleton />;
+  }
+
+  const creditPct = cgpaData
+    ? ((cgpaData.earnedCredits / cgpaData.totalCreditsRequired) * 100).toFixed(1)
+    : "0";
 
   return (
-    <div className="w-full space-y-8 sm:space-y-10">
+    <div className="w-full space-y-7 px-0 pt-2 pb-6 font-saira select-none overscroll-y-contain relative">
+      {/* Google Font Saira Injection */}
+      <style>{`
+        .font-saira {
+          font-family: 'Saira', sans-serif !important;
+        }
+      `}</style>
+
+      {/* Illustration image absolute header */}
+      <div className="absolute -top-4 right-0 w-[200px] h-[160px] pointer-events-none select-none z-0">
+        <img
+          src={dashboardImg}
+          className="w-full h-full object-contain opacity-95 dark:opacity-75"
+          style={{
+            maskImage: "radial-gradient(ellipse at 30% 40%, black 30%, rgba(0,0,0,0.85) 50%, rgba(0,0,0,0.2) 80%, transparent 95%)",
+            WebkitMaskImage: "radial-gradient(ellipse at 30% 40%, black 30%, rgba(0,0,0,0.85) 50%, rgba(0,0,0,0.2) 80%, transparent 95%)"
+          }}
+          alt="Dashboard Illustration"
+        />
+      </div>
 
       {/* Error banner */}
-      {error && (
-        <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 border border-destructive/15 rounded-lg gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="w-1 h-1 rounded-full bg-destructive shrink-0" />
-            <span className="text-xs text-destructive/70 truncate">Sync failed — showing cached data</span>
-          </div>
-          <button onClick={loadData}
-            className="text-[10px] font-bold uppercase tracking-widest text-destructive/50 hover:text-destructive transition-colors shrink-0 focus:outline-none">
+      {error && !isNetworkError(error, isOnline) && (
+        <div className="relative z-10 flex items-center justify-between gap-4 px-4 py-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg">
+          <p className="text-xs font-semibold truncate">Sync failed — {error}</p>
+          <button
+            onClick={loadData}
+            className="text-xs font-bold uppercase tracking-wider shrink-0 border-0 bg-transparent text-destructive cursor-pointer"
+          >
             Retry
           </button>
         </div>
       )}
 
-      {/* ── Header ── */}
-      <header className="pb-6 sm:pb-8 border-b border-border/10">
-        <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/35 mb-1.5">
-          {getGreeting()}
-        </p>
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight text-foreground leading-none">
-          {studentName ?? "Academic Dashboard"}
-        </h1>
-        <p className="text-xs sm:text-sm text-muted-foreground/35 mt-2 sm:mt-3">{formattedDate}</p>
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <header className="relative z-10 flex items-start justify-between gap-4">
+        <div className="space-y-1.5 min-w-0 pt-2">
+          <p className="text-sm font-medium text-muted-foreground/60 leading-none">
+            {getGreeting()}
+          </p>
+          <h1 className="text-3xl font-extrabold text-foreground tracking-tight leading-tight truncate">
+            {profile?.student?.name ? studentName : "Student"}
+          </h1>
+          <p className="text-xs text-muted-foreground/40 leading-none pt-0.5">{formattedDate}</p>
+        </div>
       </header>
 
-      {/* ── Grid: 1 col → 2 col at xl ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_250px] items-start">
-
-        {/* Left column */}
-        <div className="pr-0 xl:pr-12 space-y-8 sm:space-y-10 min-w-0">
-
-          {/* Academic Overview: CGPA & Attendance */}
-          {(cgpaData || attendanceStats) && (
-            <div className={`grid grid-cols-1 ${attendanceStats ? "xl:grid-cols-2 gap-8 xl:gap-12" : "max-w-xl gap-8"}`}>
-              {/* CGPA */}
-              {cgpaData && (
-                <div className="space-y-5 sm:space-y-6">
-                  {/* Number */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                      <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/35">
-                        Cumulative GPA
-                      </p>
-                    </div>
-                    <div className="flex items-baseline gap-3 sm:gap-4 flex-wrap">
-                      <span className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tighter text-foreground leading-none">
-                        {cgpaData.currentCgpa.toFixed(2)}
-                      </span>
-                      <span className="text-base sm:text-lg font-medium text-muted-foreground/40">/ 10.00</span>
-                    </div>
-                  </div>
-
-                  {/* Progress */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/35">
-                        Degree Progress
-                      </span>
-                      <span className="text-xs sm:text-sm font-semibold text-foreground/70">
-                        {cgpaData.earnedCredits} / {cgpaData.totalCreditsRequired} cr
-                        <span className="text-muted-foreground/40 ml-1">({progressPct.toFixed(0)}%)</span>
-                      </span>
-                    </div>
-                    <div className="relative w-full h-px bg-border/40 overflow-hidden rounded-full">
-                      <div
-                        className="absolute inset-y-0 left-0 bg-foreground/40 rounded-full transition-all duration-700"
-                        style={{ width: `${progressPct}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* 3 stats */}
-                  <div className="grid grid-cols-3 border-t border-border/10 pt-5 sm:pt-6">
-                    {[
-                      { label: "Earned", value: cgpaData.earnedCredits, sub: "credits" },
-                      { label: "Required", value: cgpaData.totalCreditsRequired, sub: "for degree" },
-                      { label: "Non-graded", value: cgpaData.nonGradedCore, sub: "core" },
-                    ].map((s, idx) => (
-                      <div key={s.label} className={`space-y-0.5 sm:space-y-1 ${idx > 0 ? "pl-3 sm:pl-4 border-l border-border/10" : ""}`}>
-                        <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/30">
-                          {s.label}
-                        </p>
-                        <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground leading-none">{s.value}</p>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground/40">{s.sub}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Attendance */}
-              {attendanceStats && (
-                <div className={`space-y-5 sm:space-y-6 ${cgpaData ? "border-t xl:border-t-0 border-border/10 pt-8 xl:pt-0" : ""}`}>
-                  {/* Number */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                      <Link
-                        to="/dashboard/attendance"
-                        className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/35 hover:text-foreground transition-colors"
-                      >
-                        Avg Attendance
-                      </Link>
-                    </div>
-                    <div className="flex items-baseline gap-3 sm:gap-4 flex-wrap">
-                      <span className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tighter text-foreground leading-none">
-                        {attendanceStats.formattedPct}%
-                      </span>
-                      <span className="text-base sm:text-lg font-medium text-muted-foreground/40">
-                        {attendanceStats.totalAttended}/{attendanceStats.totalClasses} classes
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Progress */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/35">
-                        Attendance Standing
-                      </span>
-                      <span className="text-xs sm:text-sm font-semibold text-foreground/70">
-                        {attendanceStats.percentage.toFixed(0)}% Overall
-                      </span>
-                    </div>
-                    <div className="relative w-full h-px bg-border/40 overflow-hidden rounded-full">
-                      <div
-                        className="absolute inset-y-0 left-0 bg-foreground/40 rounded-full transition-all duration-700"
-                        style={{ width: `${Math.min(100, attendanceStats.percentage)}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* 3 stats */}
-                  <div className="grid grid-cols-3 border-t border-border/10 pt-5 sm:pt-6">
-                    {[
-                      { label: "Attended", value: attendanceStats.totalAttended, sub: "classes" },
-                      { label: "Conducted", value: attendanceStats.totalClasses, sub: "total" },
-                      { label: "Courses", value: attendanceStats.totalCourses, sub: "enrolled" },
-                    ].map((s, idx) => (
-                      <div key={s.label} className={`space-y-0.5 sm:space-y-1 ${idx > 0 ? "pl-3 sm:pl-4 border-l border-border/10" : ""}`}>
-                        <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/30">
-                          {s.label}
-                        </p>
-                        <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground leading-none">
-                          {s.value}
-                        </p>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground/40">{s.sub}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+      {/* ── CGPA Card ───────────────────────────────────────────────────────── */}
+      {cgpaData && (
+        <section className="relative z-10 space-y-6">
+          <div className="bg-gradient-to-br from-card/90 to-card/45 border border-border/15 p-6 rounded-[30px] shadow-sm space-y-6">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold tracking-wider text-muted-foreground/50 uppercase leading-none">
+                Cumulative GPA
+              </span>
+              <button
+                type="button"
+                onClick={toggleHideCgpa}
+                className="p-1.5 -mr-1.5 rounded-md text-muted-foreground/45 hover:text-foreground transition-colors cursor-pointer border-0 bg-transparent flex items-center justify-center"
+                aria-label={hideCgpa ? "Show CGPA" : "Hide CGPA"}
+                title={hideCgpa ? "Show CGPA" : "Hide CGPA"}
+              >
+                {hideCgpa ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
-          )}
+            
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-5xl font-extrabold text-foreground leading-none tracking-tight">
+                {hideCgpa ? (
+                  <span className="tracking-widest text-muted-foreground/50 select-none font-mono text-4xl inline-block leading-none">••••</span>
+                ) : (
+                  cgpaData.currentCgpa.toFixed(2)
+                )}
+              </span>
+              <span className="text-sm font-medium text-muted-foreground/45 leading-none">/ 10.00</span>
+            </div>
 
-          {/* On Duty (OD) */}
-          {odDetails && (
-            <div className="border-t border-border/10 pt-6 sm:pt-8 min-w-0">
-              <div className="flex items-center justify-between gap-3 pb-3 sm:pb-4">
-                <Link
-                  to="/dashboard/od"
-                  className="group flex items-center gap-1.5 text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/40 hover:text-foreground transition-colors"
-                >
-                  <Award className="w-4 h-4 text-primary shrink-0" />
-                  <span>On Duty</span>
-                </Link>
-                <Link
-                  to="/dashboard/od"
-                  className="text-xs font-semibold text-primary hover:underline flex items-center gap-0.5 shrink-0"
-                >
-                  <span>View Details</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </Link>
+            <div className="space-y-2.5 pt-1">
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <span className="text-muted-foreground/60">Credits Completed</span>
+                <span className="text-foreground tracking-tight">
+                  {cgpaData.earnedCredits} / {cgpaData.totalCreditsRequired} ({creditPct}%)
+                </span>
               </div>
-
-              {/* Stats: Vertical divider on sm+, vertical stack on smaller screens (single horizontal separator per section) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-0">
-                {/* Total OD Hours */}
-                <div className="flex flex-col gap-1 pr-0 sm:pr-8 min-w-0">
-                  <span className="text-2xl sm:text-3xl font-black text-foreground leading-none tabular-nums">
-                    {odDetails.totalCount}
-                  </span>
-                  <span className="text-xs sm:text-sm font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                    Total OD Hours
-                  </span>
-                </div>
-
-                {/* Total Events */}
-                <div className="flex flex-col gap-1 pl-0 sm:pl-8 border-t sm:border-t-0 sm:border-l border-border/10 pt-4 sm:pt-0 min-w-0">
-                  <span className="text-2xl sm:text-3xl font-black text-foreground leading-none tabular-nums">
-                    {odDetails.records.length}
-                  </span>
-                  <span className="text-xs sm:text-sm font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                    Total Events
-                  </span>
-                </div>
+              <div className="h-1.5 w-full bg-muted/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-700"
+                  style={{
+                    width: `${(cgpaData.earnedCredits / cgpaData.totalCreditsRequired) * 100}%`,
+                  }}
+                />
               </div>
             </div>
-          )}
-
-          {/* GPA Graph */}
-          {gpaTrend.length > 0 && (
-            <div className="border-t border-border/10 pt-6 sm:pt-8 min-w-0">
-              <GpaTrendGraph
-                points={gpaTrend}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* ── Right sidebar ── */}
-        <div className="
-          w-full xl:w-[250px]
-          mt-8 xl:mt-0
-          pt-6 xl:pt-0
-          border-t xl:border-t-0 border-border/10
-          xl:border-l xl:border-border/10 xl:pl-7
-          xl:sticky xl:top-6
-          flex flex-col gap-6 xl:gap-5
-        ">
-
-          {/* Quick Access */}
-          <div className="space-y-1.5">
-            <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/35">
-              Quick Access
-            </p>
-            <nav>
-              {QUICK_LINKS.map((link) => {
-                const Icon = link.icon;
-                return (
-                  <Link key={link.path} to={link.path}
-                    className="group flex items-center justify-between py-2.5 sm:py-3 px-2 rounded-md hover:bg-muted/40 transition-colors duration-150">
-                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                      <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground/35 group-hover:text-foreground/55 transition-colors shrink-0" />
-                      <span className="text-xs sm:text-sm font-medium text-foreground/60 group-hover:text-foreground/90 transition-colors truncate">
-                        {link.label}
-                      </span>
-                    </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/15 group-hover:text-muted-foreground/40 transition-colors shrink-0" />
-                  </Link>
-                );
-              })}
-            </nav>
           </div>
 
-          {/* Feedback */}
-          {feedbackData && feedbackData.length > 0 && (
-            <div className="space-y-4 xl:pt-5 xl:border-t xl:border-border/10">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-3.5 h-3.5 text-muted-foreground/30 shrink-0" />
-                <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground/35">
-                  Feedback Status
-                </p>
+          {/* Three Circular Stats Badges */}
+          <div className="grid grid-cols-3 gap-4 pt-2">
+            {/* Earned */}
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-[60px] h-[60px] rounded-full border-2 border-t-primary/45 border-x-primary/45 border-b-transparent flex items-center justify-center text-primary shrink-0">
+                <GraduationCap className="w-6 h-6" />
               </div>
-              <div className="space-y-4">
-                {feedbackData.map((item, idx) => {
-                  const mid = parseFeedbackText(item.midSemester);
-                  const tee = parseFeedbackText(item.teeSemester);
-                  const isCurriculum = item.type.toLowerCase().includes("curriculum");
-                  return (
-                    <div key={idx} className="space-y-2.5">
-                      <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-muted-foreground/30">
-                        {isCurriculum ? "Curriculum" : "Course"}
-                      </p>
-                      {[
-                        { label: "Mid Semester", status: mid },
-                        { label: "End Semester", status: tee },
-                      ].map((row) => (
-                        <div key={row.label} className="flex items-center justify-between">
-                          <span className="text-xs sm:text-sm text-muted-foreground/50">{row.label}</span>
-                          <span className={`text-xs sm:text-sm font-semibold ${row.status.isGiven ? "text-foreground/60" : "text-destructive/60"}`}>
-                            {row.status.isGiven ? "✓ Submitted" : "✗ Pending"}
-                          </span>
-                        </div>
-                      ))}
-                      {idx < feedbackData.length - 1 && <div className="border-b border-border/8 pt-0.5" />}
-                    </div>
-                  );
-                })}
+              <div className="text-center space-y-0.5">
+                <p className="text-lg font-extrabold text-foreground leading-tight">{cgpaData.earnedCredits}</p>
+                <p className="text-xs font-bold text-muted-foreground/50 uppercase tracking-wide">Earned</p>
               </div>
             </div>
-          )}
-        </div>
-      </div>
+
+            {/* Required */}
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-[60px] h-[60px] rounded-full border-2 border-t-border border-x-border border-b-transparent flex items-center justify-center text-muted-foreground shrink-0">
+                <BookOpen className="w-5 h-5" />
+              </div>
+              <div className="text-center space-y-0.5">
+                <p className="text-lg font-extrabold text-foreground leading-tight">{cgpaData.totalCreditsRequired}</p>
+                <p className="text-xs font-bold text-muted-foreground/50 uppercase tracking-wide">Required</p>
+              </div>
+            </div>
+
+            {/* Non-Graded */}
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-[60px] h-[60px] rounded-full border-2 border-t-border border-x-border border-b-transparent flex items-center justify-center text-muted-foreground shrink-0">
+                <Clock className="w-5 h-5" />
+              </div>
+              <div className="text-center space-y-0.5">
+                <p className="text-lg font-extrabold text-foreground leading-tight">{cgpaData.nonGradedCore}</p>
+                <p className="text-xs font-bold text-muted-foreground/50 uppercase tracking-wide">Non-Graded</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Attendance Overview ─────────────────────────────────────────────── */}
+      {attendanceStats && (
+        <section className="relative z-10">
+          <Link
+            to="/dashboard/attendance"
+            className="block bg-gradient-to-br from-card/90 to-card/45 border border-border/15 p-6 rounded-[30px] shadow-sm space-y-6 hover:border-border/30 transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold tracking-wider text-muted-foreground/50 uppercase leading-none">
+                Average Attendance
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleHideAttendance();
+                }}
+                className="p-1.5 -mr-1.5 rounded-md text-muted-foreground/45 hover:text-foreground transition-colors cursor-pointer border-0 bg-transparent flex items-center justify-center"
+                aria-label={hideAttendance ? "Show Attendance" : "Hide Attendance"}
+                title={hideAttendance ? "Show Attendance" : "Hide Attendance"}
+              >
+                {hideAttendance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-5xl font-extrabold text-foreground leading-none tracking-tight">
+                {hideAttendance ? (
+                  <span className="tracking-widest text-muted-foreground/50 select-none font-mono text-4xl inline-block leading-none">••••</span>
+                ) : (
+                  attendanceStats.formattedPct
+                )}
+              </span>
+              <span className="text-sm font-medium text-muted-foreground/45 leading-none">%</span>
+            </div>
+
+            <div className="space-y-2.5 pt-1">
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <span className="text-muted-foreground/60">Classes Attended</span>
+                <span className="text-foreground tracking-tight">
+                  {attendanceStats.totalAttended} / {attendanceStats.totalClasses}
+                </span>
+              </div>
+              <div className="h-1.5 w-full bg-muted/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-700"
+                  style={{
+                    width: `${Math.min(100, Math.max(0, attendanceStats.percentage))}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </Link>
+        </section>
+      )}
+
+      {/* ── On Duty (OD) Overview ────────────────────────────────────────────── */}
+      {odDetails && (
+        <section className="relative z-10">
+          <Link
+            to="/dashboard/od"
+            className="block bg-gradient-to-br from-card/90 to-card/45 border border-border/15 p-6 rounded-[30px] shadow-sm space-y-4 hover:border-border/30 transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold tracking-wider text-muted-foreground/50 uppercase leading-none">
+                On Duty Hours
+              </span>
+              <span className="text-xs font-semibold text-primary flex items-center gap-0.5">
+                View all <ChevronRight className="w-3.5 h-3.5" />
+              </span>
+            </div>
+
+            <div className="flex items-baseline gap-2">
+              <span className="text-5xl font-extrabold text-foreground leading-none tracking-tight">
+                {odDetails.totalCount}
+              </span>
+              <span className="text-sm font-medium text-muted-foreground/50">
+                {odDetails.totalCount === 1 ? "hour approved" : "hours approved"}
+              </span>
+            </div>
+          </Link>
+        </section>
+      )}
+
+      {/* ── GPA Trend Graph ─────────────────────────────────────────────────── */}
+      {gpaTrend && gpaTrend.length > 0 && (
+        <section className="relative z-10">
+          <GpaTrendGraph
+            points={gpaTrend}
+            hideGpa={hideGpa}
+            toggleHideGpa={toggleHideGpa}
+          />
+        </section>
+      )}
+
+      {/* ── Feedback Status ──────────────────────────────────────────────────── */}
+      {feedbackData && feedbackData.length > 0 && (
+        <section className="relative z-10 space-y-4">
+          <div className="flex items-center justify-between text-foreground">
+            <div className="space-y-1">
+              <h2 className="text-lg font-extrabold tracking-tight leading-none">Feedback</h2>
+              <div className="w-6 h-0.5 bg-foreground rounded" />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {feedbackData.map((item, idx) => {
+              const isCurriculum = item.type.toLowerCase().includes("curriculum");
+              const label = isCurriculum ? "Content Feedback" : "General Feedback";
+              const mid = parseFeedbackText(item.midSemester);
+              const tee = parseFeedbackText(item.teeSemester);
+              const Icon = isCurriculum ? MessageSquare : MessageCircle;
+              const iconColor = "text-primary";
+
+              return (
+                <div
+                  key={idx}
+                  className="bg-gradient-to-br from-card/90 to-card/45 border border-border/15 p-4 rounded-xl flex items-center justify-between shadow-sm"
+                >
+                  <div className="flex items-center min-w-0">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 mr-4 ${iconColor}`}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0 space-y-1">
+                      <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground/45 leading-none truncate">
+                        {item.type}
+                      </p>
+                      <h3 className="text-[13.5px] font-bold text-foreground leading-none">{label}</h3>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground font-semibold leading-none pt-0.5">
+                        <span>Mid:</span>
+                        <span className={mid.isGiven ? "text-primary" : "text-destructive font-extrabold"}>
+                          {mid.isGiven ? "Given" : "Pending"}
+                        </span>
+                        <span className="text-muted-foreground/15">|</span>
+                        <span>TEE:</span>
+                        <span className={tee.isGiven ? "text-primary" : "text-destructive font-extrabold"}>
+                          {tee.isGiven ? "Given" : "Pending"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

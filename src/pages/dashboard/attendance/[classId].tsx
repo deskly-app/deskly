@@ -1,23 +1,12 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { useParams, useNavigate } from "@/router";
 import { getAttendanceDetail, AttendanceDetailRecord, AttendanceRecord } from "@/lib/attendance";
 import { isNetworkError } from "@/lib/utils";
+import { useOfflineData } from "@/hooks/use-offline-data";
+import { Calendar, WifiOff, CheckCircle2, XCircle, Clock, User, BarChart3, Award } from "lucide-react";
 import { OfflineDisplay } from "@/components/offline-display";
 import { useOnlineStatus } from "@/hooks/use-online-status";
-import { ErrorDisplay } from "@/components/error-display";
-import { useOfflineData } from "@/hooks/use-offline-data";
-import {
-  ArrowLeft,
-  User,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  Calendar,
-  BarChart3,
-  WifiOff,
-  Award,
-} from "lucide-react";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 function formatCourseType(type: string) {
@@ -25,31 +14,6 @@ function formatCourseType(type: string) {
   if (t.includes("embedded theory") || t.includes("theory")) return "Theory";
   if (t.includes("embedded lab") || t.includes("lab")) return "Lab";
   return type.trim();
-}
-
-function formatDayAndTime(raw: string) {
-  if (!raw) return "";
-  const parts = raw.split(",");
-  if (parts.length < 2) return raw;
-  const dayRaw = parts[0].trim();
-  const timeRaw = parts[1].trim();
-
-  const day = dayRaw.charAt(0).toUpperCase() + dayRaw.slice(1).toLowerCase();
-  const times = timeRaw.split("-");
-  if (times.length < 2) {
-    return `${day} · ${timeRaw}`;
-  }
-
-  const formatTime = (t: string) => {
-    const [hStr, mStr] = t.split(":");
-    const h = parseInt(hStr, 10);
-    if (isNaN(h)) return t;
-    const ampm = h >= 12 ? "PM" : "AM";
-    const h12 = h % 12 === 0 ? 12 : h % 12;
-    return `${h12}:${mStr} ${ampm}`;
-  };
-
-  return `${day} · ${formatTime(times[0])} – ${formatTime(times[1])}`;
 }
 
 // ─── Circular Arc Progress ────────────────────────────────────────────────────
@@ -138,7 +102,7 @@ function DetailSkeleton() {
           <Sk className="h-3 w-64" />
         </div>
       </div>
-      <div className="grid grid-cols-6 lg:grid-cols-5 gap-6 py-6 border-b border-border/10">
+      <div className="grid grid-cols-6 gap-6 py-6 border-y border-border/10">
         {[...Array(5)].map((_, i) => (
           <div key={i} className="pl-2 space-y-2 border-l border-border/10 first:border-0">
             <Sk className="h-3 w-14" />
@@ -165,6 +129,7 @@ export default function AttendanceDetailPage() {
   const { classId } = useParams("/dashboard/attendance/:classId");
   const location = useLocation();
   const navigate = useNavigate();
+
   const isOnline = useOnlineStatus();
   const [record, setRecord] = useState<AttendanceRecord | undefined>(location.state?.record);
 
@@ -186,20 +151,41 @@ export default function AttendanceDetailPage() {
   }, [classId, record]);
 
   const {
-    data: detailsRaw,
+    data: detailsData,
     loading,
     error,
     retry: load,
   } = useOfflineData<AttendanceDetailRecord[]>({
-    cacheKey: classId ? `deskly::cache::attendance_detail_${classId}` : "",
+    cacheKey: `deskly::cache::attendance_detail_${classId}`,
     fetcher: () => getAttendanceDetail(classId!, record!.slot),
     enabled: !!classId && !!record,
   });
 
-  const details = useMemo(() => detailsRaw || [], [detailsRaw]);
-  const isRetrying = loading && details.length > 0;
+  const details = detailsData || [];
+  const isRetrying = loading;
 
-  const isLab = record?.courseType.trim().toUpperCase().includes("LAB");
+  if (loading && !record) {
+    return <DetailSkeleton />;
+  }
+
+  if (!record) {
+    if (!isOnline || isNetworkError(error, isOnline)) {
+      return <OfflineDisplay onRetry={load} />;
+    }
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-4 py-16">
+        <p className="text-muted-foreground text-sm">No course data found.</p>
+        <button
+          onClick={() => navigate("/dashboard/attendance")}
+          className="text-xs font-semibold text-primary underline underline-offset-2 bg-transparent border-none cursor-pointer"
+        >
+          Go back to Attendance
+        </button>
+      </div>
+    );
+  }
+
+  const isLab = record.courseType.toLowerCase().includes("lab");
   const multiplier = isLab ? 2 : 1;
 
   const presentSlots = details.filter((d) => {
@@ -217,69 +203,26 @@ export default function AttendanceDetailPage() {
     return s.includes("od") || s.includes("duty") || s === "on duty";
   }).length;
 
-  const shell = (children: React.ReactNode) => (
-    <>{children}</>
-  );
-
-  if (!record) {
-    if (!isOnline || isNetworkError(error, isOnline)) {
-      return shell(<OfflineDisplay onRetry={load} />);
-    }
-    return shell(
-      <div className="flex flex-col items-center justify-center h-full gap-4">
-        <p className="text-muted-foreground text-sm">No course data found.</p>
-        <button
-          onClick={() => navigate("/dashboard/attendance")}
-          className="text-xs font-bold text-primary underline underline-offset-2"
-        >
-          Go back to Attendance
-        </button>
-      </div>
-    );
-  }
-
-  if (loading && details.length === 0) {
-    return shell(<DetailSkeleton />);
-  }
-
-  if (error && details.length === 0) {
-    if (!isOnline || isNetworkError(error, isOnline)) {
-      return shell(<OfflineDisplay onRetry={load} />);
-    }
-    return shell(
-      <div className="flex h-full items-center justify-center">
-        <ErrorDisplay message={error} onRetry={load} />
-      </div>
-    );
-  }
-
-  const need = Math.ceil(3 * record.totalClasses - 4 * record.attendedClasses);
-  const canSkip = Math.floor((4 * record.attendedClasses - 3 * record.totalClasses) / 3);
-
   const totalSlots = details.length > 0 ? details.length : Math.ceil(record.totalClasses / multiplier);
   const attendedSlots = details.length > 0 ? (presentSlots + odSlots) : Math.ceil(record.attendedClasses / multiplier);
   const normalPresentSlots = details.length > 0 ? presentSlots : Math.max(0, attendedSlots - odSlots);
   const calculatedAbsentSlots = details.length > 0 ? absentSlots : Math.max(0, totalSlots - attendedSlots);
 
+  const need = Math.ceil(3 * record.totalClasses - 4 * record.attendedClasses);
+  const canSkip = Math.floor((4 * record.attendedClasses - 3 * record.totalClasses) / 3);
+
   const needSlots = need > 0 ? Math.ceil(need / multiplier) : 0;
   const canSkipSlots = canSkip > 0 ? Math.floor(canSkip / multiplier) : 0;
 
-  return shell(
-    <div className="w-full space-y-6">
-
+  return (
+    <div className="w-full space-y-6 px-2 py-4 select-none relative">
+      
       {/* ── Header ── */}
-      <header className="pb-4 border-b border-border/10">
-        <button
-          onClick={() => navigate("/dashboard/attendance")}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors mb-3 group cursor-pointer bg-transparent border-none p-0"
-        >
-          <ArrowLeft className="size-3.5 transition-transform group-hover:-translate-x-0.5 duration-150 relative -translate-y-[0.5px]" />
-          <span>Back to Attendance</span>
-        </button>
+      <header className="pb-4">
 
-        {/* Header content: Stacks vertically on mobile, side-by-side on desktop (md+) */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 w-full">
-          <div className="min-w-0 space-y-1.5 text-left w-full md:w-auto">
+        {/* Header content: Stacks vertically on mobile */}
+        <div className="flex flex-col items-center justify-between gap-6 w-full">
+          <div className="min-w-0 space-y-1.5 text-left w-full">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60 flex-wrap">
               <span className="font-bold text-foreground uppercase tracking-wider">
                 {record.courseCode}
@@ -306,18 +249,18 @@ export default function AttendanceDetailPage() {
           </div>
 
           {/* Big circular progress aligned vertically/centered on mobile */}
-          <div className="shrink-0 flex flex-col items-center gap-1 self-center md:self-auto">
+          <div className="shrink-0 flex flex-col items-center gap-1 self-center">
             <BigCircularProgress percentage={record.attendancePercentage} />
             <p className="text-[10px] text-muted-foreground/45 font-bold uppercase tracking-wider">Attendance</p>
           </div>
         </div>
       </header>
 
-      {/* ── Summary Stats Grid (2 horizontal rows on smaller screens, 5 columns on desktop lg+) ── */}
-      <div className="grid grid-cols-6 lg:grid-cols-5 gap-y-6 py-6 border-b border-border/10">
+      {/* ── Summary Stats Grid (2 horizontal rows on mobile: Row 1 has 3 items, Row 2 has 2 items) ── */}
+      <div className="grid grid-cols-6 py-6 border-t border-border/10 gap-y-6">
         
         {/* Total Slots */}
-        <div className="col-span-2 lg:col-span-1 flex flex-col gap-1.5 pl-2">
+        <div className="col-span-2 flex flex-col gap-1.5 pl-2">
           <span className="text-2xl font-black text-foreground leading-none">{totalSlots}</span>
           <div className="flex items-center gap-1.5 text-muted-foreground/50">
             <Calendar className="w-3.5 h-3.5 text-primary shrink-0 opacity-60" />
@@ -326,7 +269,7 @@ export default function AttendanceDetailPage() {
         </div>
 
         {/* Present */}
-        <div className="col-span-2 lg:col-span-1 flex flex-col gap-1.5 pl-4 border-l border-border/10">
+        <div className="col-span-2 flex flex-col gap-1.5 pl-4 border-l border-border/10">
           <span className="text-2xl font-black text-foreground leading-none">{normalPresentSlots}</span>
           <div className="flex items-center gap-1.5 text-muted-foreground/50">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 opacity-80" />
@@ -335,7 +278,7 @@ export default function AttendanceDetailPage() {
         </div>
 
         {/* OD Slots */}
-        <div className="col-span-2 lg:col-span-1 flex flex-col gap-1.5 pl-4 border-l border-border/10">
+        <div className="col-span-2 flex flex-col gap-1.5 pl-4 border-l border-border/10">
           <span className="text-2xl font-black text-primary leading-none">{odSlots}</span>
           <div className="flex items-center gap-1.5 text-muted-foreground/50">
             <Award className="w-3.5 h-3.5 text-primary shrink-0 opacity-60" />
@@ -344,7 +287,7 @@ export default function AttendanceDetailPage() {
         </div>
 
         {/* Absent */}
-        <div className="col-span-3 lg:col-span-1 flex flex-col gap-1.5 pt-4 lg:pt-0 pl-2 lg:pl-6 border-t lg:border-t-0 lg:border-l border-border/10">
+        <div className="col-span-3 flex flex-col gap-1.5 pt-4 pl-2 border-t border-border/10">
           <span className="text-2xl font-black text-foreground leading-none">{calculatedAbsentSlots}</span>
           <div className="flex items-center gap-1.5 text-muted-foreground/50">
             <XCircle className="w-3.5 h-3.5 text-destructive shrink-0 opacity-80" />
@@ -353,7 +296,7 @@ export default function AttendanceDetailPage() {
         </div>
 
         {/* Can Miss / Need to Attend */}
-        <div className="col-span-3 lg:col-span-1 flex flex-col gap-1.5 pt-4 lg:pt-0 pl-4 lg:pl-6 border-t lg:border-t-0 border-l lg:border-l border-border/10">
+        <div className="col-span-3 flex flex-col gap-1.5 pt-4 pl-4 border-t border-l border-border/10">
           <div className="flex items-baseline gap-1.5 leading-none">
             <span className={`text-2xl font-black leading-none ${needSlots > 0 ? "text-destructive" : canSkipSlots > 0 ? "text-emerald-500" : "text-foreground"}`}>
               {needSlots > 0 ? needSlots : canSkipSlots > 0 ? canSkipSlots : 0}
@@ -373,8 +316,8 @@ export default function AttendanceDetailPage() {
         </div>
       </div>
 
-      {/* ── Date-wise Log ────────────────────────────────────────────────────── */}
-      <div className="space-y-3">
+      {/* ── Session Log Section ───────────────────────────────────────────────── */}
+      <section className="space-y-3">
         <div className="flex items-center justify-between pb-2 border-b border-border/10">
           <div>
             <h2 className="text-xs font-bold text-primary uppercase tracking-widest leading-none">Session Log</h2>
@@ -382,7 +325,13 @@ export default function AttendanceDetailPage() {
           </div>
         </div>
 
-        {details.length === 0 ? (
+        {loading ? (
+          <div className="space-y-3">
+            {[...Array(4)].map((_, i) => (
+              <Sk key={i} className="h-16 w-full rounded" />
+            ))}
+          </div>
+        ) : details.length === 0 ? (
           !isOnline || isNetworkError(error, isOnline) ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
               <WifiOff className="w-8 h-8 text-muted-foreground/30" />
@@ -408,50 +357,37 @@ export default function AttendanceDetailPage() {
             {details.map((row, i) => (
               <div
                 key={`${row.serialNo}-${i}`}
-                className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 py-3 px-1 rounded-md transition-colors hover:bg-muted/5 duration-150"
+                className="grid grid-cols-[1.25rem_minmax(0,1fr)_4rem_max-content] items-center gap-x-3 gap-y-1 py-3 px-1 rounded-md transition-colors hover:bg-muted/5 duration-150"
               >
-                {/* Top line (mobile) / Left part (desktop) */}
-                <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-                  {/* Serial */}
-                  <span className="text-xs font-bold text-muted-foreground/35 tabular-nums w-5 shrink-0 text-right leading-none">
-                    {row.serialNo ?? i + 1}
-                  </span>
+                {/* Serial */}
+                <span className="text-xs font-bold text-muted-foreground/35 tabular-nums w-5 leading-none">
+                  {row.serialNo ?? i + 1}
+                </span>
 
-                  {/* Date */}
-                  <div className="min-w-0 w-24 sm:w-28 shrink-0">
-                    <span className="text-xs font-bold text-foreground truncate block leading-none">{row.date}</span>
-                  </div>
-
-                  {/* Slot */}
-                  <div className="shrink-0 w-14 sm:w-16">
-                    <span className="font-mono text-xs font-bold text-foreground/80 block leading-none">
-                      {row.slot}
-                    </span>
-                  </div>
-
-                  {/* Day & Time (desktop) */}
-                  <div className="flex-1 min-w-0 hidden sm:block">
-                    <span className="text-xs text-muted-foreground/50 font-medium truncate block leading-none">
-                      {formatDayAndTime(row.dayAndTime)}
-                    </span>
-                  </div>
+                {/* Date & Time */}
+                <div className="min-w-0 flex flex-col justify-center gap-1">
+                  <span className="text-[13px] font-bold text-foreground break-words [overflow-wrap:anywhere] leading-tight">{row.date}</span>
+                  {row.dayAndTime && (
+                    <span className="text-[10px] font-medium text-muted-foreground break-words [overflow-wrap:anywhere] leading-snug">{row.dayAndTime.replace(",", ", ").replace("-", " - ")}</span>
+                  )}
                 </div>
 
-                {/* Bottom line (mobile only) / Right part (desktop) */}
-                <div className="flex items-center justify-between sm:justify-end gap-4 pl-8 sm:pl-0 shrink-0">
-                  {/* Day & Time (mobile) */}
-                  <span className="text-xs text-muted-foreground/50 font-medium sm:hidden leading-none">
-                    {formatDayAndTime(row.dayAndTime)}
+                {/* Slot */}
+                <div className="w-16 justify-self-center text-center">
+                  <span className="font-mono text-xs font-bold text-foreground/80 leading-none whitespace-nowrap">
+                    {row.slot}
                   </span>
-                  
-                  {/* Status badge */}
+                </div>
+
+                {/* Status badge */}
+                <div className="justify-self-end">
                   <StatusBadge status={row.status} />
                 </div>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </section>
 
     </div>
   );
