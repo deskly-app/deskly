@@ -606,33 +606,33 @@ export default function GradesPage() {
           )}
 
           {/* Grade Distribution */}
-          {historyData?.cgpa?.gradeDistribution && (
+          {historyData?.grades && historyData.grades.length > 0 && (
             <section className="relative z-10 space-y-4 pt-2">
               <h3 className="text-xs font-bold text-primary uppercase tracking-widest leading-none">
                 Grade Distribution
               </h3>
-              <div className="bg-card/80 border border-border/40 p-5 rounded-none shadow-sm backdrop-blur-md">
-                <div className="grid grid-cols-3 gap-3">
+              <div className="bg-card/80 border border-border/40 p-4 sm:p-5 rounded-xl shadow-sm backdrop-blur-md">
+                <div className="grid grid-cols-2 min-[390px]:grid-cols-3 gap-3">
                   {["S", "A", "B", "C", "D", "E", "F", "P", "N"].map((label) => {
                     const count = gradeCounts[label] ?? 0;
                     const pct = totalSubjects > 0 ? (count / totalSubjects) * 100 : 0;
                     return (
-                      <div key={label} className="bg-muted/15 border border-border/15 rounded-none p-3 flex flex-col justify-between gap-2 relative overflow-hidden">
+                      <div key={label} className="min-w-0 min-h-[82px] bg-muted/15 border border-border/15 rounded-lg p-3 flex flex-col justify-between gap-2 relative overflow-hidden">
                         <div 
                           className="absolute bottom-0 left-0 h-0.5 bg-primary/30 transition-all duration-500" 
                           style={{ width: `${pct}%` }} 
                         />
                         <div className="flex items-center justify-between leading-none">
-                          <span className="text-xs font-black uppercase text-muted-foreground/45 tracking-wider">
+                          <span className="min-w-0 truncate text-xs font-black uppercase text-muted-foreground/45 tracking-wider">
                             Grade {label}
                           </span>
-                          <span className="text-xs font-bold text-muted-foreground/30">
+                          <span className="shrink-0 text-xs font-bold text-muted-foreground/30 tabular-nums">
                             {Math.round(pct)}%
                           </span>
                         </div>
                         <div className="flex items-baseline gap-0.5 leading-none">
                           <span className="text-xl font-black text-foreground">{count}</span>
-                          <span className="text-xs font-semibold text-muted-foreground/45 ml-0.5">{count === 1 ? "course" : "courses"}</span>
+                          <span className="min-w-0 truncate text-xs font-semibold text-muted-foreground/45 ml-0.5">{count === 1 ? "course" : "courses"}</span>
                         </div>
                       </div>
                     );
