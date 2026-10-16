@@ -53,20 +53,8 @@ pub fn get_install_format() -> String {
 }
 
 #[derive(Debug, Deserialize)]
-struct GitHubReleaseAsset {
-    name: String,
-    browser_download_url: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubRelease {
-    tag_name: String,
-    #[serde(default)]
-    draft: bool,
-    #[serde(default)]
-    prerelease: bool,
-    #[serde(default)]
-    assets: Vec<GitHubReleaseAsset>,
+struct TauriUpdateManifest {
+    version: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -113,9 +101,8 @@ fn is_newer_update_version(latest: &str, current: &str) -> bool {
     false
 }
 
-/// Checks the Android release natively so mobile WebViews do not need direct
-/// access to the GitHub API. The APK is intentionally opened for download by
-/// the frontend; this command never downloads or installs an update.
+/// Checks updates via the official Tauri updater manifest endpoint (latest.json),
+/// avoiding GitHub REST API rate limits completely.
 #[tauri::command]
 pub async fn check_mobile_update(current_version: String) -> Result<MobileUpdateInfo, String> {
     let current_version = if current_version.trim().is_empty() {
@@ -130,44 +117,33 @@ pub async fn check_mobile_update(current_version: String) -> Result<MobileUpdate
         .build()
         .map_err(|error| format!("Failed to prepare update check: {error}"))?;
 
-    let releases = client
-        .get("https://api.github.com/repos/deskly-app/deskly/releases?per_page=20")
-        .header(reqwest::header::ACCEPT, "application/vnd.github+json")
+    // Fetch the native Tauri updater endpoint
+    let manifest_url = "https://github.com/deskly-app/deskly/releases/latest/download/latest.json";
+    let manifest = client
+        .get(manifest_url)
         .send()
         .await
-        .map_err(|error| format!("Could not reach the update service: {error}"))?
+        .map_err(|error| format!("Could not reach update service: {error}"))?
         .error_for_status()
         .map_err(|error| format!("Update service returned an error: {error}"))?
-        .json::<Vec<GitHubRelease>>()
+        .json::<TauriUpdateManifest>()
         .await
-        .map_err(|error| format!("Could not read update information: {error}"))?;
+        .map_err(|error| format!("Could not read update manifest: {error}"))?;
 
-    let release = releases
-        .into_iter()
-        .filter(|release| !release.draft && !release.prerelease)
-        .filter_map(|release| {
-            let apk_url = release
-                .assets
-                .iter()
-                .find(|asset| asset.name.to_ascii_lowercase().ends_with(".apk"))
-                .map(|asset| asset.browser_download_url.clone())?;
-            Some((release, apk_url))
-        })
-        .max_by(|(left, _), (right, _)| {
-            update_version_parts(&left.tag_name).cmp(&update_version_parts(&right.tag_name))
-        })
-        .ok_or_else(|| "No Android APK release is available yet".to_string())?;
-
-    let latest_version = normalize_update_version(&release.0.tag_name);
+    let latest_version = normalize_update_version(&manifest.version);
     if latest_version.is_empty() {
-        return Err("The latest Android release has no valid version".to_string());
+        return Err("The release manifest has no valid version".to_string());
     }
+
+    let download_url = format!(
+        "https://github.com/deskly-app/deskly/releases/download/v{latest_version}/Deskly_{latest_version}_universal.apk"
+    );
 
     Ok(MobileUpdateInfo {
         has_update: is_newer_update_version(&latest_version, &current_version),
         current_version,
         latest_version,
-        download_url: release.1,
+        download_url,
     })
 }
 

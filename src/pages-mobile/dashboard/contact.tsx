@@ -7,7 +7,7 @@ import { useOfflineData } from "@/hooks/use-offline-data";
 import { ErrorDisplay } from "@/components/error-display";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { OfflineDisplay } from "@/components/offline-display";
-import { Copy, Check, Phone, Search, X, Mail } from "lucide-react";
+import { Copy, Check, Phone, Search, X } from "lucide-react";
 import contactImg from "@/assets/contact.png";
 
 function GmailIcon({ className }: { className?: string }) {
@@ -63,17 +63,13 @@ function ContactCard({ contact }: { contact: ContactDetail }) {
 
   return (
     <div className="p-4 bg-card/80 border border-border/40 rounded-xl shadow-sm backdrop-blur-md flex items-center justify-between gap-4">
-      {/* Icon + Info */}
-      <div className="flex-1 min-w-0 flex items-center gap-3">
-        <Mail className="w-5 h-5 text-primary shrink-0" />
-
-        <div className="flex-1 min-w-0 space-y-1">
-          <p className="text-sm font-bold text-foreground leading-snug truncate">{contact.department}</p>
-          {contact.description && (
-            <p className="text-xs text-muted-foreground/60 leading-none truncate">{contact.description}</p>
-          )}
-          <p className="text-xs text-muted-foreground/50 font-mono leading-none truncate pt-0.5">{contact.email}</p>
-        </div>
+      {/* Info */}
+      <div className="flex-1 min-w-0 space-y-1">
+        <p className="text-sm font-bold text-foreground leading-snug truncate">{contact.department}</p>
+        {contact.description && (
+          <p className="text-xs text-muted-foreground/60 leading-none truncate">{contact.description}</p>
+        )}
+        <p className="text-xs text-muted-foreground/50 font-mono leading-none truncate pt-0.5">{contact.email}</p>
       </div>
 
       {/* Actions */}

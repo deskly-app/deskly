@@ -277,15 +277,30 @@ export default function GradesPage() {
   const totalCredits = useMemo(() => historyData?.cgpa?.creditsEarned ?? 0, [historyData]);
   const cgpaVal = useMemo(() => historyData?.cgpa?.cgpa ?? 0, [historyData]);
 
-  const gradeCounts = useMemo(() => {
-    const counts: Record<string, number> = { S: 0, A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, P: 0, N: 0 };
+  const gradeStats = useMemo(() => {
+    const stats: Record<string, { count: number; credits: number }> = {
+      S: { count: 0, credits: 0 },
+      A: { count: 0, credits: 0 },
+      B: { count: 0, credits: 0 },
+      C: { count: 0, credits: 0 },
+      D: { count: 0, credits: 0 },
+      E: { count: 0, credits: 0 },
+      F: { count: 0, credits: 0 },
+      P: { count: 0, credits: 0 },
+      N: { count: 0, credits: 0 },
+    };
     if (historyData?.grades) {
       historyData.grades.forEach((g) => {
         const cg = g.grade.trim().toUpperCase();
-        counts[cg] = (counts[cg] || 0) + 1;
+        if (stats[cg]) {
+          stats[cg].count += 1;
+          stats[cg].credits += g.credits || 0;
+        } else {
+          stats[cg] = { count: 1, credits: g.credits || 0 };
+        }
       });
     }
-    return counts;
+    return stats;
   }, [historyData]);
 
   const filteredHistoryGrades = useMemo(() => {
@@ -605,38 +620,52 @@ export default function GradesPage() {
             </div>
           )}
 
-          {/* Grade Distribution */}
+          {/* Grade Breakdown */}
           {historyData?.grades && historyData.grades.length > 0 && (
-            <section className="relative z-10 space-y-4 pt-2">
-              <h3 className="text-xs font-bold text-primary uppercase tracking-widest leading-none">
-                Grade Distribution
-              </h3>
-              <div className="bg-card/80 border border-border/40 p-4 sm:p-5 rounded-xl shadow-sm backdrop-blur-md">
-                <div className="grid grid-cols-2 min-[390px]:grid-cols-3 gap-3">
-                  {["S", "A", "B", "C", "D", "E", "F", "P", "N"].map((label) => {
-                    const count = gradeCounts[label] ?? 0;
-                    const pct = totalSubjects > 0 ? (count / totalSubjects) * 100 : 0;
-                    return (
-                      <div key={label} className="min-w-0 min-h-[82px] bg-muted/15 border border-border/15 rounded-lg p-3 flex flex-col justify-between gap-2 relative overflow-hidden">
-                        <div 
-                          className="absolute bottom-0 left-0 h-0.5 bg-primary/30 transition-all duration-500" 
-                          style={{ width: `${pct}%` }} 
-                        />
-                        <div className="flex items-center justify-between leading-none">
-                          <span className="min-w-0 truncate text-xs font-black uppercase text-muted-foreground/45 tracking-wider">
-                            Grade {label}
-                          </span>
-                          <span className="shrink-0 text-xs font-bold text-muted-foreground/30 tabular-nums">
-                            {Math.round(pct)}%
+            <section className="relative z-10 space-y-2 pt-2">
+              <div className="flex items-center justify-between px-1">
+                <h3 className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none">
+                  Grade Breakdown
+                </h3>
+                <span className="text-[11px] text-muted-foreground/50 font-medium">
+                  {totalSubjects} courses &bull; {totalCredits} credits
+                </span>
+              </div>
+
+              <div className="bg-card/80 border border-border/40 rounded-lg shadow-sm backdrop-blur-md overflow-hidden">
+                <div className="grid grid-cols-3 px-4 py-2.5 bg-muted/20 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider border-b border-border/15">
+                  <span>Grade</span>
+                  <span className="text-center">Courses</span>
+                  <span className="text-right">Credits</span>
+                </div>
+
+                <div className="divide-y divide-border/10">
+                  {["S", "A", "B", "C", "D", "E", "F", "P", "N"]
+                    .map((label) => {
+                      const { count, credits } = gradeStats[label] ?? { count: 0, credits: 0 };
+                      return { label, count, credits };
+                    })
+                    .filter((item) => item.count > 0)
+                    .map(({ label, count, credits }) => (
+                      <div
+                        key={label}
+                        className="grid grid-cols-3 items-center px-4 py-3 text-xs"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded bg-muted/30 border border-border/20 text-foreground font-black flex items-center justify-center text-xs">
+                            {label}
                           </span>
                         </div>
-                        <div className="flex items-baseline gap-0.5 leading-none">
-                          <span className="text-xl font-black text-foreground">{count}</span>
-                          <span className="min-w-0 truncate text-xs font-semibold text-muted-foreground/45 ml-0.5">{count === 1 ? "course" : "courses"}</span>
-                        </div>
+
+                        <span className="text-center font-bold text-foreground tabular-nums">
+                          {count}
+                        </span>
+
+                        <span className="text-right font-medium text-foreground tabular-nums">
+                          {credits}
+                        </span>
                       </div>
-                    );
-                  })}
+                    ))}
                 </div>
               </div>
             </section>

@@ -27,12 +27,10 @@ import {
   Bell,
   BellRing,
   Download,
-  CheckCircle2,
   AlertCircle,
   Clock,
   Loader2,
   Smartphone,
-  ArrowUpCircle,
 } from "lucide-react";
 import { DrawerSelect } from "@/components/ui/drawer-select";
 import { Drawer, DrawerContent, DrawerClose } from "@/components/ui/drawer";
@@ -117,9 +115,8 @@ function SettingsSkeleton() {
 
       {/* System & Updates Skeleton */}
       <div className="space-y-2.5">
-        <div className="flex items-center justify-between px-1">
+        <div className="px-1">
           <Sk className="h-3.5 w-28" />
-          <Sk className="h-3.5 w-16 rounded-full" />
         </div>
         <Sk className="h-28 w-full rounded-2xl" />
       </div>
@@ -494,22 +491,10 @@ export default function MobileSettings() {
 
       {/* ── Notifications Section ───────────────────────────────────────────── */}
       <section className="relative z-10 space-y-2.5">
-        <div className="flex items-center justify-between px-1">
+        <div className="px-1">
           <h2 className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none">
             Notifications
           </h2>
-          {hasNotificationPermission === true && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-green-600 dark:text-green-400">
-              <CheckCircle2 className="w-3 h-3" />
-              OS Allowed
-            </span>
-          )}
-          {hasNotificationPermission === false && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-yellow-600 dark:text-yellow-400">
-              <AlertCircle className="w-3 h-3" />
-              Permission Needed
-            </span>
-          )}
         </div>
 
         <div className="bg-card/80 border border-border/40 p-4 rounded-2xl shadow-sm backdrop-blur-md space-y-4">
@@ -678,27 +663,10 @@ export default function MobileSettings() {
 
       {/* ── System & Updates Section ────────────────────────────────────────── */}
       <section className="relative z-10 space-y-2.5">
-        <div className="flex items-center justify-between px-1 min-h-[1.25rem]">
+        <div className="px-1">
           <h2 className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest leading-none">
             System &amp; Updates
           </h2>
-          <div className="flex items-center min-h-[1rem]">
-            {updateState.status === "checking" && (
-              <Sk className="h-3.5 w-16 rounded-full" />
-            )}
-            {updateState.status === "upToDate" && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                <CheckCircle2 className="w-3 h-3" />
-                Up to date
-              </span>
-            )}
-            {updateState.status === "available" && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-500 dark:text-amber-400">
-                <ArrowUpCircle className="w-3 h-3" />
-                Update ready
-              </span>
-            )}
-          </div>
         </div>
 
         <div className="bg-card/80 border border-border/40 p-4 rounded-2xl shadow-sm backdrop-blur-md space-y-3.5">
@@ -734,7 +702,7 @@ export default function MobileSettings() {
                 <Sk className="h-3.5 w-44 rounded-md" />
               </div>
             ) : updateState.status === "available" ? (
-              <div className="flex items-center justify-between p-3 rounded-xl bg-primary/5 border border-primary/20 gap-3">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-border/30 gap-3">
                 <div className="space-y-0.5 min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-bold text-foreground truncate">
@@ -747,7 +715,7 @@ export default function MobileSettings() {
                 </div>
                 <button
                   onClick={handleDownloadUpdate}
-                  className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm hover:opacity-90 active:opacity-80 transition-all cursor-pointer shrink-0"
+                  className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-xs hover:opacity-90 active:opacity-80 transition-opacity cursor-pointer shrink-0"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Download</span>
@@ -760,7 +728,7 @@ export default function MobileSettings() {
               </div>
             ) : (
               <p className="text-xs text-muted-foreground/60 font-medium py-0.5">
-                You are running the latest version of Deskly.
+                Up to date
               </p>
             )}
           </div>
