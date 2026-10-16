@@ -8,7 +8,7 @@ import { ErrorDisplay } from "@/components/error-display";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { OfflineDisplay } from "@/components/offline-display";
 import { Copy, Check, Phone, Search, X } from "lucide-react";
-import contactImg from "@/assets/contact.png";
+import contactImg from "@/assets/contact.webp";
 
 function GmailIcon({ className }: { className?: string }) {
   return (

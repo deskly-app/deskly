@@ -4,7 +4,7 @@ import { getCurriculumCategories, CurriculumCategory } from "@/lib/features";
 
 import { ErrorDisplay } from "@/components/error-display";
 import { ScrollText, ChevronRight } from "lucide-react";
-import curriculumImg from "@/assets/curriculum.png";
+import curriculumImg from "@/assets/curriculum.webp";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { OfflineDisplay } from "@/components/offline-display";
 import { isNetworkError } from "@/lib/utils";

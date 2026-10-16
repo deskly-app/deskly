@@ -36,7 +36,7 @@ import { DrawerSelect } from "@/components/ui/drawer-select";
 import { Drawer, DrawerContent, DrawerClose } from "@/components/ui/drawer";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { isNetworkError } from "@/lib/utils";
-import settingsImg from "@/assets/settings.png";
+import settingsImg from "@/assets/settings.webp";
 import {
   getNotificationSettings,
   saveNotificationSettings,

@@ -2,7 +2,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Minus, Square, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import appLogo from "@/assets/app-logo.png";
+import appLogo from "@/assets/app-logo.webp";
 
 // Tauri v2 API for the current window
 const appWindow = getCurrentWindow();

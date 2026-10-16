@@ -7,7 +7,7 @@ import { useOnlineStatus } from "@/hooks/use-online-status";
 import { OfflineDisplay } from "@/components/offline-display";
 import { isNetworkError } from "@/lib/utils";
 import { useOfflineData } from "@/hooks/use-offline-data";
-import paymentImg from "@/assets/payment.png";
+import paymentImg from "@/assets/payment.webp";
 import { motion, AnimatePresence } from "framer-motion";
 import { Separator } from "@/components/ui/separator";
 import {

@@ -6,7 +6,7 @@ import { OfflineDisplay } from "@/components/offline-display";
 import { isNetworkError } from "@/lib/utils";
 import { useOfflineData } from "@/hooks/use-offline-data";
 import { ErrorDisplay } from "@/components/error-display";
-import profileImg from "@/assets/profile.png";
+import profileImg from "@/assets/profile.webp";
 import {
   User,
   Mail,

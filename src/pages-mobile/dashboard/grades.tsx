@@ -16,7 +16,7 @@ import { isNetworkError } from "@/lib/utils";
 import { useOfflineData } from "@/hooks/use-offline-data";
 import { DrawerSelect } from "@/components/ui/drawer-select";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
-import gradeHistoryImg from "@/assets/grade-history.png";
+import gradeHistoryImg from "@/assets/grade-history.webp";
 import {
   GraduationCap,
   Search,

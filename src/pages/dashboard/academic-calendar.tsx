@@ -15,7 +15,7 @@ import { isNetworkError } from "@/lib/utils";
 import { useOfflineData } from "@/hooks/use-offline-data";
 import { Info } from "lucide-react";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
-import calendarImg from "@/assets/calender.png";
+import calendarImg from "@/assets/calender.webp";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
